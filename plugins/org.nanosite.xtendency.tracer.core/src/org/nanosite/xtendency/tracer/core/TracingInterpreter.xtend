@@ -55,7 +55,7 @@ class TracingInterpreter extends XbaseInterpreter {
 		tn.input2impact(0)
 		tn.close(result)
 		result
-	}
+	} 
 	
 	override Object _doEvaluate(XForLoopExpression expr, IEvaluationContext context, CancelIndicator indicator) {
 		val tn = open(expr)
