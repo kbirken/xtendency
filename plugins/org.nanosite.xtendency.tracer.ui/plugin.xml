@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         point="org.eclipse.ui.views">
+      <view
+            class="org.nanosite.xtendency.tracer.ui.DerivedSourceView"
+            id="org.nanosite.xtendency.tracer.ui.generatedView"
+            name="Generated"
+            restorable="true">
+      </view>
+   </extension>
+   <extension
+         point="org.eclipse.ui.commands">
+      <command
+            defaultHandler="org.nanosite.xtendency.tracer.ui.ShowGeneratedViewHandler"
+            id="org.nanosite.xtendency.tracer.ui.showViewCommand"
+            name="Show Generated">
+      </command>
+   </extension>
+   <extension
+         point="org.eclipse.ui.menus">
+      <menuContribution
+            allPopups="false"
+            locationURI="popup:org.eclipse.ui.popup.any?after=additions">
+         <command
+               commandId="org.nanosite.xtendency.tracer.ui.showViewCommand"
+               label="Show generated code"
+               style="push">
+         </command>
+      </menuContribution>
+   </extension>
+
+</plugin>

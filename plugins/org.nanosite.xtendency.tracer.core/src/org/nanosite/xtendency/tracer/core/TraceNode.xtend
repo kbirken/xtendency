@@ -95,6 +95,8 @@ class TraceNode {
 	
 
 	// TODO: improve this clumsy implementation
+	// these are the times when I miss Haskell
+	// s ++ (replicate ' ' $ n - (length s))
 	def static fill(String s, int n) {
 		var i = s.length
 		var r = s
