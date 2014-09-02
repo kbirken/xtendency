@@ -19,6 +19,7 @@ import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.handlers.HandlerUtil;
 import org.eclipse.xtend.core.xtend.XtendFile;
 import org.eclipse.xtend.core.xtend.XtendFunction;
+import org.eclipse.xtend.core.xtend.XtendTypeDeclaration;
 import org.eclipse.xtend.ide.internal.XtendActivator;
 import org.eclipse.xtext.naming.QualifiedName;
 import org.eclipse.xtext.ui.resource.IResourceSetProvider;
@@ -60,7 +61,8 @@ public class ShowGeneratedViewHandler extends AbstractHandler {
 						URI.createURI(((IFile) s).getFullPath().toString()),
 						true);
 				XtendFile f = (XtendFile) r.getContents().get(0);
-				XtendFunction func = (XtendFunction) f.getXtendTypes().get(0)
+				XtendTypeDeclaration typeDecl = f.getXtendTypes().get(0);
+				XtendFunction func = (XtendFunction) typeDecl
 						.getMembers().get(0);
 				XExpression inputExpression = func.getExpression();
 				IEvaluationContext context = new DefaultEvaluationContext();
@@ -72,7 +74,7 @@ public class ShowGeneratedViewHandler extends AbstractHandler {
 								.getActivePage()
 								.showView(
 										"org.nanosite.xtendency.tracer.ui.generatedView");
-						view.setInput(inputExpression, context, (IFile)s);
+						view.setInput(typeDecl, inputExpression, context, (IFile)s);
 						PlatformUI.getWorkbench().getActiveWorkbenchWindow()
 								.getSelectionService()
 								.addSelectionListener(view);

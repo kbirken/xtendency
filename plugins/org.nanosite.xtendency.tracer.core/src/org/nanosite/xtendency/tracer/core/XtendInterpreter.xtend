@@ -9,8 +9,20 @@ import org.eclipse.xtend.core.xtend.RichString
 import org.eclipse.xtend.core.xtend.RichStringIf
 import org.eclipse.xtend.core.xtend.RichStringLiteral
 import org.eclipse.xtext.naming.QualifiedName
+import org.eclipse.xtext.xbase.XFeatureCall
+import org.eclipse.xtext.common.types.JvmOperation
+import java.util.List
+import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
+import org.eclipse.xtend.core.xtend.XtendFile
+import org.eclipse.xtend.core.xtend.XtendFunction
 
 class XtendInterpreter extends XbaseInterpreter {
+	
+	XtendTypeDeclaration currentType
+	
+	def setCurrentType(XtendTypeDeclaration thisType){
+		this.currentType = thisType
+	}
 	
 	protected def Object _doEvaluate(RichString rs, IEvaluationContext context, CancelIndicator indicator){
 		rs.evaluateRichString(context, indicator)
@@ -85,6 +97,24 @@ class XtendInterpreter extends XbaseInterpreter {
 		}else{
 			super.doEvaluate(expression, context, indicator)
 		}
+	}
+	
+	protected override Object invokeOperation(JvmOperation operation, Object receiver, List<Object> argumentValues,
+			IEvaluationContext context, CancelIndicator indicator) {
+		val calledType = operation.declaringType.qualifiedName
+		if (currentType != null){
+			val currentTypeName = (currentType.eContainer as XtendFile).package + "." + currentType.name
+			if (currentTypeName == calledType && receiver == null){
+				val calledFunc = currentType.members.findFirst[it instanceof XtendFunction && (it as XtendFunction).name == operation.simpleName && (it as XtendFunction).parameters.size == argumentValues.size] as XtendFunction
+				val newContext = context.fork
+				for (var i = 0; i < argumentValues.size; i++){
+					val paramName = calledFunc.parameters.get(i).name
+					newContext.newValue(QualifiedName.create(paramName), argumentValues.get(i))
+				}
+				return doEvaluate(calledFunc.expression, newContext, indicator)
+			}
+ 		}
+		super.invokeOperation(operation, receiver, argumentValues, context, indicator)
 	}
 	
 	/*

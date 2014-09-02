@@ -28,6 +28,8 @@ class TracingInterpreter extends XtendInterpreter {
 	private TraceTreeNode deprecated_resultNode
 
 	private Stack<TraceTreeNode> deprecated_stack = new Stack<TraceTreeNode>
+	
+	
 
 	protected override String evaluateRichString(XExpression e, IEvaluationContext context, CancelIndicator indicator) {
 

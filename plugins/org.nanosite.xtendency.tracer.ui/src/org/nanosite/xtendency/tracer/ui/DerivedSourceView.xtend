@@ -59,6 +59,7 @@ import static org.eclipse.jface.resource.JFaceResources.*
 import static org.eclipse.ui.editors.text.EditorsUI.*
 import org.nanosite.xtendency.tracer.core.TracingInterpreter
 import org.nanosite.xtendency.tracer.core.TraceTreeNode
+import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
 
 /**
  *
@@ -143,7 +144,8 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		}
 	}
 
-	def setInput(XExpression inputExpression, IEvaluationContext context, IFile file) {
+	def setInput(XtendTypeDeclaration typeDecl, XExpression inputExpression, IEvaluationContext context, IFile file) {
+		interpreter.currentType = typeDecl
 		this.inputExpression = inputExpression
 		this.initialContext = context
 		this.selectedFile = file
@@ -246,6 +248,7 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 			resource.load(Collections.EMPTY_MAP)
 			inputExpression = ((resource.contents.head as XtendFile).xtendTypes.head.members.head as XtendFunction).
 				expression
+			interpreter.currentType = (resource.contents.head as XtendFile).xtendTypes.head
 		}
 		refreshJob.reschedule();
 	}
@@ -313,6 +316,8 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 				return false
 			}
 		} else {
+			// this could be a function call, in which case the children are actually somewhere else
+			current.children.forEach[findRelevantNodes(nodes, offset, length)]
 			return false
 		}
 	}
