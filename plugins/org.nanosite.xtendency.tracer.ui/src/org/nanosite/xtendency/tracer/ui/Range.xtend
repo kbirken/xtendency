@@ -22,6 +22,6 @@ class Range {
 	}
 	
 	def boolean overlaps(Range other){
-		#[first, end-1, other.first, other.end-1].exists[contains(it) && other.contains(it)]
+		#[first, end-1].exists[other.contains(it)] || #[other.first, other.end-1].exists[contains]
 	}
 }
