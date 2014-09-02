@@ -1,5 +1,6 @@
 package org.nanosite.xtendency.tracer.ui;
 
+import org.eclipse.core.commands.AbstractHandler;
 import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.commands.IHandler;
@@ -27,22 +28,22 @@ import org.eclipse.xtext.xbase.interpreter.impl.DefaultEvaluationContext;
 
 import com.google.inject.Inject;
 
-public class ShowGeneratedViewHandler implements IHandler {
+public class ShowGeneratedViewHandler extends AbstractHandler {
 	
 	@Inject 
 	private IResourceSetProvider rsProvider; 
 
-	@Override
-	public void addHandlerListener(IHandlerListener handlerListener) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void dispose() {
-		// TODO Auto-generated method stub
-
-	}
+//	@Override
+//	public void addHandlerListener(IHandlerListener handlerListener) {
+//		// TODO Auto-generated method stub
+//
+//	}
+//
+//	@Override
+//	public void dispose() {
+//		// TODO Auto-generated method stub
+//
+//	}
 
 	@SuppressWarnings("restriction")
 	@Override
@@ -88,21 +89,21 @@ public class ShowGeneratedViewHandler implements IHandler {
 		return null;
 	}
 
-	@Override
-	public boolean isEnabled() {
-		return true;
-	}
-
-	@Override
-	public boolean isHandled() {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	@Override
-	public void removeHandlerListener(IHandlerListener handlerListener) {
-		// TODO Auto-generated method stub
-
-	}
+//	@Override
+//	public boolean isEnabled() {
+//		return true;
+//	}
+//
+//	@Override
+//	public boolean isHandled() {
+//		// TODO Auto-generated method stub
+//		return false;
+//	}
+//
+//	@Override
+//	public void removeHandlerListener(IHandlerListener handlerListener) {
+//		// TODO Auto-generated method stub
+//
+//	}
 
 }
