@@ -60,7 +60,7 @@ import static org.eclipse.ui.editors.text.EditorsUI.*
 import org.nanosite.xtendency.tracer.core.TracingInterpreter
 import org.nanosite.xtendency.tracer.core.TraceTreeNode
 import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
-import org.eclipse.swt.internal.Lock
+import java.util.concurrent.locks.Lock
 
 /**
  *
@@ -202,18 +202,12 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		return getLanguageName() + ".ui.editors.textfont"; //$NON-NLS-1$
 	}
 
-	// TODO: replace by synchronized as soon as it is available in Xtend
-	val Lock lock = new Lock
 	override protected String computeInput(IWorkbenchPartSelection workbenchPartSelection) {
-		lock.lock
 		println("recomputing input")
-		interpreter.reset
-		val interpResult = interpreter.evaluate(inputExpression, initialContext.fork, null)
+		val interpResult = SynchronizedInterpreterAccess.evaluate(interpreter, inputExpression, initialContext.fork)
 		if (interpResult.result != null && interpResult.result instanceof CharSequence) {
-			lock.unlock
 			return interpResult.result.toString
 		} else {
-			lock.unlock
 			return interpResult.exception.toString
 		}
 	}
