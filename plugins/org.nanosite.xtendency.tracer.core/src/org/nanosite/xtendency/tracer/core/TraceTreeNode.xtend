@@ -37,6 +37,10 @@ class TraceTreeNode {
 	int offset
 	int length
 	String str
+	
+	override toString() {
+		println("[" + offset + "/" + length + " '" + str + "']")
+	}
 }
 
 @Data class InputData {
