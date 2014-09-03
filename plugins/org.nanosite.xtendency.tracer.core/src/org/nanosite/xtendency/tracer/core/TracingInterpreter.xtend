@@ -1,6 +1,9 @@
 package org.nanosite.xtendency.tracer.core
 
+import java.util.HashMap
+import java.util.Map
 import java.util.Stack
+import org.eclipse.xtend.core.xtend.RichString
 import org.eclipse.xtext.util.CancelIndicator
 import org.eclipse.xtext.xbase.XAbstractFeatureCall
 import org.eclipse.xtext.xbase.XAssignment
@@ -10,8 +13,6 @@ import org.eclipse.xtext.xbase.XForLoopExpression
 import org.eclipse.xtext.xbase.XIfExpression
 import org.eclipse.xtext.xbase.XStringLiteral
 import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
-import java.util.Map
-import java.util.HashMap
 
 /*
  * Just added the tracing for rich strings for now, should be fused with the existing tracing mechanism.
@@ -22,41 +23,29 @@ class TracingInterpreter extends XtendInterpreter {
 
 	Stack<TraceNode> stack = new Stack
 
-	// deprecated attributes should be abandoned for other stack
-	private int deprecated_offset = 0
-
-	private TraceTreeNode deprecated_resultNode
-
-	private Stack<TraceTreeNode> deprecated_stack = new Stack<TraceTreeNode>
-	
+	XtendTraceContext tc = new XtendTraceContext
 	
 
-	protected override String evaluateRichString(XExpression e, IEvaluationContext context, CancelIndicator indicator) {
-
-		val offsetBefore = deprecated_offset
-		val myNode = new TraceTreeNode
-
-		deprecated_stack.push(myNode)
+	override Object _doEvaluate(RichString rs, IEvaluationContext context, CancelIndicator indicator) {
+		val offsetBefore = tc.enter
 
 		val Map<String, Object> ctx = new HashMap<String, Object>
 
 		//		if (context instanceof ChattyEvaluationContext){
 		//			context.allMappings.forEach[key, value| ctx.put(key.toString, value)]
 		//		}
-		val result = doEvaluateRichString(e, context, indicator)
-		myNode.input = new InputData(e, ctx)
-		myNode.output = new OutputLocation(offsetBefore, result.length, result)
-
-		deprecated_stack.pop
-
-		if (deprecated_stack.empty())
-			deprecated_resultNode = myNode
-		else
-			deprecated_stack.peek.children.add(myNode)
-
-		deprecated_offset = offsetBefore + result.length
+		val result = super._doEvaluate(rs, context, indicator) as String
+		tc.setInput(rs, ctx)
+		tc.setOutput(offsetBefore, result)
+		tc.exit(offsetBefore)
+		
 		return result
 	}
+	
+	override def IRichStringExecutor createRichStringExecutor(IEvaluationContext context, CancelIndicator indicator) {
+		new TracingRichStringExecutor(tc, this, context, indicator)
+	}
+	
 
 	override Object _doEvaluate(XBlockExpression expr, IEvaluationContext context, CancelIndicator indicator) {
 		val tn = open(expr)
@@ -116,21 +105,20 @@ class TracingInterpreter extends XtendInterpreter {
 		stack.pop
 
 		if (stack.isEmpty) {
-			tn.dump(0)
-			println("Annotated result:")
-			println(tn.annotatedResult)
+//			tn.dump(0)
+//			println("Annotated result:")
+//			println(tn.annotatedResult)
 		} else {
 			stack.peek.addInput(tn)
 		}
 	}
 
 	def getTraces() {
-		return deprecated_resultNode
+		tc.getTraces
 	}
 
 	def reset() {
-		deprecated_resultNode = null
-		deprecated_offset = 0
+		tc.reset
 	}
 
 }
