@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" name="runConf" nsURI="http://www.nanosite.org/xtendency/tracer/RunConf"
+    nsPrefix="runConf">
+  <eClassifiers xsi:type="ecore:EClass" name="RunConfiguration">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="projectName" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="clazz" eType="ecore:EClass platform:/resource/org.eclipse.xtend.core/model/Xtend.ecore#//XtendTypeDeclaration"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="function" eType="ecore:EClass platform:/resource/org.eclipse.xtend.core/model/Xtend.ecore#//XtendFunction"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="init" eType="ecore:EClass platform:/resource/org.eclipse.xtext.purexbase/org/eclipse/xtext/purexbase/PureXbase.ecore#//Model"
+        containment="true"/>
+  </eClassifiers>
+</ecore:EPackage>

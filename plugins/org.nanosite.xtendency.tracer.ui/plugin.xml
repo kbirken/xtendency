@@ -17,6 +17,11 @@
             id="org.nanosite.xtendency.tracer.ui.showViewCommand"
             name="Show Generated">
       </command>
+      <command
+            defaultHandler="org.nanosite.xtendency.tracer.ui.ShowGeneratedViewFromConfHandler"
+            id="org.nanosite.xtendency.tracer.ui.showViewFromConfCommand"
+            name="Show Generated From Conf">
+      </command>
    </extension>
    <extension
          point="org.eclipse.ui.menus">
@@ -26,6 +31,15 @@
          <command
                commandId="org.nanosite.xtendency.tracer.ui.showViewCommand"
                label="Show generated code"
+               style="push">
+         </command>
+      </menuContribution>
+      <menuContribution
+            allPopups="false"
+            locationURI="popup:org.eclipse.ui.popup.any?after=additions">
+         <command
+               commandId="org.nanosite.xtendency.tracer.ui.showViewFromConfCommand"
+               label="Execute run configuration"
                style="push">
          </command>
       </menuContribution>

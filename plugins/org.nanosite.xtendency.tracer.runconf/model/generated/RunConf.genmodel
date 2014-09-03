@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<genmodel:GenModel xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore"
+    xmlns:genmodel="http://www.eclipse.org/emf/2002/GenModel" modelDirectory="/org.nanosite.xtendency.tracer.runconf/src-gen"
+    editDirectory="/org.nanosite.xtendency.tracer.runconf.edit/src" editorDirectory="/org.nanosite.xtendency.tracer.runconf.editor/src"
+    modelPluginID="org.nanosite.xtendency.tracer.runconf" forceOverwrite="true" modelName="RunConf"
+    updateClasspath="false" rootExtendsClass="org.eclipse.emf.ecore.impl.MinimalEObjectImpl$Container"
+    complianceLevel="5.0" copyrightFields="false" editPluginID="org.nanosite.xtendency.tracer.runconf.edit"
+    editorPluginID="org.nanosite.xtendency.tracer.runconf.editor" runtimeVersion="2.10"
+    usedGenPackages="platform:/resource/org.eclipse.xtend.core/model/Xtend.genmodel#//xtend platform:/resource/org.eclipse.xtext.purexbase/org/eclipse/xtext/purexbase/PureXbase.genmodel#//pureXbase">
+  <genPackages prefix="RunConf" basePackage="org.nanosite.xtendency.tracer" disposableProviderFactory="true"
+      fileExtensions="rconf" ecorePackage="RunConf.ecore#/">
+    <genClasses ecoreClass="RunConf.ecore#//RunConfiguration">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute RunConf.ecore#//RunConfiguration/name"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute RunConf.ecore#//RunConfiguration/projectName"/>
+      <genFeatures notify="false" createChild="false" propertySortChoices="true" ecoreFeature="ecore:EReference RunConf.ecore#//RunConfiguration/clazz"/>
+      <genFeatures notify="false" createChild="false" propertySortChoices="true" ecoreFeature="ecore:EReference RunConf.ecore#//RunConfiguration/function"/>
+      <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference RunConf.ecore#//RunConfiguration/init"/>
+    </genClasses>
+  </genPackages>
+</genmodel:GenModel>

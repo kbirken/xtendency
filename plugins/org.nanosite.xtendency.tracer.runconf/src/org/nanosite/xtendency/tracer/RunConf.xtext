@@ -1,0 +1,19 @@
+grammar org.nanosite.xtendency.tracer.RunConf with org.eclipse.xtext.purexbase.PureXbase
+
+generate runConf "http://www.nanosite.org/xtendency/tracer/RunConf"
+
+import "http://www.eclipse.org/xtend"
+
+RunConfiguration:
+	'runConfiguration' name = ID '{'
+		'project' projectName = STRING
+		'class' clazz=[XtendTypeDeclaration | FQN] ':' function = [XtendFunction]
+		('initialize' '{' init = Model '}')?
+	'}'
+;
+
+FQN:
+	ID ('.' ID)*
+;
+	
+
