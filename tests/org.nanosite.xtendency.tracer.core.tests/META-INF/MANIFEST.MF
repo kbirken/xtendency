@@ -14,5 +14,5 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.xtend.standalone;bundle-version="2.5.0",
  org.nanosite.xtendency.tracer.core;bundle-version="0.1.0"
 Bundle-ActivationPolicy: lazy
-Bundle-RequiredExecutionEnvironment: JavaSE-1.6
+Bundle-RequiredExecutionEnvironment: JavaSE-1.7
 

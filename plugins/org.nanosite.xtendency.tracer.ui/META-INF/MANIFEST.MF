@@ -17,7 +17,7 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.ui.ide;bundle-version="3.10.0",
  org.nanosite.xtendency.tracer.core;bundle-version="0.1.0",
  org.nanosite.xtendency.tracer.runconf,
- org.nanosite.xtendency.tracer.runconf.ui;bundle-version="1.0.0"
+ org.nanosite.xtendency.tracer.runconf.ui
 Bundle-ActivationPolicy: lazy
-Bundle-RequiredExecutionEnvironment: JavaSE-1.6
+Bundle-RequiredExecutionEnvironment: JavaSE-1.7
 
