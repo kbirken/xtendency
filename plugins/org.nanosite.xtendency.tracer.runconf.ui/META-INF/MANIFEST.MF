@@ -1,8 +1,7 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
-Bundle-Name: org.nanosite.xtendency.tracer.runconf.ui
-Bundle-Vendor: My Company
-Bundle-Version: 1.0.0.qualifier
+Bundle-Name: Xtendency Configuration DSL UI
+Bundle-Version: 0.1.0.qualifier
 Bundle-SymbolicName: org.nanosite.xtendency.tracer.runconf.ui; singleton:=true
 Bundle-ActivationPolicy: lazy
 Require-Bundle: org.nanosite.xtendency.tracer.runconf;visibility:=reexport,
