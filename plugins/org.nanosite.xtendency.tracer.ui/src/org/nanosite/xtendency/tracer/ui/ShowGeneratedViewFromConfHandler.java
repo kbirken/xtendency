@@ -26,13 +26,16 @@ import org.eclipse.xtext.xbase.XBlockExpression;
 import org.eclipse.xtext.xbase.XExpression;
 import org.eclipse.xtext.xbase.XbaseFactory;
 import org.eclipse.xtext.xbase.interpreter.IEvaluationContext;
+import org.eclipse.xtext.xbase.interpreter.IEvaluationResult;
 import org.eclipse.xtext.xbase.interpreter.impl.DefaultEvaluationContext;
+import org.eclipse.xtext.xbase.interpreter.impl.XbaseInterpreter;
+import org.nanosite.xtendency.tracer.runConf.InitBlock;
 import org.nanosite.xtendency.tracer.runConf.RunConfiguration;
 
 import com.google.inject.Inject;
 
 public class ShowGeneratedViewFromConfHandler extends AbstractHandler {
-
+	@Inject private XbaseInterpreter interpreter;
 	
 	@Inject 
 	private IResourceSetProvider rsProvider; 
@@ -60,14 +63,13 @@ public class ShowGeneratedViewFromConfHandler extends AbstractHandler {
 				XtendFunction func = rc.getFunction();
 				XExpression inputExpression = func.getExpression();
 				IEvaluationContext context = new DefaultEvaluationContext();
-				//context.newValue(QualifiedName.create("param"), "someString");
 				
-				XBlockExpression combinedExpression = XbaseFactory.eINSTANCE.createXBlockExpression();
-				rc.eResource().getContents().add(combinedExpression);
-				if (rc.getInit() != null && rc.getInit().getBlock() != null){
-					combinedExpression.getExpressions().addAll(rc.getInit().getBlock().getExpressions());
+				for (InitBlock i : rc.getInits()){
+					IEvaluationResult result = interpreter.evaluate(i.getExpr());
+					Object value = result.getResult();
+					context.newValue(QualifiedName.create(i.getParam()), value);
 				}
-				combinedExpression.getExpressions().add(inputExpression);
+				
 				try {
 					try {
 						DerivedSourceView view = (DerivedSourceView) HandlerUtil
@@ -75,7 +77,7 @@ public class ShowGeneratedViewFromConfHandler extends AbstractHandler {
 								.getActivePage()
 								.showView(
 										"org.nanosite.xtendency.tracer.ui.generatedView");
-						view.setInput(typeDecl, combinedExpression, context, file);
+						view.setInput(typeDecl, inputExpression, context, file);
 						PlatformUI.getWorkbench().getActiveWorkbenchWindow()
 								.getSelectionService()
 								.addSelectionListener(view);

@@ -1,15 +1,26 @@
-grammar org.nanosite.xtendency.tracer.RunConf with org.eclipse.xtext.purexbase.PureXbase
+grammar org.nanosite.xtendency.tracer.RunConf with org.eclipse.xtext.xbase.Xbase
 
 generate runConf "http://www.nanosite.org/xtendency/tracer/RunConf"
 
 import "http://www.eclipse.org/xtend"
 
 RunConfiguration:
+	(imports += Import)*
 	'runConfiguration' name = ID '{'
 		'project' projectName = STRING
 		'class' clazz=[XtendTypeDeclaration | FQN] ':' function = [XtendFunction]
-		('initialize' '{' init = Model '}')?
+		('initialize' '{' 
+			(inits += InitBlock)*
+		'}')?
 	'}'
+;
+
+InitBlock:
+	param = STRING '=' expr = XBlockExpression
+;
+
+Import:
+	'import' importedNamespace = QualifiedNameWithWildcard
 ;
 
 FQN:

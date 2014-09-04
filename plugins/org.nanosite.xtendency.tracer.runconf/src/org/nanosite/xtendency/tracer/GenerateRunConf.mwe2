@@ -16,8 +16,10 @@ Workflow {
     	scanClassPath = true
     	platformUri = "${runtimeProject}/.."
     	// The following two lines can be removed, if Xbase is not used.
-    	registerGeneratedEPackage = "org.eclipse.xtext.purexbase.pureXbase.PureXbasePackage"
-    	registerGenModelFile = "platform:/resource/org.eclipse.xtext.purexbase/org/eclipse/xtext/purexbase/PureXbase.genmodel"
+//    	registerGeneratedEPackage = "org.eclipse.xtext.purexbase.pureXbase.PureXbasePackage"
+//    	registerGenModelFile = "platform:/resource/org.eclipse.xtext.purexbase/org/eclipse/xtext/purexbase/PureXbase.genmodel"
+    	registerGeneratedEPackage = "org.eclipse.xtext.xbase.XbasePackage"
+    	registerGenModelFile = "platform:/resource/org.eclipse.xtext.xbase/model/Xbase.genmodel"
     	registerGeneratedEPackage = "org.eclipse.xtend.core.xtend.XtendPackage"
     	registerGenModelFile = "platform:/resource/org.eclipse.xtend.core/model/Xtend.genmodel"
     }
@@ -79,12 +81,12 @@ Workflow {
     		}
     
     		// old scoping and exporting API
-    		 fragment = scoping.ImportURIScopingFragment auto-inject {}
-    		 fragment = exporting.SimpleNamesFragment auto-inject {}
+//    		 fragment = scoping.ImportURIScopingFragment auto-inject {}
+//    		 fragment = exporting.SimpleNamesFragment auto-inject {}
     
     		// scoping and exporting API
-//    		fragment = scoping.ImportNamespacesScopingFragment auto-inject {}
-//    		fragment = exporting.QualifiedNamesFragment auto-inject {}
+    		fragment = scoping.ImportNamespacesScopingFragment auto-inject {}
+    		fragment = exporting.QualifiedNamesFragment auto-inject {}
     		fragment = builder.BuilderIntegrationFragment auto-inject {}
     
     		// generator API

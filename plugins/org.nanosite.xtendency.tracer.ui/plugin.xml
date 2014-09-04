@@ -32,6 +32,25 @@
                commandId="org.nanosite.xtendency.tracer.ui.showViewCommand"
                label="Show generated code"
                style="push">
+            <visibleWhen
+                  checkEnabled="false">
+               <with
+                     variable="selection">
+                  <and>
+                     <count
+                           value="1">
+                     </count>
+                     <iterate
+                           ifEmpty="false"
+                           operator="and">
+                        <test
+                              property="org.eclipse.core.resources.extension"
+                              value="xtend">
+                        </test>
+                     </iterate>
+                  </and>
+               </with>
+            </visibleWhen>
          </command>
       </menuContribution>
       <menuContribution
@@ -41,6 +60,25 @@
                commandId="org.nanosite.xtendency.tracer.ui.showViewFromConfCommand"
                label="Execute run configuration"
                style="push">
+            <visibleWhen
+                  checkEnabled="false">
+               <with
+                     variable="selection">
+                  <and>
+                     <count
+                           value="1">
+                     </count>
+                     <iterate
+                           ifEmpty="false"
+                           operator="and">
+                        <test
+                              property="org.eclipse.core.resources.extension"
+                              value="rconf">
+                        </test>
+                     </iterate>
+                  </and>
+               </with>
+            </visibleWhen>
          </command>
       </menuContribution>
    </extension>

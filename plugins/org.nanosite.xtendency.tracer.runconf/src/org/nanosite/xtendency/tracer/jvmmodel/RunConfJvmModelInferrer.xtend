@@ -14,7 +14,7 @@ import org.nanosite.xtendency.tracer.runConf.RunConfiguration
  */
 class RunConfJvmModelInferrer extends AbstractModelInferrer {
 
-    /**
+	/**
      * convenience API to build and initialize JVM types and their members.
      */
 	@Inject extension JvmTypesBuilder
@@ -44,20 +44,30 @@ class RunConfJvmModelInferrer extends AbstractModelInferrer {
 	 *            rely on linking using the index if isPreIndexingPhase is
 	 *            <code>true</code>.
 	 */
-   	def dispatch void infer(RunConfiguration element, IJvmDeclaredTypeAcceptor acceptor, boolean isPreIndexingPhase) {
-   		// Here you explain how your model is mapped to Java elements, by writing the actual translation code.
-   		
-   		// An implementation for the initial hello world example could look like this:
-//   		acceptor.accept(element.toClass("my.company.greeting.MyGreetings"))
-//   			.initializeLater([
-//   				for (greeting : element.greetings) {
-//   					members += greeting.toMethod("hello" + greeting.name, greeting.newTypeRef(typeof(String))) [
-//   						body = [
-//   							append('''return "Hello «greeting.name»";''')
-//   						]
-//   					]
-//   				}
-//   			])
-   	}
-}
+	def dispatch void infer(RunConfiguration element, IJvmDeclaredTypeAcceptor acceptor, boolean isPreIndexingPhase) {
 
+		// Here you explain how your model is mapped to Java elements, by writing the actual translation code.
+		if (element.inits != null) {
+			acceptor.accept(element.toClass(element.clazz.name)).initializeLater [
+				for (i : element.inits) {
+					members += i.toMethod("initialize" + i.param.toFirstUpper, element.newTypeRef(Object),
+						[
+							body = i.expr
+						])
+				}
+			]
+		}
+
+	// An implementation for the initial hello world example could look like this:
+	//   		acceptor.accept(element.toClass("my.company.greeting.MyGreetings"))
+	//   			.initializeLater([
+	//   				for (greeting : element.greetings) {
+	//   					members += greeting.toMethod("hello" + greeting.name, greeting.newTypeRef(typeof(String))) [
+	//   						body = [
+	//   							append('''return "Hello «greeting.name»";''')
+	//   						]
+	//   					]
+	//   				}
+	//   			])
+	}
+}

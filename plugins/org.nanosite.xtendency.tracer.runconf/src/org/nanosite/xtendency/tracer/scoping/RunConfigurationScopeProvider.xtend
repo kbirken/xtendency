@@ -13,21 +13,17 @@ import org.eclipse.xtext.xbase.annotations.typesystem.XbaseWithAnnotationsBatchS
 import org.eclipse.emf.ecore.EObject
 import org.eclipse.xtend.core.xtend.XtendPackage
 import org.nanosite.xtendency.tracer.runConf.RunConfPackage
+import org.eclipse.xtext.xbase.scoping.batch.XbaseBatchScopeProvider
 
-class RunConfigurationScopeProvider extends XbaseWithAnnotationsBatchScopeProvider {
+class RunConfigurationScopeProvider extends XbaseBatchScopeProvider {
 	private val resolver = SimpleAttributeResolver.newResolver(typeof(String), "name")
-	
-	def scope_RunConfiguration_function(RunConfiguration ctx, EReference ref) {
-		val LinkingDiagnosticMessageProvider p = null
-		println("!!!!!! returning " + ctx.clazz.members.filter[it instanceof XtendFunction])
-		//Scopes.scopeFor(ctx.clazz.members.filter[it instanceof XtendFunction], [m | QualifiedName.create(m.declaringType.name, (m as XtendFunction).name)], IScope.NULLSCOPE)
-		Scopes.scopeFor(ctx.clazz.members.filter[it instanceof XtendFunction], QualifiedName.wrapper(resolver), IScope.NULLSCOPE)
-	}
 	
 	override getScope(EObject context, EReference reference) {
 		if (context instanceof RunConfiguration && reference == RunConfPackage.eINSTANCE.runConfiguration_Function){
 			return Scopes.scopeFor((context as RunConfiguration).clazz.members.filter[it instanceof XtendFunction], QualifiedName.wrapper(resolver), IScope.NULLSCOPE)
 		}else{
+			if (!(context instanceof RunConfiguration))
+				println("getscope for context " + context)
 			super.getScope(context, reference)
 		}
 	}
