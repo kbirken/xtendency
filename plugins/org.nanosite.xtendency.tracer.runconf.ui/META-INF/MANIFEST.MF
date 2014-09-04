@@ -20,8 +20,9 @@ Require-Bundle: org.nanosite.xtendency.tracer.runconf;visibility:=reexport,
  org.eclipse.xtext.purexbase.ui;bundle-version="2.6.0"
 Import-Package: org.apache.log4j,
  org.eclipse.xtext.xbase.lib
-Bundle-RequiredExecutionEnvironment: J2SE-1.5
+Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Export-Package: org.nanosite.xtendency.tracer.ui,
+ org.nanosite.xtendency.tracer.ui.quickfix,
  org.nanosite.xtendency.tracer.ui.contentassist,
  org.nanosite.xtendency.tracer.ui.contentassist.antlr,
  org.nanosite.xtendency.tracer.ui.internal,
