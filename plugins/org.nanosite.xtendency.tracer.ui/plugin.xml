@@ -22,6 +22,12 @@
             id="org.nanosite.xtendency.tracer.ui.showViewFromConfCommand"
             name="Show Generated From Conf">
       </command>
+      <command
+            defaultHandler="org.nanosite.xtendency.tracer.ui.GenerateRunConfigHandler"
+            description="Generates an Xtendency run configuration for this method"
+            id="org.nanosite.xtendency.tracer.ui.GenerateRunConfig"
+            name="GenerateRunConfig">
+		</command>
    </extension>
    <extension
          point="org.eclipse.ui.menus">
@@ -81,6 +87,15 @@
             </visibleWhen>
          </command>
       </menuContribution>
+      <menuContribution
+			locationURI="popup:#TextEditorContext?after=group.open">
+			<command
+         commandId="org.nanosite.xtendency.tracer.ui.GenerateRunConfig"
+         label="Generate run config"
+         style="push"
+         tooltip="Generate Run Config">
+			</command>
+		</menuContribution>
    </extension>
 
 </plugin>
