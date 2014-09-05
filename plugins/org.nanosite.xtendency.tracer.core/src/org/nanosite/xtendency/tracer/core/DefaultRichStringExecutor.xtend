@@ -135,8 +135,15 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 	val forLoopStack = new Stack<DefaultRichStringExecutor.ForLoop>
 	
 	override acceptForLoop(JvmFormalParameter parameter, /* @Nullable */ XExpression expression) {
-		val iter = (eval(expression) as Iterable<?>).iterator
-		forLoopStack.push(new DefaultRichStringExecutor.ForLoop(parameter, iter))
+		val obj = eval(expression) as Iterable<?>
+		if (obj==null) {
+			System.err.println("ERROR: For-loop-expression evaluated to null")
+			// ignore this for-loop			
+			forLoopStack.push(new DefaultRichStringExecutor.ForLoop(parameter))
+		} else {
+			val iter = obj.iterator
+			forLoopStack.push(new DefaultRichStringExecutor.ForLoop(parameter, iter))
+		}
 	}
 
 	override forLoopHasNext(/* @Nullable */ XExpression before, /* @Nullable */ XExpression separator, CharSequence indentation) {
@@ -189,9 +196,11 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 
 	def private eval(XExpression expression) {
 		val result = interpreter.evaluate(expression, contextStack.peek, indicator)
-		
-		// TODO: error handling
-		result.result
+		if (result.exception!=null) {
+			System.err.println("ERROR during evaluation: " + result.exception.toString)			
+		} else {
+			result.result
+		}
 	}
 	
 	def protected void append(CharSequence str, XExpression input) {
