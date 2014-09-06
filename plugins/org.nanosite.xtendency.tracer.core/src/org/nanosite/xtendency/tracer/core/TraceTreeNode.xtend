@@ -1,9 +1,11 @@
 package org.nanosite.xtendency.tracer.core
 
-import org.eclipse.xtext.xbase.XExpression
-import java.util.Map
 import java.util.ArrayList
 import java.util.List
+import java.util.Map
+import org.eclipse.xtend.core.xtend.RichStringLiteral
+import org.eclipse.xtext.xbase.XExpression
+import org.eclipse.xtend.core.xtend.impl.RichStringLiteralImpl
 
 /**
  * Should be merged with TraceNode
@@ -31,6 +33,14 @@ class TraceTreeNode {
 		this.output = o
 	}
 	
+	override toString() {
+		val in =
+			if (input.expression instanceof RichStringLiteral)
+				"'" + (input.expression as RichStringLiteral).value.replace("\n", "\\n") + "'"
+			else
+				input.expression.toString
+		"TTN:" + in + "=>" + output
+	}
 }
 
 @Data class OutputLocation{
@@ -39,7 +49,7 @@ class TraceTreeNode {
 	String str
 	
 	override toString() {
-		println("[" + offset + "/" + length + " '" + str + "']")
+		"[" + offset + "/" + length + " '" + str.replace("\n", "\\n") + "']"
 	}
 }
 
