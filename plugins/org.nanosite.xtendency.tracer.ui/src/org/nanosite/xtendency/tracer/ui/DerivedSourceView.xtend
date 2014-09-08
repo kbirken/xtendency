@@ -94,6 +94,8 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 	private IFile selectedFile
 
 	private IFile rconfFile
+	
+	@Inject ClassLoader defaultClassLoader
 
 	private int lastOffsetInEditor = -1
 	private int lastLengthInEditor = -1
@@ -178,7 +180,7 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		val project = ResourcesPlugin.getWorkspace.root.getProject(rc.projectName)
 		val classPathEntries = JavaRuntime.computeDefaultRuntimeClassPath(JavaCore.create(project))
 		val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
-		interpreter.classLoader = new URLClassLoader(classPathUrls, Thread.currentThread.contextClassLoader)
+		interpreter.classLoader = new URLClassLoader(classPathUrls, defaultClassLoader)
 
 		val f = rc.getClazz().eContainer() as XtendFile
 		val filePath = dropFirstSegment(f.eResource().getURI());
@@ -187,9 +189,9 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		val func = rc.getFunction();
 		val inputExpression = func.getExpression();
 		val context = new DefaultEvaluationContext();
-		
-		for (field : rc.clazz.members.filter(XtendField)){
-			val value = if (field.initialValue != null) interpreter.evaluate(field.initialValue).result else null
+
+		for (field : rc.clazz.members.filter(XtendField)) {
+			val value = if(field.initialValue != null) interpreter.evaluate(field.initialValue).result else null
 			context.newValue(QualifiedName.create(field.name), value)
 		}
 
@@ -300,17 +302,33 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		}
 	}
 
+	//TODO: clean up this mess
 	override public void resourceChanged(IResourceChangeEvent event) {
 		if (event.delta != null && event.delta.concernsFile(selectedFile)) {
-			val resource = inputExpression.eResource
-			resource.unload
-			resource.load(Collections.EMPTY_MAP)
-			inputExpression = ((resource.contents.head as XtendFile).xtendTypes.head.members.head as XtendFunction).
-				expression
-			interpreter.currentType = (resource.contents.head as XtendFile).xtendTypes.head
-		} else if (event.delta != null && rconfFile != null && event.delta.concernsFile(rconfFile)) {
+			if (rconfFile == null) {
+				val resource = inputExpression.eResource
+				resource.unload
+				resource.load(Collections.EMPTY_MAP)
+				EcoreUtil.resolveAll(resource)
+				inputExpression = ((resource.contents.head as XtendFile).xtendTypes.head.members.head as XtendFunction).
+					expression
+				interpreter.currentType = (resource.contents.head as XtendFile).xtendTypes.head
+			} else {
+				val rs = rsProvider.get(rconfFile.getProject())
+				val r = rs.getResource(URI.createURI(rconfFile.getFullPath().toString()), true)
+				val classResource = inputExpression.eResource
+				classResource.unload
+				r.unload
+				r.load(Collections.EMPTY_MAP)
+				EcoreUtil.resolveAll(r)
+				val rc = r.contents.head as RunConfiguration
+				setInput(rc, rconfFile)
+			}
+		} else if (event.delta != null && (rconfFile != null && event.delta.concernsFile(rconfFile))) {
 			val rs = rsProvider.get(rconfFile.getProject())
 			val r = rs.getResource(URI.createURI(rconfFile.getFullPath().toString()), true)
+			val classResource = inputExpression.eResource
+			classResource.unload
 			r.unload
 			r.load(Collections.EMPTY_MAP)
 			EcoreUtil.resolveAll(r)
