@@ -61,6 +61,20 @@ import org.nanosite.xtendency.tracer.core.TracingInterpreter
 import org.nanosite.xtendency.tracer.core.TraceTreeNode
 import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
 import java.util.concurrent.locks.Lock
+import org.nanosite.xtendency.tracer.runConf.RunConfiguration
+import org.eclipse.core.runtime.Path
+import org.eclipse.xtext.naming.QualifiedName
+import org.eclipse.xtext.xbase.interpreter.impl.DefaultEvaluationContext
+import org.eclipse.emf.common.util.URI
+import org.eclipse.xtext.ui.resource.IResourceSetProvider
+import org.eclipse.emf.ecore.util.EcoreUtil
+import org.eclipse.swt.graphics.Color
+import org.eclipse.core.resources.ResourcesPlugin
+import org.eclipse.jdt.launching.JavaRuntime
+import org.eclipse.jdt.core.IJavaProject
+import java.net.URLClassLoader
+import org.eclipse.jdt.core.JavaCore
+import org.eclipse.xtend.core.xtend.XtendField
 
 /**
  *
@@ -74,7 +88,12 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 	private static final String SEARCH_ANNOTATION_TYPE = "org.eclipse.search.results"; //$NON-NLS-1$
 	private static final ISchedulingRule SEQUENCE_RULE = SchedulingRuleFactory.INSTANCE.newSequence();
 
+	private static final Color COLOR_SELECTED = new Color(Display.getCurrent, 255, 0, 0)
+	private static final Color COLOR_DEFAULT = new Color(Display.getCurrent, 255, 255, 255)
+
 	private IFile selectedFile
+
+	private IFile rconfFile
 
 	private int lastOffsetInEditor = -1
 	private int lastLengthInEditor = -1
@@ -95,6 +114,9 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 
 	@Inject
 	private TracingInterpreter interpreter
+
+	@Inject
+	private IResourceSetProvider rsProvider;
 
 	private DefaultMarkerAnnotationAccess defaultMarkerAnnotationAccess = new DefaultMarkerAnnotationAccess();
 	private DerivedSourceView.RefreshJob refreshJob = new DerivedSourceView.RefreshJob(SEQUENCE_RULE, this);
@@ -152,6 +174,44 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		this.selectedFile = file
 	}
 
+	def setInput(RunConfiguration rc, IFile rconfFile) {
+		val project = ResourcesPlugin.getWorkspace.root.getProject(rc.projectName)
+		val classPathEntries = JavaRuntime.computeDefaultRuntimeClassPath(JavaCore.create(project))
+		val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
+		interpreter.classLoader = new URLClassLoader(classPathUrls, Thread.currentThread.contextClassLoader)
+
+		val f = rc.getClazz().eContainer() as XtendFile
+		val filePath = dropFirstSegment(f.eResource().getURI());
+		val file = (rconfFile as IFile).getProject().getFile(Path.fromPortableString(filePath));
+		val typeDecl = rc.getClazz();
+		val func = rc.getFunction();
+		val inputExpression = func.getExpression();
+		val context = new DefaultEvaluationContext();
+		
+		for (field : rc.clazz.members.filter(XtendField)){
+			val value = if (field.initialValue != null) interpreter.evaluate(field.initialValue).result else null
+			context.newValue(QualifiedName.create(field.name), value)
+		}
+
+		for (i : rc.getInits()) {
+			val result = interpreter.evaluate(i.getExpr());
+			val value = result.getResult();
+			context.newValue(QualifiedName.create(i.getParam()), value);
+		}
+
+		setInput(typeDecl, inputExpression, context, file)
+		this.rconfFile = rconfFile
+	}
+
+	private def String dropFirstSegment(URI uri) {
+		val sb = new StringBuilder();
+		for (var i = 2; i < uri.segmentCount(); i++) {
+			sb.append("/");
+			sb.append(uri.segment(i));
+		}
+		return sb.toString();
+	}
+
 	override isIgnored(IWorkbenchPartSelection s) {
 		return !(s.selection instanceof TextSelection)
 	}
@@ -159,7 +219,6 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 	override public void createPartControl(Composite parent) {
 		super.createPartControl(parent);
 	}
-
 
 	override protected SourceViewer createSourceViewer(Composite parent) {
 		val IOverviewRuler overviewRuler = new OverviewRuler(defaultMarkerAnnotationAccess, OVERVIEW_RULER_WIDTH,
@@ -249,16 +308,24 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 			inputExpression = ((resource.contents.head as XtendFile).xtendTypes.head.members.head as XtendFunction).
 				expression
 			interpreter.currentType = (resource.contents.head as XtendFile).xtendTypes.head
+		} else if (event.delta != null && rconfFile != null && event.delta.concernsFile(rconfFile)) {
+			val rs = rsProvider.get(rconfFile.getProject())
+			val r = rs.getResource(URI.createURI(rconfFile.getFullPath().toString()), true)
+			r.unload
+			r.load(Collections.EMPTY_MAP)
+			EcoreUtil.resolveAll(r)
+			val rc = r.contents.head as RunConfiguration
+			setInput(rc, rconfFile)
 		}
 		refreshJob.reschedule();
 	}
 
 	def protected boolean concernsFile(IResourceDelta delta, IFile file) {
-		if (delta==null) {
+		if (delta == null) {
 			println("concernsFile delta==null")
 			return false
 		}
-		if (file==null) {
+		if (file == null) {
 			println("concernsFile file==null")
 			return false
 		}
@@ -324,6 +391,7 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 				return false
 			}
 		} else {
+
 			// this could be a function call, in which case the children are actually somewhere else
 			current.children.forEach[findRelevantNodes(nodes, offset, length)]
 			return false
@@ -352,8 +420,15 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 					lastLengthInView = length
 
 					getSourceViewer().revealRange(textRegion.getOffset(), textRegion.getLength());
-					getSourceViewer.setSelection(new TextSelection(textRegion.offset, textRegion.length), true)
 
+					//getSourceViewer.setSelection(new TextSelection(textRegion.offset, textRegion.length), true)
+					for (n : nodes) {
+						try {
+							sourceViewer.setTextColor(COLOR_SELECTED, n.output.offset, n.output.length, true)
+						} catch (IllegalArgumentException e) {
+							// do nothing
+						}
+					}
 				}
 			}
 		}
