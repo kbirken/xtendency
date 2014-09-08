@@ -5,6 +5,7 @@ import org.eclipse.xtext.xbase.jvmmodel.AbstractModelInferrer
 import org.eclipse.xtext.xbase.jvmmodel.IJvmDeclaredTypeAcceptor
 import org.eclipse.xtext.xbase.jvmmodel.JvmTypesBuilder
 import org.nanosite.xtendency.tracer.runConf.RunConfiguration
+import org.eclipse.xtext.common.types.JvmTypeReference
 
 /**
  * <p>Infers a JVM model from the source model.</p> 
@@ -50,24 +51,16 @@ class RunConfJvmModelInferrer extends AbstractModelInferrer {
 		if (element.inits != null) {
 			acceptor.accept(element.toClass(element.clazz.name)).initializeLater [
 				for (i : element.inits) {
-					members += i.toMethod("initialize" + i.param.toFirstUpper, element.newTypeRef(Object),
+					members += i.toMethod("initialize" + i.param.toFirstUpper, i.param.getTypeForParam(element),
 						[
 							body = i.expr
 						])
 				}
 			]
 		}
-
-	// An implementation for the initial hello world example could look like this:
-	//   		acceptor.accept(element.toClass("my.company.greeting.MyGreetings"))
-	//   			.initializeLater([
-	//   				for (greeting : element.greetings) {
-	//   					members += greeting.toMethod("hello" + greeting.name, greeting.newTypeRef(typeof(String))) [
-	//   						body = [
-	//   							append('''return "Hello «greeting.name»";''')
-	//   						]
-	//   					]
-	//   				}
-	//   			])
+	}
+	
+	def JvmTypeReference getTypeForParam(String name, RunConfiguration rc){
+		rc.function.parameters.findFirst[it.name == name]?.parameterType ?: rc.newTypeRef(Object)
 	}
 }
