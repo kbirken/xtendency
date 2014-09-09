@@ -20,7 +20,7 @@ InitBlock:
 ;
 
 Import:
-	'import' importedNamespace = QualifiedNameWithWildcard
+	'import' importedNamespace = QualifiedName
 ;
 
 FQN:
