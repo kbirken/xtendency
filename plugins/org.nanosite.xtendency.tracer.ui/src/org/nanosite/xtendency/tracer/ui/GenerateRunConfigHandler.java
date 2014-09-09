@@ -12,10 +12,14 @@ import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jface.dialogs.ErrorDialog;
+import org.eclipse.jface.dialogs.IInputValidator;
+import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.jface.text.ITextSelection;
 import org.eclipse.ui.IEditorDescriptor;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.PlatformUI;
+import org.eclipse.ui.handlers.HandlerUtil;
 import org.eclipse.ui.part.FileEditorInput;
 import org.eclipse.xtend.core.xtend.XtendFunction;
 import org.eclipse.xtext.common.types.JvmIdentifiableElement;
@@ -40,7 +44,7 @@ public class GenerateRunConfigHandler extends AbstractHandler  {
 		RunConfActivator.getInstance().getInjector(RunConfActivator.ORG_NANOSITE_XTENDENCY_TRACER_RUNCONF).injectMembers(this);
 	}
 
-	public Object execute(ExecutionEvent event) throws ExecutionException {
+	public Object execute(final ExecutionEvent event) throws ExecutionException {
 		final XtextEditor editor = EditorUtils.getActiveXtextEditor(event);
 		if (editor != null) {
 			final ITextSelection selection = (ITextSelection) editor.getSelectionProvider().getSelection();
@@ -54,7 +58,7 @@ public class GenerateRunConfigHandler extends AbstractHandler  {
 							IContainer container = fileInput.getFile().getParent();
 							String generatedTemplate = RunConfTemplateGenerator.generateTemplate(func, fileInput.getFile()).toString();
 							InputStream inputStream = new ByteArrayInputStream(generatedTemplate.getBytes());
-							IFile targetFile = container.getFile(org.eclipse.core.runtime.Path.fromPortableString(getRconfName(func)));
+							IFile targetFile = container.getFile(org.eclipse.core.runtime.Path.fromPortableString(getRconfName(func, event, container)));
 							if (targetFile.exists())
 								targetFile.setContents(inputStream, true, true, null);
 							else
@@ -72,8 +76,24 @@ public class GenerateRunConfigHandler extends AbstractHandler  {
 		return null;
 	}
 	
-	private String getRconfName(XtendFunction func){
-		return func.getDeclaringType().getName() + "_" + func.getName() + ".rconf";
+	private String getRconfName(XtendFunction func, ExecutionEvent event, IContainer container){
+		String initial = func.getDeclaringType().getName() + "_" + func.getName();
+		String actual = initial + ".rconf";
+		int counter = 1;
+		while (container.getFile(org.eclipse.core.runtime.Path.fromPortableString(actual)).exists()){
+			actual = initial + "(" + counter++ + ").rconf";
+		}
+		InputDialog id = new InputDialog(HandlerUtil.getActiveShell(event), "Generate Run Configuration", "Enter the path for the new run configuration.", actual, new IInputValidator(){
+
+			@Override
+			public String isValid(String newText) {
+				return null;
+			}
+			
+		});
+		id.setBlockOnOpen(true);
+		id.open();
+		return id.getValue();
 	}
 
 }

@@ -48,7 +48,7 @@ class RunConfJvmModelInferrer extends AbstractModelInferrer {
 	def dispatch void infer(RunConfiguration element, IJvmDeclaredTypeAcceptor acceptor, boolean isPreIndexingPhase) {
 
 		// Here you explain how your model is mapped to Java elements, by writing the actual translation code.
-		if (element.inits != null) {
+		if (element != null && element.inits != null && element.clazz != null) {
 			acceptor.accept(element.toClass(element.clazz.name)).initializeLater [
 				for (i : element.inits) {
 					members += i.toMethod("initialize" + i.param.toFirstUpper, i.param.getTypeForParam(element),

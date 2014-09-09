@@ -180,7 +180,7 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		val project = ResourcesPlugin.getWorkspace.root.getProject(rc.projectName)
 		val classPathEntries = JavaRuntime.computeDefaultRuntimeClassPath(JavaCore.create(project))
 		val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
-		interpreter.classLoader = new URLClassLoader(classPathUrls, defaultClassLoader)
+//		interpreter.classLoader = new URLClassLoader(classPathUrls, defaultClassLoader)
 
 		val f = rc.getClazz().eContainer() as XtendFile
 		val filePath = dropFirstSegment(f.eResource().getURI());

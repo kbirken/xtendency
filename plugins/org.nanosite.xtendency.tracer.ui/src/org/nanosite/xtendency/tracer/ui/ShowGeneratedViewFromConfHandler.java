@@ -91,12 +91,12 @@ public class ShowGeneratedViewFromConfHandler extends AbstractHandler {
 							classPathUrls.add(new Path(e).toFile().toURI()
 									.toURL());
 						}
-						interpreter
-								.setClassLoader(new URLClassLoader(
-										classPathUrls
-												.toArray(new URL[classPathEntries.length]),
-										Thread.currentThread()
-												.getContextClassLoader()));
+//						interpreter
+//								.setClassLoader(new URLClassLoader(
+//										classPathUrls
+//												.toArray(new URL[classPathEntries.length]),
+//										Thread.currentThread()
+//												.getContextClassLoader()));
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
