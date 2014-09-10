@@ -12,7 +12,8 @@ Require-Bundle: org.eclipse.ui,
  org.junit;bundle-version="4.10.0",
  com.google.inject;bundle-version="3.0.0",
  org.eclipse.xtend.core;bundle-version="2.5.0",
- org.eclipse.xtend.standalone;bundle-version="2.5.0"
+ org.eclipse.xtend.standalone;bundle-version="2.5.0",
+ org.eclipse.jdt.launching;bundle-version="3.7.100"
 Bundle-ActivationPolicy: lazy
 Bundle-RequiredExecutionEnvironment: JavaSE-1.7
 Export-Package: org.nanosite.xtendency.tracer.core,

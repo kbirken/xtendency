@@ -72,42 +72,42 @@ public class ShowGeneratedViewFromConfHandler extends AbstractHandler {
 						true);
 				RunConfiguration rc = (RunConfiguration) r.getContents().get(0);
 				EcoreUtil.resolveAll(rc);
-				XtendFile f = (XtendFile) rc.getClazz().eContainer();
-				String filePath = dropFirstSegment(f.eResource().getURI());
-				IFile file = ((IFile) s).getProject().getFile(
-						Path.fromPortableString(filePath));
-				XtendTypeDeclaration typeDecl = rc.getClazz();
-				XtendFunction func = rc.getFunction();
-				XExpression inputExpression = func.getExpression();
-				IEvaluationContext context = new DefaultEvaluationContext();
-
-				IProject project = ResourcesPlugin.getWorkspace().getRoot()
-						.getProject(rc.getProjectName());
-					try {
-						String[] classPathEntries = JavaRuntime
-								.computeDefaultRuntimeClassPath(JavaCore.create(project));
-						List<URL> classPathUrls = new ArrayList<URL>();
-						for (String e : classPathEntries) {
-							classPathUrls.add(new Path(e).toFile().toURI()
-									.toURL());
-						}
+//				XtendFile f = (XtendFile) rc.getClazz().eContainer();
+//				String filePath = dropFirstSegment(f.eResource().getURI());
+//				IFile file = ((IFile) s).getProject().getFile(
+//						Path.fromPortableString(filePath));
+//				XtendTypeDeclaration typeDecl = rc.getClazz();
+//				XtendFunction func = rc.getFunction();
+//				XExpression inputExpression = func.getExpression();
+//				IEvaluationContext context = new DefaultEvaluationContext();
+//
+//				IProject project = ResourcesPlugin.getWorkspace().getRoot()
+//						.getProject(rc.getProjectName());
+//					try {
+//						String[] classPathEntries = JavaRuntime
+//								.computeDefaultRuntimeClassPath(JavaCore.create(project));
+//						List<URL> classPathUrls = new ArrayList<URL>();
+//						for (String e : classPathEntries) {
+//							classPathUrls.add(new Path(e).toFile().toURI()
+//									.toURL());
+//						}
 //						interpreter
 //								.setClassLoader(new URLClassLoader(
 //										classPathUrls
 //												.toArray(new URL[classPathEntries.length]),
 //										Thread.currentThread()
 //												.getContextClassLoader()));
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-				
-
-				for (InitBlock i : rc.getInits()) {
-					IEvaluationResult result = interpreter
-							.evaluate(i.getExpr());
-					Object value = result.getResult();
-					context.newValue(QualifiedName.create(i.getParam()), value);
-				}
+//					} catch (Exception e) {
+//						e.printStackTrace();
+//					}
+//				
+//
+//				for (InitBlock i : rc.getInits()) {
+//					IEvaluationResult result = interpreter
+//							.evaluate(i.getExpr());
+//					Object value = result.getResult();
+//					context.newValue(QualifiedName.create(i.getParam()), value);
+//				}
 
 				try {
 					try {

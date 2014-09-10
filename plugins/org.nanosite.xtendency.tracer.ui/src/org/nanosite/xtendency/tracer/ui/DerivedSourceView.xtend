@@ -178,9 +178,10 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 
 	def setInput(RunConfiguration rc, IFile rconfFile) {
 		val project = ResourcesPlugin.getWorkspace.root.getProject(rc.projectName)
-		val classPathEntries = JavaRuntime.computeDefaultRuntimeClassPath(JavaCore.create(project))
-		val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
-//		interpreter.classLoader = new URLClassLoader(classPathUrls, defaultClassLoader)
+		interpreter.addProjectToClasspath(JavaCore.create(project))
+//		val classPathEntries = JavaRuntime.computeDefaultRuntimeClassPath(JavaCore.create(project))
+//		val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
+//		interpreter.classLoader = new URLClassLoader(classPathUrls, defaultClassLoader) 
 
 		val f = rc.getClazz().eContainer() as XtendFile
 		val filePath = dropFirstSegment(f.eResource().getURI());
@@ -190,10 +191,10 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		val inputExpression = func.getExpression();
 		val context = new DefaultEvaluationContext();
 
-		for (field : rc.clazz.members.filter(XtendField)) {
-			val value = if(field.initialValue != null) interpreter.evaluate(field.initialValue).result else null
-			context.newValue(QualifiedName.create(field.name), value)
-		}
+//		for (field : rc.clazz.members.filter(XtendField)) {
+//			val value = if(field.initialValue != null) interpreter.evaluate(field.initialValue).result else null
+//			context.newValue(QualifiedName.create(field.name), value)
+//		}
 
 		for (i : rc.getInits()) {
 			val result = interpreter.evaluate(i.getExpr());

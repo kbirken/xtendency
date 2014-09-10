@@ -20,6 +20,14 @@ import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
 import org.eclipse.xtext.xbase.interpreter.impl.XbaseInterpreter
 import org.eclipse.xtend.core.richstring.IRichStringPartAcceptor
 import org.eclipse.xtext.xbase.interpreter.IExpressionInterpreter
+import org.eclipse.xtext.common.types.JvmField
+import org.eclipse.xtext.xbase.XAbstractFeatureCall
+import org.eclipse.core.resources.IProject
+import org.eclipse.osgi.internal.loader.EquinoxClassLoader
+import org.eclipse.jdt.core.IJavaProject
+import org.eclipse.core.runtime.Path
+import java.net.URLClassLoader
+import org.eclipse.jdt.launching.JavaRuntime
 
 class XtendInterpreter extends XbaseInterpreter {
 	
@@ -32,8 +40,26 @@ class XtendInterpreter extends XbaseInterpreter {
 
 	XtendTypeDeclaration currentType
 	
+	protected ClassLoader injectedClassLoader
+	
 	def setCurrentType(XtendTypeDeclaration thisType){
 		this.currentType = thisType
+	}
+	
+	override void setClassLoader(ClassLoader cl){
+		if (cl instanceof EquinoxClassLoader)
+			this.injectedClassLoader = cl
+		super.classLoader = cl
+	}
+	
+	def void addProjectToClasspath(IJavaProject jp){
+		if (injectedClassLoader != null){
+			val classPathEntries = JavaRuntime.computeDefaultRuntimeClassPath(jp)
+			val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
+			classPathUrls.forEach[println(it)]
+			super.classLoader = new URLClassLoader(classPathUrls, injectedClassLoader)
+			println("set urlclassloader")
+		}
 	}
 	
 
@@ -72,6 +98,44 @@ class XtendInterpreter extends XbaseInterpreter {
 			}
  		}
 		super.invokeOperation(operation, receiver, argumentValues, context, indicator)
+	}
+	
+	protected override _invokeFeature(JvmField jvmField, XAbstractFeatureCall featureCall, Object receiver, IEvaluationContext context, CancelIndicator indicator) {
+		val calledType = jvmField.declaringType.qualifiedName
+		if (currentType != null){
+			val currentTypeName = (currentType.eContainer as XtendFile).package + "." + currentType.name
+			if (currentTypeName == calledType && receiver == null){
+				val currentInstance = context.getValue(QualifiedName.create("this"))
+				val fieldName = featureCall.feature.simpleName
+				if (currentInstance != null){
+					val field = currentInstance.class.getDeclaredField(fieldName)
+					field.accessible = true
+					return field.get(currentInstance)
+				}
+			}
+		}
+		super._invokeFeature(jvmField, featureCall, receiver, context, indicator)
+	}
+	
+	protected override _assigneValueTo(JvmField jvmField, XAbstractFeatureCall assignment, Object value,
+			IEvaluationContext context, CancelIndicator indicator) {
+				val calledType = jvmField.declaringType.qualifiedName
+		if (currentType != null){
+			val currentTypeName = (currentType.eContainer as XtendFile).package + "." + currentType.name
+			if (currentTypeName == calledType){
+				val currentInstance = context.getValue(QualifiedName.create("this"))
+				val fieldName = assignment.feature.simpleName
+				if (currentInstance != null){
+					val field = currentInstance.class.getDeclaredField(fieldName)
+					field.accessible = true
+					
+					field.set(currentInstance, value)
+					return value
+					
+				}
+			}
+		}
+		super._assigneValueTo(jvmField, assignment, value, context, indicator)
 	}
 	
 	/*
