@@ -13,7 +13,7 @@ class RunConfTemplateGenerator {
 	runConfiguration «func.name»Config {
 		project "«classFile.project.name»"
 		class «(func.declaringType.eContainer as XtendFile).package».«func.declaringType.name» : «func.name»
-		«IF !func.parameters.empty»
+		«IF !(func.parameters.empty && func.static)»
 		initialize {
 			«FOR p : func.parameters»
 			// parameter «p.name» of type «p.parameterType.simpleName»
