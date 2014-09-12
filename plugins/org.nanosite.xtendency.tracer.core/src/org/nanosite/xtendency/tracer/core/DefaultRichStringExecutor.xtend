@@ -12,37 +12,37 @@ import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
 import org.eclipse.xtext.xbase.interpreter.IExpressionInterpreter
 
 class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOnce implements IRichStringExecutor {
-	
+
 	protected IExpressionInterpreter interpreter
 	protected val CancelIndicator indicator
 
 	protected val contextStack = new Stack<IEvaluationContext>
-	
+
 	val sb = new StringBuilder
-	
-	new (IExpressionInterpreter interpreter, IEvaluationContext context, CancelIndicator indicator) {
+
+	new(IExpressionInterpreter interpreter, IEvaluationContext context, CancelIndicator indicator) {
 		this.interpreter = interpreter
 		contextStack.push(context)
 		this.indicator = indicator
 	}
-	
+
 	override getResult() {
 		sb.toString
 	}
 
 	override acceptSemanticText(CharSequence text, /* @Nullable */ RichStringLiteral origin) {
-		if (! ignoring){
+		if (! ignoring) {
 			if (origin == null)
 				append(text.toString)
 			else
 				append(origin, text.toString)
 		}
 	}
-	
+
 	override acceptSemanticLineBreak(int charCount, RichStringLiteral origin, boolean controlStructureSeen) {
+
 		// TODO: what's charCount?
-		//origin seems to be null anyway right?
-		if (! ignoring){
+		if (! ignoring) {
 			if (origin == null)
 				append("\n")
 			else
@@ -50,23 +50,22 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 		}
 	}
 
-
 	static class IfThenElse {
 		var boolean condition
 		var boolean ignoring
-		
-		new (boolean condition) {
+
+		new(boolean condition) {
 			update(condition)
 		}
-		
+
 		def update(boolean condition) {
 			this.condition = condition
 			this.ignoring = ! condition
 		}
 	}
-	
+
 	val ifStack = new Stack<DefaultRichStringExecutor.IfThenElse>
-	
+
 	override acceptIfCondition(XExpression condition) {
 		val cond = eval(condition) as Boolean
 		ifStack.push(new DefaultRichStringExecutor.IfThenElse(cond))
@@ -82,9 +81,11 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 	override acceptElseIfCondition(XExpression condition) {
 		val desc = ifStack.peek
 		if (desc.condition) {
+
 			// previous condition was true, ignore all following
 			desc.ignoring = true
 		} else {
+
 			// evaluate next condition
 			val cond = eval(condition) as Boolean
 			desc.update(cond)
@@ -100,36 +101,35 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 		ifStack.pop
 	}
 
-
 	static class ForLoop {
 		val JvmFormalParameter parameter
-		
+
 		// if iter==null we just ignore the loop body and skip to the end of loop
 		val Iterator<?> iter
-		
+
 		var isFirst = true
 
-		new (JvmFormalParameter parameter) {
+		new(JvmFormalParameter parameter) {
 			this.parameter = parameter
 			this.iter = null
 		}
-		
-		new (JvmFormalParameter parameter, Iterator<?> iter) {
+
+		new(JvmFormalParameter parameter, Iterator<?> iter) {
 			this.parameter = parameter
 			this.iter = iter
 		}
-		
+
 		def isFirstIteration() {
 			isFirst
 		}
-		
+
 		def hasNext() {
-			if (iter==null)
+			if (iter == null)
 				false
 			else
 				iter.hasNext
 		}
-		
+
 		def getParamName() {
 			QualifiedName.create(parameter.getQualifiedName('$'))
 		}
@@ -139,14 +139,14 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 			iter.next
 		}
 	}
-	
 
 	val forLoopStack = new Stack<DefaultRichStringExecutor.ForLoop>
-	
+
 	override acceptForLoop(JvmFormalParameter parameter, /* @Nullable */ XExpression expression) {
 		val obj = eval(expression) as Iterable<?>
-		if (obj==null) {
+		if (obj == null) {
 			System.err.println("ERROR: For-loop-expression evaluated to null")
+
 			// ignore this for-loop			
 			forLoopStack.push(new DefaultRichStringExecutor.ForLoop(parameter))
 		} else {
@@ -155,23 +155,21 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 		}
 	}
 
-	override forLoopHasNext(/* @Nullable */ XExpression before, /* @Nullable */ XExpression separator, CharSequence indentation) {
+	override forLoopHasNext(/* @Nullable */XExpression before, /* @Nullable */ XExpression separator,
+		CharSequence indentation) {
 		val desc = forLoopStack.peek
 		if (desc.isFirst) {
-			if (before!=null) {
-//				val b = eval(before)
-				// TODO: error checks
+			if (before != null) {
 				append(before)
 			}
 		} else {
+
 			// remove context of previous iteration from stack
 			contextStack.pop
 		}
-		
+
 		if (desc.hasNext) {
-			if ((! desc.isFirst) && separator!=null) {
-//				val b = eval(separator)
-				// TODO: error checks
+			if ((! desc.isFirst) && separator != null) {
 				append(separator)
 			}
 
@@ -185,51 +183,37 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 		}
 	}
 
-	override acceptEndFor(/* @Nullable */ XExpression after, CharSequence indentation) {
+	override acceptEndFor(/* @Nullable */XExpression after, CharSequence indentation) {
 		forLoopStack.pop
-		if (after!=null) {
-//			val b = eval(after)
-			// TODO: error checks
+		if (after != null) {
 			append(after)
 		}
 	}
 
-
 	override acceptExpression(XExpression expression, CharSequence indentation) {
-//		val obj = eval(expression)
-//		if (obj!=null)
-			append(expression)
-//		else
-//			System.err.println("ERROR: Expression evaluated to null in RichString!")
+		append(expression)
 	}
 
 	def protected Object eval(XExpression expression) {
 		val result = interpreter.evaluate(expression, contextStack.peek, indicator)
-		if (result.exception!=null) {
-			System.err.println("ERROR during evaluation: " + result.exception.toString)	
-			null		
+		if (result.exception != null) {
+			System.err.println("ERROR during evaluation: " + result.exception.toString)
+			null
 		} else {
 			result.result
 		}
 	}
-	
-//	def protected void append(CharSequence str, XExpression input) {
-//		if (str.length!=0) {
-//			sb.append(str)
-//		}
-//	}
-//	
+
 	def protected void append(String str) {
 		sb.append(str)
 	}
-	
-	def protected void append(XExpression input){
+
+	def protected void append(XExpression input) {
 		val obj = eval(input)
 		sb.append(obj.toString)
 	}
-	
-	def protected void append(RichStringLiteral lit, String str){
+
+	def protected void append(RichStringLiteral lit, String str) {
 		sb.append(str)
 	}
 }
-

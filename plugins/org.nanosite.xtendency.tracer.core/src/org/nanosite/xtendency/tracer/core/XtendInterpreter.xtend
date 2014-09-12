@@ -57,7 +57,6 @@ class XtendInterpreter extends XbaseInterpreter {
 			val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
 			classPathUrls.forEach[println(it)]
 			super.classLoader = new URLClassLoader(classPathUrls, injectedClassLoader)
-			println("set urlclassloader")
 		}
 	}
 
@@ -140,23 +139,4 @@ class XtendInterpreter extends XbaseInterpreter {
 		}
 		super._assigneValueTo(jvmField, assignment, value, context, indicator)
 	}
-
-/*
-	 * TODO: this actually inserts a string inside another, so it might break the whole offset-length counting system
-	 */
-//	def protected appendImmediate(StringBuilder sb, String s){
-//		val str = sb.toString
-//		var start = 0
-//		var found = false
-//		for (var i = str.length - 1; i >= 0 && !found; i--){
-//			if (!Character.isWhitespace(str.charAt(i))){
-//				start = i + 1
-//				found = true
-//			}
-//		}
-//		val deleted = str.substring(start, sb.length)
-//		sb.delete(start, sb.length)
-//		sb.append(s)
-//		sb.append(deleted)		
-//	}
 }
