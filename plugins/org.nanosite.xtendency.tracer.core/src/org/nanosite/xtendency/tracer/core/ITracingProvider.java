@@ -3,6 +3,7 @@ package org.nanosite.xtendency.tracer.core;
 import java.util.Map;
 
 import org.eclipse.xtext.xbase.XExpression;
+import org.eclipse.xtext.xbase.interpreter.IEvaluationContext;
 
 public interface ITracingProvider<T> {
 	boolean canCreateTracePointFor(XExpression expr);
@@ -15,7 +16,7 @@ public interface ITracingProvider<T> {
 	
 	void enter();
 	void exit();
-	void setInput(XExpression input, Map<String, Object> ctx);
+	void setInput(XExpression input, IEvaluationContext ctx);
 	void setOutput(Object output);
 	void skip(String output);
 }

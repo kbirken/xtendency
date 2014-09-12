@@ -32,7 +32,7 @@ class TracingRichStringExecutor extends DefaultRichStringExecutor {
 		for (tp : tracingProviders) {
 
 			if (tp.canCreateTracePointFor(input)) {
-				tp.setInput(input, ctx)
+				tp.setInput(input, contextStack.peek)
 				tp.setOutput(str.toString)
 				tp.exit
 			}
@@ -48,7 +48,7 @@ class TracingRichStringExecutor extends DefaultRichStringExecutor {
 		for (tp : tracingProviders) {
 			if (tp.canCreateTracePointFor(lit)) {
 				tp.enter
-				tp.setInput(lit, ctx)
+				tp.setInput(lit, contextStack.peek)
 				tp.setOutput(str)
 				tp.exit
 			}

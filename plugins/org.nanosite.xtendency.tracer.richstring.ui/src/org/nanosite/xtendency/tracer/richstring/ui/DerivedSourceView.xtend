@@ -397,7 +397,6 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		if (current.input.expression instanceof XAbstractFeatureCall){
 			val a = node.offset
 			val b = node.length
-			println("????")
 		}
 		
 		if (new Range(node.offset, node.offset + node.length).overlaps(new Range(offset, offset + length))) {

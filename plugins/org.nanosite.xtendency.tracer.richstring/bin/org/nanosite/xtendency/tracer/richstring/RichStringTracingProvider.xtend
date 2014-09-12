@@ -8,36 +8,25 @@ import org.nanosite.xtendency.tracer.core.TraceTreeNode
 import org.eclipse.xtext.xbase.XExpression
 import org.nanosite.xtendency.tracer.core.InputData
 import org.nanosite.xtendency.tracer.core.DefaultTracingProvider
+import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
+import java.util.HashMap
 
 class RichStringTracingProvider extends DefaultTracingProvider<RichStringOutputLocation> {
 
 	public static final String RICH_STRING_TRACING_PROVIDER_ID = "org.nanosite.xtendency.tracer.richstring"
 
 	private int offset = 0
-	private TraceTreeNode<RichStringOutputLocation> resultNode
-	
+
 	private Stack<Integer> offsetStack = new Stack<Integer>
 
-	override canCreateTracePointFor(XExpression expr) {
-		if (expr.containedInXtendClass) {
-			if (expr.richString) {
-				return true
-			} else {
-				if (expr.eContainer != null && expr.eContainer instanceof XExpression) {
-					return (expr.eContainer as XExpression).richString
-				}
-			}
-		} else {
-			false
-		}
-	}
-
-	private def boolean isContainedInXtendClass(EObject eo) {
-		if (eo == null)
-			return false
-		if (eo instanceof XtendClass)
+	override canCreateTracePointForExpression(XExpression expr) {
+		if (expr.richString) {
 			return true
-		return eo.eContainer.containedInXtendClass
+		} else {
+			if (expr.eContainer != null && expr.eContainer instanceof XExpression) {
+				return (expr.eContainer as XExpression).richString
+			}
+		}
 	}
 
 	private def boolean isRichString(XExpression expr) {
@@ -69,19 +58,22 @@ class RichStringTracingProvider extends DefaultTracingProvider<RichStringOutputL
 		if (nodeStack.empty())
 			resultNode = node
 		else
-			nodeStack.peek.children.add(node) 
+			nodeStack.peek.children.add(node)
 
 		offset = previousOffset + node.output.length
 	}
 
-	override setOutput(Object output) {
-		val strOutput = output.toString
-
-		nodeStack.peek.output = new RichStringOutputLocation(offsetStack.peek, strOutput.length, strOutput)
-	}
-
 	override skip(String output) {
 		offset = offset + output.length
+	}
+	
+	override createOutputNode(Object output) {
+		val strOutput = output.toString
+		new RichStringOutputLocation(offsetStack.peek, strOutput.length, strOutput)
+	}
+	
+	override getRelevantContext(XExpression expr, IEvaluationContext context) {
+		new HashMap<String, Object>
 	}
 
 }

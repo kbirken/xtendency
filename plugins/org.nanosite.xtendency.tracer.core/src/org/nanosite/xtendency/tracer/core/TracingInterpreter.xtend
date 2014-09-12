@@ -26,7 +26,7 @@ class TracingInterpreter extends XtendInterpreter {
 		val result = super.doEvaluate(expr, context, indicator)
 		if (trace)
 			tracingProviders.filter[canCreateTracePointFor(expr)].forEach[
-				setInput(expr, ctx)
+				setInput(expr, context)
 				setOutput(result)
 				exit
 			]
@@ -42,7 +42,8 @@ class TracingInterpreter extends XtendInterpreter {
 	}
 	
 	def getTraces(String tracingProviderId) {
-		tracingProviders.findFirst[id == tracingProviderId].rootNode
+		val tp = tracingProviders.findFirst[id == tracingProviderId] 
+		tp.rootNode
 	}
 
 	def void reset() {
