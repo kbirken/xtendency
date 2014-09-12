@@ -75,6 +75,9 @@ import org.eclipse.jdt.core.IJavaProject
 import java.net.URLClassLoader
 import org.eclipse.jdt.core.JavaCore
 import org.eclipse.xtend.core.xtend.XtendField
+import org.nanosite.xtendency.tracer.core.RichStringTracingProvider
+import org.nanosite.xtendency.tracer.core.RichStringOutputLocation
+import org.eclipse.xtext.xbase.XAbstractFeatureCall
 
 /**
  *
@@ -85,18 +88,14 @@ import org.eclipse.xtend.core.xtend.XtendField
 public class DerivedSourceView extends AbstractSourceView implements IResourceChangeListener {
 	protected static final int VERTICAL_RULER_WIDTH = 12;
 	protected static final int OVERVIEW_RULER_WIDTH = 12;
-	private static final String SEARCH_ANNOTATION_TYPE = "org.eclipse.search.results"; //$NON-NLS-1$
 	private static final ISchedulingRule SEQUENCE_RULE = SchedulingRuleFactory.INSTANCE.newSequence();
 
 	private static final Color COLOR_SELECTED = new Color(Display.getCurrent, 255, 0, 0)
-	private static final Color COLOR_DEFAULT = new Color(Display.getCurrent, 255, 255, 255)
 
 	private IFile selectedFile
 
 	private IFile rconfFile
 	
-	@Inject ClassLoader defaultClassLoader
-
 	private int lastOffsetInEditor = -1
 	private int lastLengthInEditor = -1
 	private int lastOffsetInView = -1
@@ -129,6 +128,7 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 
 	new() {
 		XtendActivator.getInstance().getInjector(XtendActivator.ORG_ECLIPSE_XTEND_CORE_XTEND).injectMembers(this);
+		interpreter.addTracingProvider(new RichStringTracingProvider)
 		colorRegistry.put("de.itemis.codegenutil.ui.DerivedSourceView.backgroundColor", new RGB(255, 255, 255))
 	}
 
@@ -145,11 +145,11 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 					}
 				}
 			}
-		} else if (workbenchPart == this && associatedEditor != null && interpreter?.traces != null) {
+		} else if (workbenchPart == this && associatedEditor != null && interpreter?.getTraces(RichStringTracingProvider.RICH_STRING_TRACING_PROVIDER_ID) != null) {
 			if (selection instanceof TextSelection) {
 				if (!(selection.offset == lastOffsetInView && selection.length == lastLengthInView)) {
-					val nodes = new HashSet<TraceTreeNode>
-					findRelevantNodesForOutput(interpreter.traces, nodes, selection.offset, selection.length)
+					val nodes = new HashSet<TraceTreeNode<RichStringOutputLocation>>
+					findRelevantNodesForOutput(interpreter.getTraces(RichStringTracingProvider.RICH_STRING_TRACING_PROVIDER_ID) as TraceTreeNode<RichStringOutputLocation>, nodes, selection.offset, selection.length)
 					if (!nodes.empty) {
 						var start = Integer.MAX_VALUE
 						var end = Integer.MIN_VALUE
@@ -382,11 +382,11 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 
 	// TODO: this is just a slightly changed version of findRelevantNodes, there should be
 	// an abstract implementation that fits both use cases
-	def protected boolean findRelevantNodesForOutput(TraceTreeNode current, Set<TraceTreeNode> nodes, int offset,
+	def protected boolean findRelevantNodesForOutput(TraceTreeNode<RichStringOutputLocation> current, Set<TraceTreeNode<RichStringOutputLocation>> nodes, int offset,
 		int length) {
 		if (new Range(current.output.offset, current.output.offset + current.output.length).overlaps(
 			new Range(offset, offset + length))) {
-			val tempSet = new HashSet<TraceTreeNode>
+			val tempSet = new HashSet<TraceTreeNode<RichStringOutputLocation>>
 			if (current.children.map[findRelevantNodesForOutput(tempSet, offset, length)].reduce[p1, p2|p1 && p2] ?:
 				true) {
 				nodes.add(current)
@@ -398,16 +398,27 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		}
 	}
 
-	def protected boolean findRelevantNodes(TraceTreeNode current, Set<TraceTreeNode> nodes, int offset, int length) {
+	def protected boolean findRelevantNodes(TraceTreeNode<RichStringOutputLocation> current, Set<TraceTreeNode<RichStringOutputLocation>> nodes, int offset, int length) {
 		val node = NodeModelUtils.findActualNodeFor(current.input.expression)
+		if (current.input.expression instanceof XAbstractFeatureCall){
+			val a = node.offset
+			val b = node.length
+			println("????")
+		}
+		
 		if (new Range(node.offset, node.offset + node.length).overlaps(new Range(offset, offset + length))) {
-			val tempSet = new HashSet<TraceTreeNode>
+			val tempSet = new HashSet<TraceTreeNode<RichStringOutputLocation>>
 			if (current.children.map[findRelevantNodes(tempSet, offset, length)].reduce[p1, p2|p1 && p2] ?: true) {
 				nodes.add(current)
 				return true
 			} else {
-				nodes.addAll(tempSet)
-				return false
+				if (!tempSet.empty){
+					nodes.addAll(tempSet)
+					return false
+				}else{
+					nodes.add(current)
+					return true
+				}
 			}
 		} else {
 
@@ -418,12 +429,12 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 	}
 
 	override protected void selectAndReveal(IWorkbenchPartSelection workbenchPartSelection) {
-		if (interpreter?.traces != null) {
+		if (interpreter?.getTraces(RichStringTracingProvider.RICH_STRING_TRACING_PROVIDER_ID) != null) {
+			val traces = interpreter?.getTraces(RichStringTracingProvider.RICH_STRING_TRACING_PROVIDER_ID) as TraceTreeNode<RichStringOutputLocation>
 			if (workbenchPartSelection.selection instanceof TextSelection) {
-				val IAnnotationModel annotationModel = getSourceViewer().getAnnotationModel();
 				val ts = workbenchPartSelection.selection as TextSelection
-				val nodes = new HashSet<TraceTreeNode>
-				findRelevantNodes(interpreter.traces, nodes, ts.offset, ts.length)
+				val nodes = new HashSet<TraceTreeNode<RichStringOutputLocation>>
+				findRelevantNodes(traces, nodes, ts.offset, ts.length)
 				if (!nodes.empty) {
 					var start = Integer.MAX_VALUE
 					var end = Integer.MIN_VALUE

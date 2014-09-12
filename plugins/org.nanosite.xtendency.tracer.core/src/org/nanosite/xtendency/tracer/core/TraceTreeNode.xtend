@@ -10,10 +10,10 @@ import org.eclipse.xtend.core.xtend.impl.RichStringLiteralImpl
 /**
  * Should be merged with TraceNode
  */
-class TraceTreeNode {
-	List<TraceTreeNode> children = new ArrayList<TraceTreeNode>
+class TraceTreeNode<T> {
+	List<TraceTreeNode<T>> children = new ArrayList<TraceTreeNode<T>>
 	InputData input
-	OutputLocation output
+	T output
 	
 	new(){}
 
@@ -29,7 +29,7 @@ class TraceTreeNode {
 	def setInput(InputData i){
 		this.input = i
 	}
-	def setOutput(OutputLocation o){
+	def setOutput(T o){
 		this.output = o
 	}
 	
@@ -43,7 +43,7 @@ class TraceTreeNode {
 	}
 }
 
-@Data class OutputLocation{
+@Data class RichStringOutputLocation{
 	int offset
 	int length
 	String str

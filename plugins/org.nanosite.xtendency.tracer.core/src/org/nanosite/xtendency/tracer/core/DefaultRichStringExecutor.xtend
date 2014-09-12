@@ -13,10 +13,10 @@ import org.eclipse.xtext.xbase.interpreter.IExpressionInterpreter
 
 class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOnce implements IRichStringExecutor {
 	
-	val IExpressionInterpreter interpreter
-	val CancelIndicator indicator
+	protected IExpressionInterpreter interpreter
+	protected val CancelIndicator indicator
 
-	val contextStack = new Stack<IEvaluationContext>
+	protected val contextStack = new Stack<IEvaluationContext>
 	
 	val sb = new StringBuilder
 	
@@ -31,14 +31,23 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 	}
 
 	override acceptSemanticText(CharSequence text, /* @Nullable */ RichStringLiteral origin) {
-		if (! ignoring)
-			append(text, origin)
+		if (! ignoring){
+			if (origin == null)
+				append(text.toString)
+			else
+				append(origin, text.toString)
+		}
 	}
 	
 	override acceptSemanticLineBreak(int charCount, RichStringLiteral origin, boolean controlStructureSeen) {
 		// TODO: what's charCount?
-		if (! ignoring)
-			append("\n", origin)
+		//origin seems to be null anyway right?
+		if (! ignoring){
+			if (origin == null)
+				append("\n")
+			else
+				append(origin, "\n")
+		}
 	}
 
 
@@ -150,9 +159,9 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 		val desc = forLoopStack.peek
 		if (desc.isFirst) {
 			if (before!=null) {
-				val b = eval(before)
+//				val b = eval(before)
 				// TODO: error checks
-				append(b as CharSequence, before)
+				append(before)
 			}
 		} else {
 			// remove context of previous iteration from stack
@@ -161,9 +170,9 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 		
 		if (desc.hasNext) {
 			if ((! desc.isFirst) && separator!=null) {
-				val b = eval(separator)
+//				val b = eval(separator)
 				// TODO: error checks
-				append(b as CharSequence, separator)
+				append(separator)
 			}
 
 			// clone context for next iteration and add loop variable
@@ -179,34 +188,48 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 	override acceptEndFor(/* @Nullable */ XExpression after, CharSequence indentation) {
 		forLoopStack.pop
 		if (after!=null) {
-			val b = eval(after)
+//			val b = eval(after)
 			// TODO: error checks
-			append(b as CharSequence, after)
+			append(after)
 		}
 	}
 
 
 	override acceptExpression(XExpression expression, CharSequence indentation) {
-		val obj = eval(expression)
-		if (obj!=null)
-			append(obj.toString, expression)
-		else
-			System.err.println("ERROR: Expression evaluated to null in RichString!")
+//		val obj = eval(expression)
+//		if (obj!=null)
+			append(expression)
+//		else
+//			System.err.println("ERROR: Expression evaluated to null in RichString!")
 	}
 
-	def private eval(XExpression expression) {
+	def protected Object eval(XExpression expression) {
 		val result = interpreter.evaluate(expression, contextStack.peek, indicator)
 		if (result.exception!=null) {
-			System.err.println("ERROR during evaluation: " + result.exception.toString)			
+			System.err.println("ERROR during evaluation: " + result.exception.toString)	
+			null		
 		} else {
 			result.result
 		}
 	}
 	
-	def protected void append(CharSequence str, XExpression input) {
-		if (str.length!=0) {
-			sb.append(str)
-		}
+//	def protected void append(CharSequence str, XExpression input) {
+//		if (str.length!=0) {
+//			sb.append(str)
+//		}
+//	}
+//	
+	def protected void append(String str) {
+		sb.append(str)
+	}
+	
+	def protected void append(XExpression input){
+		val obj = eval(input)
+		sb.append(obj.toString)
+	}
+	
+	def protected void append(RichStringLiteral lit, String str){
+		sb.append(str)
 	}
 }
 
