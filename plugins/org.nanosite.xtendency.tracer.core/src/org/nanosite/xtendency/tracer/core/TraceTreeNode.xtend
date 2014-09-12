@@ -43,16 +43,6 @@ class TraceTreeNode<T> {
 	}
 }
 
-@Data class RichStringOutputLocation{
-	int offset
-	int length
-	String str
-	
-	override toString() {
-		"[" + offset + "/" + length + " '" + str.replace("\n", "\\n") + "']"
-	}
-}
-
 @Data class InputData {
 	XExpression expression
 	Map<String, Object> scope
