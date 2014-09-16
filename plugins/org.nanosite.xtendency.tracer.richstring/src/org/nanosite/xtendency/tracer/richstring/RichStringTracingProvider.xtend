@@ -7,11 +7,11 @@ import org.eclipse.xtend.core.xtend.XtendClass
 import org.nanosite.xtendency.tracer.core.TraceTreeNode
 import org.eclipse.xtext.xbase.XExpression
 import org.nanosite.xtendency.tracer.core.InputData
-import org.nanosite.xtendency.tracer.core.DefaultTracingProvider
 import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
 import java.util.HashMap
+import org.nanosite.xtendency.tracer.core.AbstractTracingProvider
 
-class RichStringTracingProvider extends DefaultTracingProvider<RichStringOutputLocation> {
+class RichStringTracingProvider extends AbstractTracingProvider<RichStringOutputLocation> {
 
 	public static final String RICH_STRING_TRACING_PROVIDER_ID = "org.nanosite.xtendency.tracer.richstring"
 

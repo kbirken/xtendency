@@ -8,7 +8,7 @@ import org.eclipse.xtend.core.xtend.XtendClass
 import org.eclipse.emf.ecore.EObject
 import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
 
-abstract class DefaultTracingProvider<T> implements ITracingProvider<T> {
+abstract class AbstractTracingProvider<T> implements ITracingProvider<T> {
 	
 	protected Stack<TraceTreeNode<T>> nodeStack = new Stack<TraceTreeNode<T>>
 	
