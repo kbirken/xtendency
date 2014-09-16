@@ -10,6 +10,11 @@ RunConfiguration:
 		'project' projectName = STRING
 		'class' clazz=[XtendTypeDeclaration | FQN] ':' function = [XtendFunction]
 		('initialize' '{' 
+			
+			('injector' '=' injector = XBlockExpression
+			(injectedMembers += InjectedMember)*	
+			)?
+			
 			(inits += InitBlock)*
 		'}')?
 	'}'
@@ -17,6 +22,10 @@ RunConfiguration:
 
 InitBlock:
 	param = STRING '=' expr = XBlockExpression
+;
+
+InjectedMember:
+	'inject' name = ID 'with' type = JvmTypeReference
 ;
 
 Import:

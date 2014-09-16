@@ -51,14 +51,17 @@ class XtendInterpreter extends XbaseInterpreter {
 		super.classLoader = cl
 	}
 
-	def void addProjectToClasspath(IJavaProject jp) {
+	def ClassLoader addProjectToClasspath(IJavaProject jp) {
 		if (injectedClassLoader != null) {
 			val classPathEntries = JavaRuntime.computeDefaultRuntimeClassPath(jp)
 			val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
 			classPathUrls.forEach[println(it)]
-			super.classLoader = new URLClassLoader(classPathUrls, injectedClassLoader)
+			val result = new URLClassLoader(classPathUrls, injectedClassLoader)
+			super.classLoader = result
+			return result
 		}
-	}
+		null
+	} 
 
 	protected def Object _doEvaluate(RichString rs, IEvaluationContext context, CancelIndicator indicator) {
 		val helper = createRichStringExecutor(context, indicator)

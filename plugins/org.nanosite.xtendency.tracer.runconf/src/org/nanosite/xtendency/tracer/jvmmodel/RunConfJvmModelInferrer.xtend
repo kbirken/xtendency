@@ -6,6 +6,12 @@ import org.eclipse.xtext.xbase.jvmmodel.IJvmDeclaredTypeAcceptor
 import org.eclipse.xtext.xbase.jvmmodel.JvmTypesBuilder
 import org.nanosite.xtendency.tracer.runConf.RunConfiguration
 import org.eclipse.xtext.common.types.JvmTypeReference
+import java.util.HashSet
+import java.util.HashMap
+import org.eclipse.xtext.common.types.impl.JvmFormalParameterImplCustom
+import org.eclipse.xtext.common.types.JvmFormalParameter
+import org.eclipse.xtext.common.types.TypesFactory
+import com.google.inject.Injector
 
 /**
  * <p>Infers a JVM model from the source model.</p> 
@@ -50,17 +56,26 @@ class RunConfJvmModelInferrer extends AbstractModelInferrer {
 		// Here you explain how your model is mapped to Java elements, by writing the actual translation code.
 		if (element != null && element.inits != null && element.clazz != null) {
 			acceptor.accept(element.toClass(element.clazz.name)).initializeLater [
+				if (element.injector != null) {
+					members += element.injector.toMethod("getInjector", element.injector.newTypeRef(Injector),
+						[
+							body = element.injector
+						])
+				}
 				for (i : element.inits) {
 					members += i.toMethod("initialize" + i.param.toFirstUpper, i.param.getTypeForParam(element),
 						[
+							for (f : element.injectedMembers){
+								parameters += f.toParameter(f.name, f.type)
+							}
 							body = i.expr
 						])
 				}
 			]
 		}
 	}
-	
-	def JvmTypeReference getTypeForParam(String name, RunConfiguration rc){
+
+	def JvmTypeReference getTypeForParam(String name, RunConfiguration rc) {
 		rc.function.parameters.findFirst[it.name == name]?.parameterType ?: rc.newTypeRef(Object)
 	}
 }
