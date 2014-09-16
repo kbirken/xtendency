@@ -85,6 +85,8 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 	protected static final int VERTICAL_RULER_WIDTH = 12;
 	protected static final int OVERVIEW_RULER_WIDTH = 12;
 	private static final ISchedulingRule SEQUENCE_RULE = SchedulingRuleFactory.INSTANCE.newSequence();
+	
+	private String lastInput = null;
 
 	private static final Color COLOR_SELECTED = new Color(Display.getCurrent, 255, 0, 0)
 
@@ -264,8 +266,15 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 	override protected String getViewerFontName() {
 		return "org.eclipse.xtend.ui.editors.textfont"; //$NON-NLS-1$
 	}
+	
+	override protected computeInput(IWorkbenchPartSelection workbenchPartSelection) {
+		if (lastInput == null){
+			lastInput = doComputeInput(workbenchPartSelection);
+		}
+		return lastInput;
+	}
 
-	override protected String computeInput(IWorkbenchPartSelection workbenchPartSelection) {
+	def protected String doComputeInput(IWorkbenchPartSelection workbenchPartSelection) {
 		println("recomputing input")
 		val interpResult = SynchronizedInterpreterAccess.evaluate(interpreter, inputExpression, initialContext.fork)
 		if (interpResult.result != null && interpResult.result instanceof CharSequence) {
@@ -306,6 +315,7 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 
 	//TODO: clean up this mess
 	override public void resourceChanged(IResourceChangeEvent event) {
+		lastInput = null;
 		if (event.delta != null && event.delta.concernsFile(selectedFile)) {
 			if (rconfFile == null) {
 				val resource = inputExpression.eResource

@@ -55,7 +55,6 @@ class XtendInterpreter extends XbaseInterpreter {
 		if (injectedClassLoader != null) {
 			val classPathEntries = JavaRuntime.computeDefaultRuntimeClassPath(jp)
 			val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
-			classPathUrls.forEach[println(it)]
 			val result = new URLClassLoader(classPathUrls, injectedClassLoader)
 			super.classLoader = result
 			return result
