@@ -21,14 +21,12 @@ class TracingInterpreter extends XtendInterpreter {
 	
 	def Object doEvaluate(XExpression expr, IEvaluationContext context, CancelIndicator indicator, boolean trace){
 		if (trace)
-			tracingProviders.filter[canCreateTracePointFor(expr)].forEach[enter]
+			tracingProviders.filter[canCreateTracePointFor(expr)].forEach[enter(expr, context)]
 		val Map<String, Object> ctx = new HashMap<String, Object>
 		val result = super.doEvaluate(expr, context, indicator)
 		if (trace)
 			tracingProviders.filter[canCreateTracePointFor(expr)].forEach[
-				setInput(expr, context)
-				setOutput(result)
-				exit
+				exit(expr, context, result)
 			]
 		return result
 	}

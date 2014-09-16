@@ -94,7 +94,21 @@ class XtendInterpreter extends XbaseInterpreter {
 					val paramName = calledFunc.parameters.get(i).name
 					newContext.newValue(QualifiedName.create(paramName), argumentValues.get(i))
 				}
-				return doEvaluate(calledFunc.expression, newContext, indicator)
+				try{
+					val result = doEvaluate(calledFunc.expression, newContext, indicator)
+					return result
+				}catch(RuntimeException r){
+					if (r.class.simpleName == "ReturnValue"){
+						val rvField = r.class.getDeclaredField("returnValue")
+						rvField.accessible = true
+						return rvField.get(r)
+						// class returnvalue is not visible from here apparently
+						// return r.returnValue
+					}else{ 
+						throw r
+					}
+					
+				}
 			}
 		}
 		super.invokeOperation(operation, receiver, argumentValues, context, indicator)

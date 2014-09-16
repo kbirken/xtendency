@@ -26,15 +26,14 @@ class TracingRichStringExecutor extends DefaultRichStringExecutor {
 	override void append(XExpression input) {
 		val ctx = new HashMap<String, Object>
 
-		tracingProviders.filter[canCreateTracePointFor(input)].forEach[enter]
-		val str = eval(input).toString
+		tracingProviders.filter[canCreateTracePointFor(input)].forEach[enter(input, contextStack.peek)]
+		val result = eval(input)
+		val str = if (result == null) "NULL" else result.toString
 
 		for (tp : tracingProviders) {
 
 			if (tp.canCreateTracePointFor(input)) {
-				tp.setInput(input, contextStack.peek)
-				tp.setOutput(str.toString)
-				tp.exit
+				tp.exit(input, contextStack.peek, str.toString)
 			}
 		}
 		super.append(str)
@@ -47,10 +46,8 @@ class TracingRichStringExecutor extends DefaultRichStringExecutor {
 
 		for (tp : tracingProviders) {
 			if (tp.canCreateTracePointFor(lit)) {
-				tp.enter
-				tp.setInput(lit, contextStack.peek)
-				tp.setOutput(str)
-				tp.exit
+				tp.enter(lit, contextStack.peek)
+				tp.exit(lit, contextStack.peek, str)
 			}
 		}
 	}

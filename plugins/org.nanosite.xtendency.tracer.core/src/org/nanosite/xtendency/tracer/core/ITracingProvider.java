@@ -14,13 +14,9 @@ public interface ITracingProvider<T> {
 	
 	TraceTreeNode<T> getRootNode();
 	
-	void enter();
+	void enter(XExpression input, IEvaluationContext ctx);
 	
-	void exit();
-	
-	void setInput(XExpression input, IEvaluationContext ctx);
-	
-	void setOutput(Object output);
+	void exit(XExpression input, IEvaluationContext ctx, Object output);
 	
 	void skip(String output);
 }
