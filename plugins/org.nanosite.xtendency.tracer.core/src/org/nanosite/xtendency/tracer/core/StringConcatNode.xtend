@@ -8,10 +8,4 @@ class StringConcatNode extends TraceNode {
 		super(genloc)
 	}
 
-//	override getAnnotatedResult() {
-//		for()
-//		result.toString
-//	}
-
-
 }

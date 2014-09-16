@@ -30,84 +30,85 @@ import java.net.URLClassLoader
 import org.eclipse.jdt.launching.JavaRuntime
 
 class XtendInterpreter extends XbaseInterpreter {
-	
+
 	@Inject
 	protected RichStringProcessor richStringProcessor
 
-	@Inject	
+	@Inject
 	protected Provider<DefaultIndentationHandler> indentationHandler
-	
 
 	XtendTypeDeclaration currentType
-	
+
 	protected ClassLoader injectedClassLoader
-	
-	def setCurrentType(XtendTypeDeclaration thisType){
+
+	def setCurrentType(XtendTypeDeclaration thisType) {
 		this.currentType = thisType
 	}
-	
-	override void setClassLoader(ClassLoader cl){
+
+	override void setClassLoader(ClassLoader cl) {
 		if (cl instanceof EquinoxClassLoader)
 			this.injectedClassLoader = cl
 		super.classLoader = cl
 	}
-	
-	def void addProjectToClasspath(IJavaProject jp){
-		if (injectedClassLoader != null){
+
+	def ClassLoader addProjectToClasspath(IJavaProject jp) {
+		if (injectedClassLoader != null) {
 			val classPathEntries = JavaRuntime.computeDefaultRuntimeClassPath(jp)
 			val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
-			classPathUrls.forEach[println(it)]
-			super.classLoader = new URLClassLoader(classPathUrls, injectedClassLoader)
-			println("set urlclassloader")
+			val result = new URLClassLoader(classPathUrls, injectedClassLoader)
+			super.classLoader = result
+			return result
 		}
-	}
-	
+		null
+	} 
 
 	protected def Object _doEvaluate(RichString rs, IEvaluationContext context, CancelIndicator indicator) {
 		val helper = createRichStringExecutor(context, indicator)
 		richStringProcessor.process(rs, helper, indentationHandler.get)
 		helper.result
 	}
-	
+
 	protected def IRichStringExecutor createRichStringExecutor(IEvaluationContext context, CancelIndicator indicator) {
 		new DefaultRichStringExecutor(this, context, indicator)
 	}
-	
-	
+
 	protected override Object doEvaluate(XExpression expression, IEvaluationContext context, CancelIndicator indicator) {
-		if (expression instanceof RichString){
+		if (expression instanceof RichString) {
 			_doEvaluate(expression as RichString, context, indicator)
-		}else{
+		} else {
 			super.doEvaluate(expression, context, indicator)
 		}
 	}
-	
+
 	protected override Object invokeOperation(JvmOperation operation, Object receiver, List<Object> argumentValues,
-			IEvaluationContext context, CancelIndicator indicator) {
+		IEvaluationContext context, CancelIndicator indicator) {
 		val calledType = operation.declaringType.qualifiedName
-		if (currentType != null){
+		if (currentType != null) {
 			val currentTypeName = (currentType.eContainer as XtendFile).package + "." + currentType.name
-			if (currentTypeName == calledType && receiver == null){
-				val calledFunc = currentType.members.findFirst[it instanceof XtendFunction && (it as XtendFunction).name == operation.simpleName && (it as XtendFunction).parameters.size == argumentValues.size] as XtendFunction
+			if (currentTypeName == calledType && receiver == null) {
+				val calledFunc = currentType.members.findFirst[
+					it instanceof XtendFunction && (it as XtendFunction).name == operation.simpleName &&
+						(it as XtendFunction).parameters.size == argumentValues.size] as XtendFunction
 				val newContext = context.fork
-				for (var i = 0; i < argumentValues.size; i++){
+				for (var i = 0; i < argumentValues.size; i++) {
 					val paramName = calledFunc.parameters.get(i).name
 					newContext.newValue(QualifiedName.create(paramName), argumentValues.get(i))
 				}
 				return doEvaluate(calledFunc.expression, newContext, indicator)
 			}
- 		}
+		}
 		super.invokeOperation(operation, receiver, argumentValues, context, indicator)
 	}
-	
-	protected override _invokeFeature(JvmField jvmField, XAbstractFeatureCall featureCall, Object receiver, IEvaluationContext context, CancelIndicator indicator) {
+
+	protected override _invokeFeature(JvmField jvmField, XAbstractFeatureCall featureCall, Object receiver,
+		IEvaluationContext context, CancelIndicator indicator) {
 		val calledType = jvmField.declaringType.qualifiedName
-		if (currentType != null){
+		if (currentType != null) {
 			val currentTypeName = (currentType.eContainer as XtendFile).package + "." + currentType.name
-			if (currentTypeName == calledType && receiver == null){
+			if (currentTypeName == calledType && receiver == null) {
 				val currentInstance = context.getValue(QualifiedName.create("this"))
 				val fieldName = featureCall.feature.simpleName
-				if (currentInstance != null){
+				if (currentInstance != null) {
 					val field = currentInstance.class.getDeclaredField(fieldName)
 					field.accessible = true
 					return field.get(currentInstance)
@@ -116,44 +117,28 @@ class XtendInterpreter extends XbaseInterpreter {
 		}
 		super._invokeFeature(jvmField, featureCall, receiver, context, indicator)
 	}
-	
+
 	protected override _assigneValueTo(JvmField jvmField, XAbstractFeatureCall assignment, Object value,
-			IEvaluationContext context, CancelIndicator indicator) {
-				val calledType = jvmField.declaringType.qualifiedName
-		if (currentType != null){
+		IEvaluationContext context, CancelIndicator indicator) {
+		val calledType = jvmField.declaringType.qualifiedName
+		if (currentType != null) {
 			val currentTypeName = (currentType.eContainer as XtendFile).package + "." + currentType.name
-			if (currentTypeName == calledType){
+			if (currentTypeName == calledType) {
 				val currentInstance = context.getValue(QualifiedName.create("this"))
 				val fieldName = assignment.feature.simpleName
-				if (currentInstance != null){
-					val field = currentInstance.class.getDeclaredField(fieldName)
-					field.accessible = true
-					
-					field.set(currentInstance, value)
-					return value
-					
+				if (currentInstance != null) {
+					try {
+						val field = currentInstance.class.getDeclaredField(fieldName)
+						field.accessible = true
+
+						field.set(currentInstance, value)
+						return value
+					} catch (NoSuchFieldException e) {
+						e.printStackTrace
+					}
 				}
 			}
 		}
 		super._assigneValueTo(jvmField, assignment, value, context, indicator)
 	}
-	
-	/*
-	 * TODO: this actually inserts a string inside another, so it might break the whole offset-length counting system
-	 */
-//	def protected appendImmediate(StringBuilder sb, String s){
-//		val str = sb.toString
-//		var start = 0
-//		var found = false
-//		for (var i = str.length - 1; i >= 0 && !found; i--){
-//			if (!Character.isWhitespace(str.charAt(i))){
-//				start = i + 1
-//				found = true
-//			}
-//		}
-//		val deleted = str.substring(start, sb.length)
-//		sb.delete(start, sb.length)
-//		sb.append(s)
-//		sb.append(deleted)		
-//	}
 }
