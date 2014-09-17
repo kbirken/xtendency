@@ -1,4 +1,4 @@
-package org.nanosite.xtendency.tracer.richstring.ui;
+package org.nanosite.xtendency.tracer.core;
 
 import org.eclipse.xtext.xbase.XExpression;
 import org.eclipse.xtext.xbase.interpreter.IEvaluationContext;

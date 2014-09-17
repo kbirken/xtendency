@@ -1,59 +1,35 @@
-package org.nanosite.xtendency.tracer.richstring.ui;
-
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.ArrayList;
-import java.util.List;
+package org.nanosite.xtendency.tracer.emf.ui;
 
 import org.eclipse.core.commands.AbstractHandler;
 import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.commands.IHandler;
-import org.eclipse.core.commands.IHandlerListener;
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.Path;
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.util.EcoreUtil;
-import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.launching.JavaRuntime;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.TreeSelection;
 import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.handlers.HandlerUtil;
-import org.eclipse.xtend.core.xtend.XtendFile;
-import org.eclipse.xtend.core.xtend.XtendFunction;
-import org.eclipse.xtend.core.xtend.XtendTypeDeclaration;
 import org.eclipse.xtend.ide.internal.XtendActivator;
-import org.eclipse.xtext.naming.QualifiedName;
 import org.eclipse.xtext.ui.resource.IResourceSetProvider;
-import org.eclipse.xtext.xbase.XBlockExpression;
-import org.eclipse.xtext.xbase.XExpression;
-import org.eclipse.xtext.xbase.XbaseFactory;
-import org.eclipse.xtext.xbase.interpreter.IEvaluationContext;
-import org.eclipse.xtext.xbase.interpreter.IEvaluationResult;
-import org.eclipse.xtext.xbase.interpreter.impl.DefaultEvaluationContext;
 import org.eclipse.xtext.xbase.interpreter.impl.XbaseInterpreter;
-import org.nanosite.xtendency.tracer.runConf.InitBlock;
 import org.nanosite.xtendency.tracer.runConf.RunConfiguration;
-import org.nanosite.xtendency.tracer.richstring.ui.DerivedSourceView;
 
 import com.google.inject.Inject;
 
-public class ShowGeneratedViewFromConfHandler extends AbstractHandler {
+public class ShowGeneratedViewFromConfHandler extends AbstractHandler implements
+		IHandler {
+	
 	@Inject
 	private XbaseInterpreter interpreter;
 
 	@Inject
 	private IResourceSetProvider rsProvider;
 
-	@SuppressWarnings("restriction")
 	@Override
 	public Object execute(ExecutionEvent event) throws ExecutionException {
 		System.out.println("Executing command");
@@ -76,11 +52,11 @@ public class ShowGeneratedViewFromConfHandler extends AbstractHandler {
 
 				try {
 					try {
-						DerivedSourceView view = (DerivedSourceView) HandlerUtil
+						GeneratedTreeView view = (GeneratedTreeView) HandlerUtil
 								.getActiveWorkbenchWindow(event)
 								.getActivePage()
 								.showView(
-										"org.nanosite.xtendency.tracer.ui.generatedView");
+										"org.nanosite.xtendency.tracer.emf.ui.generatedView");
 						view.setInput(rc, (IFile) s);
 						PlatformUI.getWorkbench().getActiveWorkbenchWindow()
 								.getSelectionService()

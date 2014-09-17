@@ -78,6 +78,7 @@ import org.eclipse.osgi.internal.loader.EquinoxClassLoader
 import org.eclipse.core.internal.resources.Project
 import org.osgi.framework.BundleContext
 import org.osgi.framework.FrameworkUtil
+import org.nanosite.xtendency.tracer.core.SynchronizedInterpreterAccess
 
 /**
  *
@@ -233,10 +234,6 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 
 	override isIgnored(IWorkbenchPartSelection s) {
 		return !(s.selection instanceof TextSelection)
-	}
-
-	override public void createPartControl(Composite parent) {
-		super.createPartControl(parent);
 	}
 
 	override protected SourceViewer createSourceViewer(Composite parent) {

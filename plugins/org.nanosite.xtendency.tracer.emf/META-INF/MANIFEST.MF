@@ -1,0 +1,16 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Emf
+Bundle-SymbolicName: org.nanosite.xtendency.tracer.emf
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: org.nanosite.xtendency.tracer.emf.Activator
+Require-Bundle: org.eclipse.core.runtime,
+ org.nanosite.xtendency.tracer.core;bundle-version="0.1.0",
+ com.google.guava,
+ org.eclipse.xtend.lib,
+ org.eclipse.xtext.xbase.lib,
+ org.eclipse.xtend.core;bundle-version="2.6.0"
+Bundle-RequiredExecutionEnvironment: JavaSE-1.7
+Bundle-ActivationPolicy: lazy
+Export-Package: org.nanosite.xtendency.tracer.emf
+
