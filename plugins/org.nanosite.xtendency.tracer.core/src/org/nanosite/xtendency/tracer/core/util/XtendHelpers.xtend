@@ -5,11 +5,11 @@ import java.io.File
 import java.io.IOException
 import java.util.Collections
 import org.eclipse.emf.common.util.URI
+import org.eclipse.emf.ecore.resource.Resource
 import org.eclipse.emf.ecore.resource.ResourceSet
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl
 import org.eclipse.emf.ecore.util.EcoreUtil
 import org.eclipse.xtend.core.xtend.XtendFile
-import org.eclipse.xtend.core.linking.LinkingProxyAwareResource
 
 class XtendHelpers {
 
@@ -32,17 +32,17 @@ class XtendHelpers {
 		}
 	}
 
-	def LinkingProxyAwareResource createResource (ResourceSet rset, XtendFile model, String filename) {
+	def Resource createResource (ResourceSet rset, XtendFile model, String filename) {
 //		val resourceSet = resourceSetProvider.get()
 		val fileUri = URI::createFileURI(new File(filename).getAbsolutePath)
 		val res = rset.createResource(fileUri)
 		res.getContents().add(model)
-		return res as LinkingProxyAwareResource
+		return res
 	}
 
-	def save (LinkingProxyAwareResource res) {
+	def save (Resource res) {
 		println("creating derived state for resource")
-		res.installDerivedState(false)
+//		res.installDerivedState(false) TODO
 		try {
 			println("saving resource")
 			res.save(Collections::EMPTY_MAP)
