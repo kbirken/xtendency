@@ -197,14 +197,23 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		}
 
 		for (i : rc.getInits()) {
-			val result = interpreter.evaluate(i.getExpr(), initContext.fork, CancelIndicator.NullImpl);
-			val value = result.getResult();
-			context.newValue(QualifiedName.create(i.getParam()), value);
-			if (injector != null && i.param == "this"){
-				injector.injectMembers(value)
+			try {
+				val result = interpreter.evaluate(i.getExpr(), initContext.fork, CancelIndicator.NullImpl);
+				val value = result.getResult();
+				if (result.exception==null) {
+					context.newValue(QualifiedName.create(i.getParam()), value);
+					if (injector != null && i.param == "this") {
+						injector.injectMembers(value)
+					}
+				} else {
+					println("Interpreter exception during evaluation of initializer '" + i.param + "':") 
+					result.exception.printStackTrace
+				}
+			} catch (Exception e) {
+				e.printStackTrace
 			}
 		}
-
+		
 		setInput(typeDecl, inputExpression, context, file)
 		this.rconfFile = rconfFile
 	}
