@@ -56,7 +56,7 @@ class RunConfJvmModelInferrer extends AbstractModelInferrer {
 
 		// Here you explain how your model is mapped to Java elements, by writing the actual translation code.
 		if (element != null && element.inits != null && element.clazz != null) {
-			val className = (element.clazz.eContainer as XtendFile).package + "." + element.clazz.name
+			val className = (element.clazz.eContainer as XtendFile).package + "." + element.name
 			acceptor.accept(element.toClass(className)).initializeLater [
 				if (element.injector != null) {
 					members += element.injector.toMethod("getInjector", element.injector.newTypeRef(Injector),
