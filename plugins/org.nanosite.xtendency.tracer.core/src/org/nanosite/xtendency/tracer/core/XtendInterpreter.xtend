@@ -28,6 +28,7 @@ import org.eclipse.jdt.core.IJavaProject
 import org.eclipse.core.runtime.Path
 import java.net.URLClassLoader
 import org.eclipse.jdt.launching.JavaRuntime
+import org.osgi.framework.FrameworkUtil
 
 class XtendInterpreter extends XbaseInterpreter {
 
@@ -53,9 +54,14 @@ class XtendInterpreter extends XbaseInterpreter {
 
 	def ClassLoader addProjectToClasspath(IJavaProject jp) {
 		if (injectedClassLoader != null) {
+			println("injected class loader is " + injectedClassLoader)
 			val classPathEntries = JavaRuntime.computeDefaultRuntimeClassPath(jp)
 			val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
-			val result = new URLClassLoader(classPathUrls, injectedClassLoader)
+			
+			var ClassLoader parent = injectedClassLoader
+			parent = new DelegatorClassLoader(parent, FrameworkUtil.getBundle(XtendInterpreter).getBundleContext(), classPathUrls.map[toString])
+			
+			val result = new URLClassLoader(classPathUrls, parent)
 			super.classLoader = result
 			return result
 		}
@@ -65,7 +71,7 @@ class XtendInterpreter extends XbaseInterpreter {
 	protected def Object _doEvaluate(RichString rs, IEvaluationContext context, CancelIndicator indicator) {
 		val helper = createRichStringExecutor(context, indicator)
 		richStringProcessor.process(rs, helper, indentationHandler.get)
-		helper.result
+		helper.result 
 	}
 
 	protected def IRichStringExecutor createRichStringExecutor(IEvaluationContext context, CancelIndicator indicator) {
@@ -102,8 +108,7 @@ class XtendInterpreter extends XbaseInterpreter {
 						val rvField = r.class.getDeclaredField("returnValue")
 						rvField.accessible = true
 						return rvField.get(r)
-						// class returnvalue is not visible from here apparently
-						// return r.returnValue
+						// class Returnvalue is not visible from here apparently
 					}else{ 
 						throw r
 					}

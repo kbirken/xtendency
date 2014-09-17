@@ -74,6 +74,10 @@ import org.nanosite.xtendency.tracer.richstring.RichStringTracingProvider
 import org.nanosite.xtendency.tracer.richstring.RichStringOutputLocation
 import com.google.inject.Injector
 import org.eclipse.xtext.util.CancelIndicator
+import org.eclipse.osgi.internal.loader.EquinoxClassLoader
+import org.eclipse.core.internal.resources.Project
+import org.osgi.framework.BundleContext
+import org.osgi.framework.FrameworkUtil
 
 /**
  *
