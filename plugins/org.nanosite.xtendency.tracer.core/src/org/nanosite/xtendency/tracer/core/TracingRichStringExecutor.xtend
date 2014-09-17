@@ -29,7 +29,7 @@ class TracingRichStringExecutor extends DefaultRichStringExecutor {
 		tracingProviders.filter[canCreateTracePointFor(input)].forEach[enter(input, contextStack.peek)]
 		val result = eval(input)
 		val str = if (result == null) "NULL" else result.toString
-
+			
 		for (tp : tracingProviders) {
 
 			if (tp.canCreateTracePointFor(input)) {
