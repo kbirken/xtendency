@@ -47,6 +47,7 @@ Workflow {
     	projectNameRt = projectName
     	projectNameUi = "${projectName}.ui"
     	encoding = encoding
+    	mergeManifest = false
     	language = auto-inject {
     		uri = grammarURI
     
