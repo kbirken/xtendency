@@ -24,9 +24,12 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.launching.JavaRuntime;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.TreeSelection;
+import org.eclipse.ui.IEditorDescriptor;
+import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.handlers.HandlerUtil;
+import org.eclipse.ui.part.FileEditorInput;
 import org.eclipse.xtend.core.xtend.XtendFile;
 import org.eclipse.xtend.core.xtend.XtendFunction;
 import org.eclipse.xtend.core.xtend.XtendTypeDeclaration;
@@ -85,6 +88,13 @@ public class ShowGeneratedViewFromConfHandler extends AbstractHandler {
 						PlatformUI.getWorkbench().getActiveWorkbenchWindow()
 								.getSelectionService()
 								.addSelectionListener(view);
+						XtendFile f = (XtendFile) rc.getClazz().eContainer();
+						String filePath = dropFirstSegment(f.eResource().getURI());
+						IFile classFile = ((IFile)s).getProject().getFile(Path.fromPortableString(filePath));
+						IEditorDescriptor desc = PlatformUI.getWorkbench().
+						        getEditorRegistry().getDefaultEditor(classFile.getName());
+						IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+						page.openEditor(new FileEditorInput(classFile), desc.getId());
 					} finally {
 					}
 
@@ -97,4 +107,12 @@ public class ShowGeneratedViewFromConfHandler extends AbstractHandler {
 		return null;
 	}
 
+	private String dropFirstSegment(URI uri) {
+		StringBuilder sb = new StringBuilder();
+		for (int i = 2; i < uri.segmentCount(); i++) {
+			sb.append("/");
+			sb.append(uri.segment(i));
+		}
+		return sb.toString();
+	}
 }

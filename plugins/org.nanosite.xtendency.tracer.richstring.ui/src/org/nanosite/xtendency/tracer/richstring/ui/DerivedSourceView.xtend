@@ -218,7 +218,7 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 				e.printStackTrace
 			}
 		}
-		
+		interpreter.configure(file.parent)
 		setInput(typeDecl, inputExpression, context, file)
 		this.rconfFile = rconfFile
 	}
