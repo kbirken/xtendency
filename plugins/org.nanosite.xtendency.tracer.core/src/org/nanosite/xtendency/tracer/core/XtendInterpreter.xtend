@@ -29,6 +29,22 @@ import org.eclipse.core.runtime.Path
 import java.net.URLClassLoader
 import org.eclipse.jdt.launching.JavaRuntime
 import org.osgi.framework.FrameworkUtil
+import org.eclipse.core.resources.IFile
+import org.eclipse.emf.common.util.URI
+import java.util.ArrayList
+import org.eclipse.core.resources.IContainer
+import java.util.Map
+import java.util.HashMap
+import org.eclipse.xtext.ui.resource.IResourceSetProvider
+import org.eclipse.emf.ecore.resource.ResourceSet
+import org.eclipse.xtext.common.types.JvmIdentifiableElement
+import org.eclipse.xtext.common.types.JvmGenericType
+
+@Data class XtendClassResource {
+	String classId
+	IFile file
+	URI uri
+}
 
 class XtendInterpreter extends XbaseInterpreter {
 
@@ -36,11 +52,44 @@ class XtendInterpreter extends XbaseInterpreter {
 	protected RichStringProcessor richStringProcessor
 
 	@Inject
+	protected IResourceSetProvider rsProvider
+
+	@Inject
 	protected Provider<DefaultIndentationHandler> indentationHandler
+
+	protected List<XtendClassResource> usedClasses = new ArrayList<XtendClassResource>
+	protected Map<String, Pair<IFile, URI>> availableClasses = new HashMap<String, Pair<IFile, URI>>
+	protected IContainer baseDir
 
 	XtendTypeDeclaration currentType
 
 	protected ClassLoader injectedClassLoader
+
+	private ResourceSet rs
+
+	def configure(IContainer container) {
+		this.rs = rsProvider.get(container.project)
+		this.baseDir = container
+		for (f : container.members.filter(IFile).filter[name.endsWith(".xtend")]) {
+			val uri = URI.createURI(f.fullPath.toString, true)
+			try {
+				val r = rs.getResource(uri, true)
+				val file = r.contents.head
+				if (file instanceof XtendFile) {
+					for (type : file.xtendTypes) {
+						val name = file.package + "." + type.name
+						availableClasses.put(name, f -> uri)
+					}
+				}
+			} catch (Exception e) {
+				// ignore
+			}
+		}
+	}
+
+	def List<XtendClassResource> getUsedClasses() {
+		usedClasses
+	}
 
 	def setCurrentType(XtendTypeDeclaration thisType) {
 		this.currentType = thisType
@@ -57,21 +106,22 @@ class XtendInterpreter extends XbaseInterpreter {
 			println("injected class loader is " + injectedClassLoader)
 			val classPathEntries = JavaRuntime.computeDefaultRuntimeClassPath(jp)
 			val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
-			
+
 			var ClassLoader parent = injectedClassLoader
-			parent = new DelegatorClassLoader(parent, FrameworkUtil.getBundle(XtendInterpreter).getBundleContext(), classPathUrls.map[toString])
-			
+			parent = new DelegatorClassLoader(parent, FrameworkUtil.getBundle(XtendInterpreter).getBundleContext(),
+				classPathUrls.map[toString])
+
 			val result = new URLClassLoader(classPathUrls, parent)
 			super.classLoader = result
 			return result
 		}
 		null
-	} 
+	}
 
 	protected def Object _doEvaluate(RichString rs, IEvaluationContext context, CancelIndicator indicator) {
 		val helper = createRichStringExecutor(context, indicator)
 		richStringProcessor.process(rs, helper, indentationHandler.get)
-		helper.result 
+		helper.result
 	}
 
 	protected def IRichStringExecutor createRichStringExecutor(IEvaluationContext context, CancelIndicator indicator) {
@@ -100,19 +150,52 @@ class XtendInterpreter extends XbaseInterpreter {
 					val paramName = calledFunc.parameters.get(i).name
 					newContext.newValue(QualifiedName.create(paramName), argumentValues.get(i))
 				}
-				try{
+				try {
 					val result = doEvaluate(calledFunc.expression, newContext, indicator)
 					return result
-				}catch(RuntimeException r){
-					if (r.class.simpleName == "ReturnValue"){
+				} catch (RuntimeException r) {
+					if (r.class.simpleName == "ReturnValue") {
 						val rvField = r.class.getDeclaredField("returnValue")
 						rvField.accessible = true
 						return rvField.get(r)
-						// class Returnvalue is not visible from here apparently
-					}else{ 
+
+					// class Returnvalue is not visible from here apparently
+					} else {
 						throw r
 					}
-					
+
+				}
+			}
+		} 
+		if (availableClasses.containsKey(calledType)) {
+			val locationInfo = availableClasses.get(calledType)
+			val resource = rs.getResource(locationInfo.value, true)
+			val type = (resource.contents.head as XtendFile).xtendTypes.findFirst[
+				name == operation.declaringType.simpleName]
+			val func = type.members.filter(XtendFunction).findFirst[
+				name == operation.simpleName && parameters.size == argumentValues.size]
+			println("interpreting function " + func.name)
+			val newContext = context.fork
+			for (var i = 0; i < argumentValues.size; i++) {
+				val paramName = func.parameters.get(i).name
+				newContext.newValue(QualifiedName.create(paramName), argumentValues.get(i))
+			}
+			newContext.newValue(QualifiedName.create("this"), receiver)
+			try {
+				val currentTypeBefore = currentType
+				currentType = type
+				val result = doEvaluate(func.expression, newContext, indicator)
+				currentType = currentTypeBefore
+				return result
+			} catch (RuntimeException r) {
+				if (r.class.simpleName == "ReturnValue") {
+					val rvField = r.class.getDeclaredField("returnValue")
+					rvField.accessible = true
+					return rvField.get(r)
+
+				// class Returnvalue is not visible from here apparently
+				} else {
+					throw r
 				}
 			}
 		}
@@ -128,6 +211,8 @@ class XtendInterpreter extends XbaseInterpreter {
 				val currentInstance = context.getValue(QualifiedName.create("this"))
 				val fieldName = featureCall.feature.simpleName
 				if (currentInstance != null) {
+					if (fieldName == "this")
+						return currentInstance
 					val field = currentInstance.class.getDeclaredField(fieldName)
 					field.accessible = true
 					return field.get(currentInstance)
@@ -160,4 +245,15 @@ class XtendInterpreter extends XbaseInterpreter {
 		}
 		super._assigneValueTo(jvmField, assignment, value, context, indicator)
 	}
+	
+	override Object _invokeFeature(JvmIdentifiableElement identifiable, XAbstractFeatureCall featureCall, Object receiver,
+			IEvaluationContext context, CancelIndicator indicator) {
+		if (featureCall.toString =="this" && currentType != null && identifiable instanceof JvmGenericType && identifiable.simpleName == currentType.name){
+			val result = context.getValue(QualifiedName.create("this"))
+			if (result != null)
+				return result
+		}
+		super._invokeFeature(identifiable, featureCall, receiver, context, indicator)
+	}
+	
 }
