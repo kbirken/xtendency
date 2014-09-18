@@ -79,6 +79,9 @@ import org.eclipse.core.internal.resources.Project
 import org.osgi.framework.BundleContext
 import org.osgi.framework.FrameworkUtil
 import org.nanosite.xtendency.tracer.core.SynchronizedInterpreterAccess
+import java.util.Map
+import java.util.HashMap
+import org.eclipse.ui.PlatformUI
 
 /**
  *
@@ -90,21 +93,19 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 	protected static final int VERTICAL_RULER_WIDTH = 12;
 	protected static final int OVERVIEW_RULER_WIDTH = 12;
 	private static final ISchedulingRule SEQUENCE_RULE = SchedulingRuleFactory.INSTANCE.newSequence();
-	
+
 	private String lastInput = null;
 
 	private static final Color COLOR_SELECTED = new Color(Display.getCurrent, 255, 0, 0)
 
-	private IFile selectedFile
-
 	private IFile rconfFile
-	
-	private int lastOffsetInEditor = -1
-	private int lastLengthInEditor = -1
+
+	private Map<IWorkbenchPart, Pair<Integer, Integer>> lastEditorSelection = new HashMap<IWorkbenchPart, Pair<Integer, Integer>>
+//	private int lastOffsetInEditor = -1
+//	private int lastLengthInEditor = -1
 	private int lastOffsetInView = -1
 	private int lastLengthInView = -1
-
-	private XbaseEditor associatedEditor
+	private Set<IWorkbenchPart> justActivated = new HashSet<IWorkbenchPart>
 
 	private XExpression inputExpression
 
@@ -134,26 +135,44 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		interpreter.addTracingProvider(new RichStringTracingProvider)
 		colorRegistry.put("de.itemis.codegenutil.ui.DerivedSourceView.backgroundColor", new RGB(255, 255, 255))
 	}
+	
+	override partActivated(IWorkbenchPartReference ref) {
+		justActivated += ref.getPart(false)
+		super.partActivated(ref)
+	}
 
 	override selectionChanged(IWorkbenchPart workbenchPart, ISelection selection) {
 		if (workbenchPart instanceof XbaseEditor) {
 			if (workbenchPart.editorInput instanceof FileEditorInput) {
 				val fei = workbenchPart.editorInput as FileEditorInput
-				if (fei.file == selectedFile) {
-					if (associatedEditor == null)
-						associatedEditor = workbenchPart
+				if (interpreter.usedClasses.keySet.contains(fei.file)) {
+					if (justActivated.contains(workbenchPart)){
+						justActivated.remove(workbenchPart)
+						return
+					}
+//					if (associatedEditor == null)
+//						associatedEditor = workbenchPart
 					if (selection instanceof TextSelection) {
-						if (!(selection.offset == lastOffsetInEditor && selection.length == lastLengthInEditor))
+						val lastSelection = lastEditorSelection.get(workbenchPart)
+						if (lastSelection == null || !(selection.offset == lastSelection.key && selection.length == lastSelection.value))
 							super.selectionChanged(workbenchPart, selection)
 					}
 				}
 			}
-		} else if (workbenchPart == this && associatedEditor != null && interpreter?.getTraces(RichStringTracingProvider.RICH_STRING_TRACING_PROVIDER_ID) != null) {
+		} else if (workbenchPart == this &&
+			interpreter?.getTraces(RichStringTracingProvider.RICH_STRING_TRACING_PROVIDER_ID) != null) {
 			if (selection instanceof TextSelection) {
 				if (!(selection.offset == lastOffsetInView && selection.length == lastLengthInView)) {
-					val nodes = new HashSet<TraceTreeNode<RichStringOutputLocation>>
-					findRelevantNodesForOutput(interpreter.getTraces(RichStringTracingProvider.RICH_STRING_TRACING_PROVIDER_ID) as TraceTreeNode<RichStringOutputLocation>, nodes, selection.offset, selection.length)
-					if (!nodes.empty) {
+					val nodesMap = new HashMap<IFile, Set<TraceTreeNode<RichStringOutputLocation>>>
+					findRelevantNodesForOutput(
+						interpreter.getTraces(RichStringTracingProvider.RICH_STRING_TRACING_PROVIDER_ID) as TraceTreeNode<RichStringOutputLocation>,
+						nodesMap, selection.offset, selection.length)
+					
+					
+					if (!nodesMap.empty) {
+						val selected = nodesMap.selectFile
+						val file = selected.key
+						val nodes = selected.value
 						var start = Integer.MAX_VALUE
 						var end = Integer.MIN_VALUE
 						for (n : nodes) {
@@ -163,23 +182,54 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 						}
 						val length = end - start
 
-						lastOffsetInEditor = start
-						lastLengthInEditor = length
-						associatedEditor.selectAndReveal(start, length)
+//						lastOffsetInEditor = start
+//						lastLengthInEditor = length
+						val desc = PlatformUI.getWorkbench().
+						        getEditorRegistry().getDefaultEditor(file.getName());
+						val editor = PlatformUI.workbench.activeWorkbenchWindow.activePage.openEditor(new FileEditorInput(file), desc.id)
+						lastEditorSelection.put(editor, start -> length)
+						if (editor instanceof XbaseEditor)
+							editor.selectAndReveal(start, length)
 					}
 				}
 			}
 		}
 	}
+	
+	def Pair<IFile, Set<TraceTreeNode<RichStringOutputLocation>>> selectFile(Map<IFile, Set<TraceTreeNode<RichStringOutputLocation>>> files){
+		val activeEditor = PlatformUI.workbench.activeWorkbenchWindow.activePage.activeEditor
+		if (activeEditor != null && activeEditor.editorInput instanceof FileEditorInput){
+			val openFile = (activeEditor.editorInput as FileEditorInput).file
+			if (files.keySet.contains(openFile)){
+				return openFile -> files.get(openFile)
+			}
+		}
+		// select the one with the most tracepoints i guess?
+		val selectedFile = files.keySet.maximize[files.get(it).size]
+		return selectedFile -> files.get(selectedFile)
+	}
+	
+	def <T> T maximize(Iterable<T> lst, (T)=>Integer func){
+		var best = Integer.MIN_VALUE
+		var T result = null
+		for (t : lst){
+			val score = func.apply(t)
+			if (score > best){
+				best = score
+				result = t
+			}	
+		}
+		result
+	}
 
 	def setInput(XtendTypeDeclaration typeDecl, XExpression inputExpression, IEvaluationContext context, IFile file) {
-		interpreter.currentType = typeDecl
+		interpreter.setCurrentType(typeDecl, file)
 		this.inputExpression = inputExpression
 		this.initialContext = context
-		this.selectedFile = file
 	}
 
 	def setInput(RunConfiguration rc, IFile rconfFile) {
+		workspace.addResourceChangeListener(this);
 		val project = ResourcesPlugin.getWorkspace.root.getProject(rc.projectName)
 		val urlClassLoader = interpreter.addProjectToClasspath(JavaCore.create(project))
 
@@ -191,11 +241,11 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		val inputExpression = func.getExpression();
 		val context = new DefaultEvaluationContext();
 
-		val Injector injector = if (rc.injector != null) interpreter.evaluate(rc.injector).result as Injector else null
+		val Injector injector = if(rc.injector != null) interpreter.evaluate(rc.injector).result as Injector else null
 		val initContext = new DefaultEvaluationContext()
-		
-		if (injector != null){
-			for (im : rc.injectedMembers){
+
+		if (injector != null) {
+			for (im : rc.injectedMembers) {
 				val desiredClass = Class.forName(im.type.type.identifier, true, urlClassLoader)
 				initContext.newValue(QualifiedName.create(im.name), injector.getInstance(desiredClass))
 			}
@@ -205,13 +255,13 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 			try {
 				val result = interpreter.evaluate(i.getExpr(), initContext.fork, CancelIndicator.NullImpl);
 				val value = result.getResult();
-				if (result.exception==null) {
+				if (result.exception == null) {
 					context.newValue(QualifiedName.create(i.getParam()), value);
 					if (injector != null && i.param == "this") {
 						injector.injectMembers(value)
 					}
 				} else {
-					println("Interpreter exception during evaluation of initializer '" + i.param + "':") 
+					println("Interpreter exception during evaluation of initializer '" + i.param + "':")
 					result.exception.printStackTrace
 				}
 			} catch (Exception e) {
@@ -276,9 +326,9 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 	override protected String getViewerFontName() {
 		return "org.eclipse.xtend.ui.editors.textfont"; //$NON-NLS-1$
 	}
-	
+
 	override protected computeInput(IWorkbenchPartSelection workbenchPartSelection) {
-		if (lastInput == null){
+		if (lastInput == null) {
 			lastInput = doComputeInput(workbenchPartSelection);
 		}
 		return lastInput;
@@ -294,10 +344,6 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		}
 	}
 
-	def protected IFile getSelectedFile() {
-		return selectedFile;
-	}
-
 	override public void propertyChange(PropertyChangeEvent event) {
 		super.propertyChange(event);
 		sourceViewer.invalidateTextPresentation();
@@ -305,9 +351,6 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 
 	override public void partVisible(IWorkbenchPartReference ref) {
 		super.partVisible(ref);
-		if (ref.getId().equals(getSite().getId())) {
-			workspace.addResourceChangeListener(this);
-		}
 	}
 
 	override public void partHidden(IWorkbenchPartReference workbenchPartReference) {
@@ -326,27 +369,19 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 	//TODO: clean up this mess
 	override public void resourceChanged(IResourceChangeEvent event) {
 		lastInput = null;
-		if (event.delta != null && event.delta.concernsFile(selectedFile)) {
-			if (rconfFile == null) {
-				val resource = inputExpression.eResource
-				resource.unload
-				resource.load(Collections.EMPTY_MAP)
-				EcoreUtil.resolveAll(resource)
-				inputExpression = ((resource.contents.head as XtendFile).xtendTypes.head.members.head as XtendFunction).
-					expression
-				interpreter.currentType = (resource.contents.head as XtendFile).xtendTypes.head
-			} else {
-				val rs = rsProvider.get(rconfFile.getProject())
-				val r = rs.getResource(URI.createURI(rconfFile.getFullPath().toString()), true)
-				val classResource = inputExpression.eResource
-				classResource.unload
-				r.unload
-				r.load(Collections.EMPTY_MAP)
-				EcoreUtil.resolveAll(r)
-				val rc = r.contents.head as RunConfiguration
-				setInput(rc, rconfFile)
-			}
-		} else if (event.delta != null && (rconfFile != null && event.delta.concernsFile(rconfFile))) {
+		val usedFiles = interpreter.usedClasses
+		val changedInput = event.delta.concernsFile(usedFiles.keySet)
+		if (event.delta != null && changedInput != null) {
+			val rs = rsProvider.get(rconfFile.getProject())
+			val r = rs.getResource(URI.createURI(rconfFile.getFullPath().toString()), true)
+			val classResource = rs.getResource(usedFiles.get(changedInput), true)
+			classResource.unload
+			r.unload
+			r.load(Collections.EMPTY_MAP)
+			EcoreUtil.resolveAll(r)
+			val rc = r.contents.head as RunConfiguration
+			setInput(rc, rconfFile)
+		} else if (event.delta != null && rconfFile != null && event.delta.concernsFile(rconfFile)) {
 			val rs = rsProvider.get(rconfFile.getProject())
 			val r = rs.getResource(URI.createURI(rconfFile.getFullPath().toString()), true)
 			val classResource = inputExpression.eResource
@@ -374,21 +409,22 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		return delta.affectedChildren.exists[concernsFile(file)]
 	}
 
+	def protected IFile concernsFile(IResourceDelta delta, Set<IFile> files) {
+		for (f : files) {
+			if (delta.concernsFile(f)) {
+				return f
+			}
+		}
+		return null
+	}
+
 	override public void dispose() {
 		super.dispose();
 		workspace.removeResourceChangeListener(this);
 	}
 
 	override protected String computeDescription(IWorkbenchPartSelection workbenchPartSelection) {
-		if (selectedFile == null) {
-			return super.computeDescription(workbenchPartSelection);
-		}
-		val XtextEditor xtextEditor = workbenchPartSelection.getWorkbenchPart() as XtextEditor;
-		if (xtextEditor.isDirty()) {
-			return Messages.DerivedSourceView_EditorDirty;
-		} else {
-			return selectedFile.getFullPath().toString();
-		}
+		"TODO"
 	}
 
 	override protected IDocument createDocument(String input) {
@@ -397,45 +433,59 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 	}
 
 	override protected AnnotationModel createAnnotationModel() {
-		val IFile file = getSelectedFile();
-		return if(file != null) new ResourceMarkerAnnotationModel(file) else super.createAnnotationModel();
+		super.createAnnotationModel();
 	}
 
 	// TODO: this is just a slightly changed version of findRelevantNodes, there should be
 	// an abstract implementation that fits both use cases
-	def protected boolean findRelevantNodesForOutput(TraceTreeNode<RichStringOutputLocation> current, Set<TraceTreeNode<RichStringOutputLocation>> nodes, int offset,
-		int length) {
+	def protected boolean findRelevantNodesForOutput(TraceTreeNode<RichStringOutputLocation> current,
+		Map<IFile, Set<TraceTreeNode<RichStringOutputLocation>>> nodes, int offset, int length) {
 		if (new Range(current.output.offset, current.output.offset + current.output.length).overlaps(
 			new Range(offset, offset + length))) {
-			val tempSet = new HashSet<TraceTreeNode<RichStringOutputLocation>>
+			
+			val tempSet = new HashMap<IFile, Set<TraceTreeNode<RichStringOutputLocation>>>
 			if (current.children.map[findRelevantNodesForOutput(tempSet, offset, length)].reduce[p1, p2|p1 && p2] ?:
 				true) {
-				nodes.add(current)
+				val f = interpreter.usedClasses.inverse.get(current.input.expression.eResource.URI)
+				nodes.safeGet(f).add(current)
 				return true
 			} else {
-				nodes.addAll(tempSet)
+				for (f : tempSet.keySet){
+					nodes.safeGet(f).addAll(tempSet.get(f))
+				}
 				return false
 			}
 		}
 	}
+	
+	def Set<TraceTreeNode<RichStringOutputLocation>> safeGet(Map<IFile, Set<TraceTreeNode<RichStringOutputLocation>>> map, IFile f){
+		if (map.containsKey(f)){
+			return map.get(f)
+		}else{
+			val result = new HashSet<TraceTreeNode<RichStringOutputLocation>>
+			map.put(f, result)
+			result
+		}
+	}
 
-	def protected boolean findRelevantNodes(TraceTreeNode<RichStringOutputLocation> current, Set<TraceTreeNode<RichStringOutputLocation>> nodes, int offset, int length) {
+	def protected boolean findRelevantNodes(TraceTreeNode<RichStringOutputLocation> current,
+		Set<TraceTreeNode<RichStringOutputLocation>> nodes, int offset, int length) {
 		val node = NodeModelUtils.findActualNodeFor(current.input.expression)
-		if (current.input.expression instanceof XAbstractFeatureCall){
+		if (current.input.expression instanceof XAbstractFeatureCall) {
 			val a = node.offset
 			val b = node.length
 		}
-		
+
 		if (new Range(node.offset, node.offset + node.length).overlaps(new Range(offset, offset + length))) {
 			val tempSet = new HashSet<TraceTreeNode<RichStringOutputLocation>>
 			if (current.children.map[findRelevantNodes(tempSet, offset, length)].reduce[p1, p2|p1 && p2] ?: true) {
 				nodes.add(current)
 				return true
 			} else {
-				if (!tempSet.empty){
+				if (!tempSet.empty) {
 					nodes.addAll(tempSet)
 					return false
-				}else{
+				} else {
 					nodes.add(current)
 					return true
 				}

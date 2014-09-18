@@ -39,9 +39,10 @@ import org.eclipse.xtext.ui.resource.IResourceSetProvider
 import org.eclipse.emf.ecore.resource.ResourceSet
 import org.eclipse.xtext.common.types.JvmIdentifiableElement
 import org.eclipse.xtext.common.types.JvmGenericType
+import com.google.common.collect.BiMap
+import com.google.common.collect.HashBiMap
 
 @Data class XtendClassResource {
-	String classId
 	IFile file
 	URI uri
 }
@@ -57,7 +58,7 @@ class XtendInterpreter extends XbaseInterpreter {
 	@Inject
 	protected Provider<DefaultIndentationHandler> indentationHandler
 
-	protected List<XtendClassResource> usedClasses = new ArrayList<XtendClassResource>
+	protected BiMap<IFile, URI> usedClasses = HashBiMap.create
 	protected Map<String, Pair<IFile, URI>> availableClasses = new HashMap<String, Pair<IFile, URI>>
 	protected IContainer baseDir
 
@@ -66,6 +67,10 @@ class XtendInterpreter extends XbaseInterpreter {
 	protected ClassLoader injectedClassLoader
 
 	private ResourceSet rs
+	
+	def getUsedClasses(){
+		return usedClasses
+	}
 
 	def configure(IContainer container) {
 		this.rs = rsProvider.get(container.project)
@@ -87,10 +92,11 @@ class XtendInterpreter extends XbaseInterpreter {
 		}
 	}
 
-	def List<XtendClassResource> getUsedClasses() {
-		usedClasses
+	def setCurrentType(XtendTypeDeclaration thisType, IFile file) {
+		this.currentType = thisType
+		usedClasses.put(file, thisType.eResource.URI)
 	}
-
+	
 	def setCurrentType(XtendTypeDeclaration thisType) {
 		this.currentType = thisType
 	}
@@ -175,6 +181,7 @@ class XtendInterpreter extends XbaseInterpreter {
 			val func = type.members.filter(XtendFunction).findFirst[
 				name == operation.simpleName && parameters.size == argumentValues.size]
 			println("interpreting function " + func.name)
+			usedClasses.put(locationInfo.key, locationInfo.value)
 			val newContext = context.fork
 			for (var i = 0; i < argumentValues.size; i++) {
 				val paramName = func.parameters.get(i).name
