@@ -4,6 +4,7 @@ import org.eclipse.emf.edit.ui.provider.AdapterFactoryLabelProvider
 import org.eclipse.emf.common.notify.AdapterFactory
 import org.eclipse.jface.viewers.TreeNode
 import org.eclipse.emf.ecore.EStructuralFeature
+import org.eclipse.emf.ecore.EObject
 
 class EmfLabelProvider extends AdapterFactoryLabelProvider {
 	
@@ -24,11 +25,12 @@ class EmfLabelProvider extends AdapterFactoryLabelProvider {
 			throw new IllegalArgumentException("LabelProvider expected TreeNode, got " + element)
 	}
 	
-	def dispatch getLabel(Pair<EStructuralFeature, Object> p){
-		if (p.key != null){
-			p.key.name + " : " + (p.value?.toString ?: "null")
+	def dispatch getLabel(Pair<Pair<EObject, EStructuralFeature>, Object> p){
+		val value = p.value
+		if (p.key?.value != null){
+			p.key.value.name + " : " + if (value instanceof EObject) value.eClass.name else value.toString
 		}else{
-			p.value.toString
+			if (value instanceof EObject) value.eClass.name else value.toString
 		}
 	}
 	

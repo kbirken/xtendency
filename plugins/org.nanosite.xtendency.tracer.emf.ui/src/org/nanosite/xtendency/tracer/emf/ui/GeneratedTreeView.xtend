@@ -8,6 +8,7 @@ import org.eclipse.emf.edit.provider.ReflectiveItemProviderAdapterFactory
 import org.eclipse.emf.edit.provider.ComposedAdapterFactory
 import org.eclipse.emf.edit.provider.resource.ResourceItemProviderAdapterFactory
 import org.eclipse.emf.edit.ui.provider.AdapterFactoryLabelProvider
+import org.eclipse.ui.part.FileEditorInput
 import org.eclipse.emf.ecore.EObject
 import org.eclipse.jface.viewers.TreeNode
 import java.util.ArrayList
@@ -58,6 +59,14 @@ import org.nanosite.xtendency.tracer.emf.EmfTracingProvider
 import org.eclipse.swt.SWT
 import java.util.Arrays
 import java.util.List
+import org.eclipse.jface.viewers.IDoubleClickListener
+import org.eclipse.jface.viewers.DoubleClickEvent
+import org.eclipse.jface.viewers.TreeSelection
+import java.util.Map
+import org.eclipse.emf.common.util.EList
+import org.eclipse.ui.PlatformUI
+import org.eclipse.xtext.xbase.ui.editor.XbaseEditor
+import org.eclipse.xtext.nodemodel.util.NodeModelUtils
 
 class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISelectionListener {
 	private static final ISchedulingRule SEQUENCE_RULE = SchedulingRuleFactory.INSTANCE.newSequence();
@@ -159,6 +168,24 @@ class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISe
 		adapterFactory.addAdapterFactory(new ResourceItemProviderAdapterFactory());
 
 		tree.setLabelProvider(new EmfLabelProvider(adapterFactory));
+		tree.addDoubleClickListener(new IDoubleClickListener(){
+			
+			override doubleClick(DoubleClickEvent event) {
+				val selected = (event.selection as TreeSelection).firstElement as TreeNode
+				val traces = interpreter.getTraces(EmfTracingProvider.EMF_TRACING_PROVIDER_ID).output as Map<Pair<EObject, EStructuralFeature>, List<Pair<XExpression, Map<String, Object>>>>
+				val nodeValue = selected.value as Pair<Pair<EObject, EStructuralFeature>, Object>
+				val setters = traces.get(nodeValue.key)
+				if (setters != null && !setters.empty){
+				val desc = PlatformUI.getWorkbench().
+						        getEditorRegistry().getDefaultEditor(selectedFile.getName());
+				val editor = PlatformUI.workbench.activeWorkbenchWindow.activePage.openEditor(new FileEditorInput(selectedFile), desc.id)
+				val node = NodeModelUtils.findActualNodeFor(setters.head.key)
+				if (editor instanceof XbaseEditor)
+					editor.selectAndReveal(node.offset, node.length)
+				}
+			}
+			
+		})
 	}
 
 	override setFocus() {
@@ -166,20 +193,20 @@ class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISe
 	}
 
 	def protected void setInput(EObject eo) {
-		val root = eo.convertToTreeNode(null)
+		val root = eo.convertToTreeNode(null, null)
 		val TreeNode[] nodeArray = newArrayOfSize(1)
 		nodeArray.set(0, root)
 		tree.input = nodeArray
 	}
 
-	def dispatch TreeNode convertToTreeNode(EObject o, EStructuralFeature f) {
-		val result = new LazyTreeNode(f -> o)
+	def dispatch TreeNode convertToTreeNode(EObject o, EObject parent, EStructuralFeature f) {
+		val result = new LazyTreeNode((parent -> f) -> o)
 		result.children = [ |
 			val children = new ArrayList<TreeNode>
-			for (sf : o.eClass.EStructuralFeatures) {
-				val value = o.eGet(sf)
-				if (value != null) {
-					children += value.convertToTreeNode(sf)
+			for (sf : o.eClass.EAllStructuralFeatures) {
+				if (o.eIsSet(sf)) {
+					val value = o.eGet(sf)
+					children += value.convertToTreeNode(o, sf)
 				}
 			}
 			children
@@ -187,17 +214,17 @@ class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISe
 		result
 	}
 
-	def dispatch TreeNode convertToTreeNode(Object o, EStructuralFeature f) {
-		new LazyTreeNode(f -> o)
+	def dispatch TreeNode convertToTreeNode(Object o, EObject parent, EStructuralFeature f) {
+		new LazyTreeNode((parent -> f) -> o)
 	}
 
-	def dispatch TreeNode convertToTreeNode(List<?> o, EStructuralFeature f) {
-		val result = new LazyTreeNode(f -> o)
+	def dispatch TreeNode convertToTreeNode(List<?> o, EObject parent, EStructuralFeature f) {
+		val result = new LazyTreeNode((parent -> f) -> o)
 		result.children = [ |
 			val children = new ArrayList<TreeNode>
 			for (e : o) {
 				if (e != null) {
-					children += e.convertToTreeNode(null)
+					children += e.convertToTreeNode(parent, f)
 				}
 			}
 			children

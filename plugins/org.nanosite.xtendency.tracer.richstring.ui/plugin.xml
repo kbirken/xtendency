@@ -7,7 +7,7 @@
             class="org.nanosite.xtendency.tracer.richstring.ui.DerivedSourceView"
             id="org.nanosite.xtendency.tracer.ui.generatedView"
             name="Generated"
-            restorable="true">
+            restorable="false">
       </view>
    </extension>
    <extension

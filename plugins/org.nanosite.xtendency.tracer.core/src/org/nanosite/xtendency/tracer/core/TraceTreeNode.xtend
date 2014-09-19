@@ -16,6 +16,11 @@ class TraceTreeNode<T> {
 	T output
 	
 	new(){}
+	
+	new(InputData input, T output){
+		this.input = input
+		this.output = output
+	}
 
 	def getChildren(){
 		children
