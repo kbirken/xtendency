@@ -15,6 +15,8 @@ class EmfLabelProvider extends AdapterFactoryLabelProvider {
 	override getImage(Object element) {
 		if (element instanceof TreeNode){
 			super.getImage((element.value as Pair<EStructuralFeature, Object>).value)
+		}else{
+			super.getImage(element)
 		}
 	}
 	

@@ -72,7 +72,7 @@ class EmfTracingProvider implements ITracingProvider<Map<Pair<EObject, EStructur
 					throw new IllegalStateException
 				val receiverObj = lastEvaluated.peek.get(expr.assignable)
 				if (receiverObj != null && receiverObj instanceof EObject){
-					logChange(expr.feature as JvmOperation, receiverObj as EObject, expr)
+					logChange(expr.feature as JvmOperation, receiverObj as EObject, expr, ctx)
 				}
 			}
 		}
@@ -83,12 +83,13 @@ class EmfTracingProvider implements ITracingProvider<Map<Pair<EObject, EStructur
 			lastEvaluated.pop
 	}
 
-	def logChange(JvmOperation op, EObject receiverObj, XExpression expr) {
+	def logChange(JvmOperation op, EObject receiverObj, XExpression expr, IEvaluationContext ctx) {
 		if (op.simpleName.startsWith("set")) {
 			val sfName = op.simpleName.substring(3)
 			var sf = receiverObj.eClass.EAllStructuralFeatures.findFirst[name == sfName || name == sfName.toFirstLower]
 			if (sf != null) {
-				modelChanges.safeGet(receiverObj -> sf).add(expr -> new HashMap<String, Object>)
+				val ctxMap = if (ctx instanceof ChattyEvaluationContext) ctx.contents else new HashMap<String, Object>
+				modelChanges.safeGet(receiverObj -> sf).add(expr -> ctxMap)
 			}
 		}
 	}

@@ -67,6 +67,14 @@ import org.eclipse.emf.common.util.EList
 import org.eclipse.ui.PlatformUI
 import org.eclipse.xtext.xbase.ui.editor.XbaseEditor
 import org.eclipse.xtext.nodemodel.util.NodeModelUtils
+import org.eclipse.swt.layout.GridData
+import org.eclipse.swt.layout.GridLayout
+import org.eclipse.jface.viewers.TableViewer
+import org.eclipse.jface.viewers.ArrayContentProvider
+import org.eclipse.jface.viewers.TableViewerColumn
+import org.eclipse.jface.viewers.ColumnLabelProvider
+import org.nanosite.xtendency.tracer.emf.ChattyEvaluationContext
+import org.eclipse.swt.layout.FillLayout
 
 class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISelectionListener {
 	private static final ISchedulingRule SEQUENCE_RULE = SchedulingRuleFactory.INSTANCE.newSequence();
@@ -83,6 +91,7 @@ class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISe
 	private IResourceSetProvider rsProvider
 
 	protected TreeViewer tree
+	protected TableViewer table
 	private int computeCount = 0
 
 	private IFile rconfFile
@@ -115,10 +124,10 @@ class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISe
 		val typeDecl = rc.getClazz();
 		val func = rc.getFunction();
 		val inputExpression = func.getExpression();
-		val context = new DefaultEvaluationContext();
+		val context = new ChattyEvaluationContext();
 
 		val Injector injector = if(rc.injector != null) interpreter.evaluate(rc.injector).result as Injector else null
-		val initContext = new DefaultEvaluationContext()
+		val initContext = new ChattyEvaluationContext()
 
 		if (injector != null) {
 			for (im : rc.injectedMembers) {
@@ -159,33 +168,78 @@ class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISe
 	}
 
 	override createPartControl(Composite parent) {
-		tree = new TreeViewer(parent, SWT.MULTI.bitwiseOr(SWT.H_SCROLL).bitwiseOr(SWT.V_SCROLL))
+		val composite = new Composite(parent, SWT.BORDER);
+		val gridData = new GridData(SWT.FILL, SWT.FILL, true, true);
+		composite.setLayoutData(gridData);
+		composite.setLayout(new FillLayout);
+		tree = new TreeViewer(composite, SWT.BORDER.bitwiseOr(SWT.H_SCROLL).bitwiseOr(SWT.V_SCROLL))
 		tree.contentProvider = new TreeNodeContentProvider
 
 		val adapterFactory = new ComposedAdapterFactory(ComposedAdapterFactory.Descriptor.Registry.INSTANCE);
 
 		adapterFactory.addAdapterFactory(new ReflectiveItemProviderAdapterFactory());
 		adapterFactory.addAdapterFactory(new ResourceItemProviderAdapterFactory());
+		val emfLabelProvider = new EmfLabelProvider(adapterFactory)
+		tree.setLabelProvider(emfLabelProvider);
+		tree.addDoubleClickListener(
+			new IDoubleClickListener() {
 
-		tree.setLabelProvider(new EmfLabelProvider(adapterFactory));
-		tree.addDoubleClickListener(new IDoubleClickListener(){
-			
-			override doubleClick(DoubleClickEvent event) {
-				val selected = (event.selection as TreeSelection).firstElement as TreeNode
-				val traces = interpreter.getTraces(EmfTracingProvider.EMF_TRACING_PROVIDER_ID).output as Map<Pair<EObject, EStructuralFeature>, List<Pair<XExpression, Map<String, Object>>>>
-				val nodeValue = selected.value as Pair<Pair<EObject, EStructuralFeature>, Object>
-				val setters = traces.get(nodeValue.key)
-				if (setters != null && !setters.empty){
-				val desc = PlatformUI.getWorkbench().
-						        getEditorRegistry().getDefaultEditor(selectedFile.getName());
-				val editor = PlatformUI.workbench.activeWorkbenchWindow.activePage.openEditor(new FileEditorInput(selectedFile), desc.id)
-				val node = NodeModelUtils.findActualNodeFor(setters.head.key)
-				if (editor instanceof XbaseEditor)
-					editor.selectAndReveal(node.offset, node.length)
+				override doubleClick(DoubleClickEvent event) {
+					val selected = (event.selection as TreeSelection).firstElement as TreeNode
+					val traces = interpreter.getTraces(EmfTracingProvider.EMF_TRACING_PROVIDER_ID).output as Map<Pair<EObject, EStructuralFeature>, List<Pair<XExpression, Map<String, Object>>>>
+					val nodeValue = selected.value as Pair<Pair<EObject, EStructuralFeature>, Object>
+					val setters = traces.get(nodeValue.key)
+					if (setters != null && !setters.empty) {
+						val desc = PlatformUI.getWorkbench().getEditorRegistry().getDefaultEditor(selectedFile.getName());
+						val editor = PlatformUI.workbench.activeWorkbenchWindow.activePage.openEditor(
+							new FileEditorInput(selectedFile), desc.id)
+						val node = NodeModelUtils.findActualNodeFor(setters.head.key)
+						if (editor instanceof XbaseEditor){
+							editor.selectAndReveal(node.offset, node.length)
+							table.setInput(setters.head.value.toPairList)
+							table.table.columns.forEach[pack]
+						}
+					}
 				}
-			}
+
+			})
+
+		table = new TableViewer(composite, SWT.BORDER.bitwiseOr(SWT.H_SCROLL).bitwiseOr(SWT.V_SCROLL))
+		table.contentProvider = ArrayContentProvider.getInstance()
+
+		val colName = new TableViewerColumn(table, SWT.NONE);
+//		colName.getColumn().setWidth(50);
+		colName.getColumn().setText("Variable");
+		colName.setLabelProvider(
+			new ColumnLabelProvider() {
+				override String getText(Object element) {
+					(element as Pair<String, Object>).key
+				}
+			});
 			
-		})
+		val colValue = new TableViewerColumn(table, SWT.NONE);
+		colValue.getColumn().setText("Value");
+		colValue.setLabelProvider(
+			new ColumnLabelProvider() {
+				override String getText(Object element) {
+					(element as Pair<String, Object>).value.toString
+				}
+				
+				override getImage(Object element) {
+					emfLabelProvider.getImage((element as Pair<String, Object>).value)
+				}
+				
+			});
+		table.table.columns.forEach[pack]
+		
+	}
+	
+	def <K,V> List<Pair<K,V>> toPairList(Map<K,V> map){
+		val result = new ArrayList<Pair<K,V>>
+		for (k : map.keySet){
+			result += k -> map.get(k)
+		}
+		result
 	}
 
 	override setFocus() {
