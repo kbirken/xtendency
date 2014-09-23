@@ -18,7 +18,9 @@ public class DelegatorClassLoader extends SecureClassLoader {
 		for (String url : classPathUrls){
 			Bundle b = context.getBundle("reference:" + url);
 			if (b != null){
-				delegates.add(b.adapt(BundleWiring.class).getClassLoader());
+				ClassLoader newClassLoader = b.adapt(BundleWiring.class).getClassLoader();
+				if (newClassLoader != null)
+					delegates.add(newClassLoader);
 			}
 		}
 	}
