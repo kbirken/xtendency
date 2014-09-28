@@ -1,4 +1,4 @@
-package org.nanosite.xtendency.tracer.richstring.ui;
+package org.nanosite.xtendency.tracer.core.ui;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;

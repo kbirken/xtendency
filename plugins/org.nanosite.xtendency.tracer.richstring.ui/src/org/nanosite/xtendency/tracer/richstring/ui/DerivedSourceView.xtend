@@ -101,8 +101,7 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 	private IFile tecFile
 
 	private Map<IWorkbenchPart, Pair<Integer, Integer>> lastEditorSelection = new HashMap<IWorkbenchPart, Pair<Integer, Integer>>
-//	private int lastOffsetInEditor = -1
-//	private int lastLengthInEditor = -1
+
 	private int lastOffsetInView = -1
 	private int lastLengthInView = -1
 	private Set<IWorkbenchPart> justActivated = new HashSet<IWorkbenchPart>

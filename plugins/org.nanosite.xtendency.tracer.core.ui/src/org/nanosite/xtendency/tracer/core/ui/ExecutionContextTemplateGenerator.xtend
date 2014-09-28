@@ -1,4 +1,4 @@
-package org.nanosite.xtendency.tracer.richstring.ui
+package org.nanosite.xtendency.tracer.core.ui
 
 import org.eclipse.xtend.core.xtend.XtendFunction
 import org.eclipse.core.resources.IFile

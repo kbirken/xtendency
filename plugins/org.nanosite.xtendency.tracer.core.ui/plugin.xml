@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         point="org.eclipse.ui.commands">
+      <command
+            defaultHandler="org.nanosite.xtendency.tracer.richstring.ui.GenerateExecutionContextHandler"
+            description="Generates an Xtendency execution context for this method"
+            id="org.nanosite.xtendency.tracer.ui.GenerateExecutionContext"
+            name="GenerateExecutionContext">
+		</command>
+   </extension>
+   <extension
+         point="org.eclipse.ui.menus">
+      <menuContribution
+			locationURI="popup:#TextEditorContext?after=group.open">
+			<command
+         commandId="org.nanosite.xtendency.tracer.ui.GenerateExecutionContext"
+         label="Generate execution context"
+         style="push"
+         tooltip="Generate Execution Context">
+			</command>
+		</menuContribution>
+   </extension>
+
+</plugin>
