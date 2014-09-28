@@ -17,7 +17,7 @@ import org.eclipse.ui.handlers.HandlerUtil;
 import org.eclipse.xtend.ide.internal.XtendActivator;
 import org.eclipse.xtext.ui.resource.IResourceSetProvider;
 import org.eclipse.xtext.xbase.interpreter.impl.XbaseInterpreter;
-import org.nanosite.xtendency.tracer.runConf.RunConfiguration;
+import org.nanosite.xtendency.tracer.tracingExecutionContext.ExecutionContext;
 
 import com.google.inject.Inject;
 
@@ -47,8 +47,8 @@ public class ShowGeneratedViewFromConfHandler extends AbstractHandler implements
 				Resource r = rs.getResource(
 						URI.createURI(((IFile) s).getFullPath().toString()),
 						true);
-				RunConfiguration rc = (RunConfiguration) r.getContents().get(0);
-				EcoreUtil.resolveAll(rc);
+				ExecutionContext ec = (ExecutionContext) r.getContents().get(0);
+				EcoreUtil.resolveAll(ec);
 
 				try {
 					try {
@@ -57,7 +57,7 @@ public class ShowGeneratedViewFromConfHandler extends AbstractHandler implements
 								.getActivePage()
 								.showView(
 										"org.nanosite.xtendency.tracer.emf.ui.generatedView");
-						view.setInput(rc, (IFile) s);
+						view.setInput(ec, (IFile) s);
 						PlatformUI.getWorkbench().getActiveWorkbenchWindow()
 								.getSelectionService()
 								.addSelectionListener(view);

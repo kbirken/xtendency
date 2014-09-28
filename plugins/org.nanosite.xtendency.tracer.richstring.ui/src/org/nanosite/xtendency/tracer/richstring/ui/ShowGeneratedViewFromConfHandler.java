@@ -43,9 +43,8 @@ import org.eclipse.xtext.xbase.interpreter.IEvaluationContext;
 import org.eclipse.xtext.xbase.interpreter.IEvaluationResult;
 import org.eclipse.xtext.xbase.interpreter.impl.DefaultEvaluationContext;
 import org.eclipse.xtext.xbase.interpreter.impl.XbaseInterpreter;
-import org.nanosite.xtendency.tracer.runConf.InitBlock;
-import org.nanosite.xtendency.tracer.runConf.RunConfiguration;
 import org.nanosite.xtendency.tracer.richstring.ui.DerivedSourceView;
+import org.nanosite.xtendency.tracer.tracingExecutionContext.ExecutionContext;
 
 import com.google.inject.Inject;
 
@@ -74,8 +73,8 @@ public class ShowGeneratedViewFromConfHandler extends AbstractHandler {
 				Resource r = rs.getResource(
 						URI.createURI(((IFile) s).getFullPath().toString()),
 						true);
-				RunConfiguration rc = (RunConfiguration) r.getContents().get(0);
-				EcoreUtil.resolveAll(rc);
+				ExecutionContext ec = (ExecutionContext) r.getContents().get(0);
+				EcoreUtil.resolveAll(ec);
 
 				try {
 					try {
@@ -84,11 +83,11 @@ public class ShowGeneratedViewFromConfHandler extends AbstractHandler {
 								.getActivePage()
 								.showView(
 										"org.nanosite.xtendency.tracer.ui.generatedView");
-						view.setInput(rc, (IFile) s);
+						view.setInput(ec, (IFile) s);
 						PlatformUI.getWorkbench().getActiveWorkbenchWindow()
 								.getSelectionService()
 								.addSelectionListener(view);
-						XtendFile f = (XtendFile) rc.getClazz().eContainer();
+						XtendFile f = (XtendFile) ec.getClazz().eContainer();
 						String filePath = dropFirstSegment(f.eResource().getURI());
 						IFile classFile = ((IFile)s).getProject().getFile(Path.fromPortableString(filePath));
 						IEditorDescriptor desc = PlatformUI.getWorkbench().

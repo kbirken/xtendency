@@ -66,7 +66,6 @@ import org.eclipse.xtext.xbase.interpreter.impl.DefaultEvaluationContext
 import org.eclipse.xtext.xbase.ui.editor.XbaseEditor
 import org.nanosite.xtendency.tracer.core.TraceTreeNode
 import org.nanosite.xtendency.tracer.core.TracingInterpreter
-import org.nanosite.xtendency.tracer.runConf.RunConfiguration
 
 import static org.eclipse.jface.resource.JFaceResources.*
 import static org.eclipse.ui.editors.text.EditorsUI.*
@@ -82,6 +81,7 @@ import org.nanosite.xtendency.tracer.core.SynchronizedInterpreterAccess
 import java.util.Map
 import java.util.HashMap
 import org.eclipse.ui.PlatformUI
+import org.nanosite.xtendency.tracer.tracingExecutionContext.ExecutionContext
 
 /**
  *
@@ -98,7 +98,7 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 
 	private static final Color COLOR_SELECTED = new Color(Display.getCurrent, 255, 0, 0)
 
-	private IFile rconfFile
+	private IFile tecFile
 
 	private Map<IWorkbenchPart, Pair<Integer, Integer>> lastEditorSelection = new HashMap<IWorkbenchPart, Pair<Integer, Integer>>
 //	private int lastOffsetInEditor = -1
@@ -137,11 +137,18 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 	}
 	
 	override partActivated(IWorkbenchPartReference ref) {
-		justActivated += ref.getPart(false)
+		println("activated: " + ref.getPart(false).title)
 		super.partActivated(ref)
+	}
+	
+	override partBroughtToTop(IWorkbenchPartReference ref) {
+		println("brought to top: " + ref.getPart(false).title)
+		justActivated += ref.getPart(false)
+		super.partBroughtToTop(ref)
 	}
 
 	override selectionChanged(IWorkbenchPart workbenchPart, ISelection selection) {
+		println("selection changed in " + workbenchPart.title + ", is now " + if (selection instanceof TextSelection) selection.offset + ":" + selection.length else selection)
 		if (workbenchPart instanceof XbaseEditor) {
 			if (workbenchPart.editorInput instanceof FileEditorInput) {
 				val fei = workbenchPart.editorInput as FileEditorInput
@@ -228,30 +235,30 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		this.initialContext = context
 	}
 
-	def setInput(RunConfiguration rc, IFile rconfFile) {
+	def setInput(ExecutionContext ec, IFile tecFile) {
 		workspace.addResourceChangeListener(this);
-		val project = ResourcesPlugin.getWorkspace.root.getProject(rc.projectName)
+		val project = ResourcesPlugin.getWorkspace.root.getProject(ec.projectName)
 		val urlClassLoader = interpreter.addProjectToClasspath(JavaCore.create(project))
 
-		val f = rc.getClazz().eContainer() as XtendFile
+		val f = ec.getClazz().eContainer() as XtendFile
 		val filePath = dropFirstSegment(f.eResource().getURI());
-		val file = (rconfFile as IFile).getProject().getFile(Path.fromPortableString(filePath));
-		val typeDecl = rc.getClazz();
-		val func = rc.getFunction();
+		val file = (tecFile as IFile).getProject().getFile(Path.fromPortableString(filePath));
+		val typeDecl = ec.getClazz();
+		val func = ec.getFunction();
 		val inputExpression = func.getExpression();
 		val context = new DefaultEvaluationContext();
 
-		val Injector injector = if(rc.injector != null) interpreter.evaluate(rc.injector).result as Injector else null
+		val Injector injector = if(ec.injector != null) interpreter.evaluate(ec.injector).result as Injector else null
 		val initContext = new DefaultEvaluationContext()
 
 		if (injector != null) {
-			for (im : rc.injectedMembers) {
+			for (im : ec.injectedMembers) {
 				val desiredClass = Class.forName(im.type.type.identifier, true, urlClassLoader)
 				initContext.newValue(QualifiedName.create(im.name), injector.getInstance(desiredClass))
 			}
 		}
 
-		for (i : rc.getInits()) {
+		for (i : ec.getInits()) {
 			try {
 				val result = interpreter.evaluate(i.getExpr(), initContext.fork, CancelIndicator.NullImpl);
 				val value = result.getResult();
@@ -270,7 +277,7 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		}
 		interpreter.configure(file.parent)
 		setInput(typeDecl, inputExpression, context, file)
-		this.rconfFile = rconfFile
+		this.tecFile = tecFile
 	}
 
 	private def String dropFirstSegment(URI uri) {
@@ -372,25 +379,25 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		val usedFiles = interpreter.usedClasses
 		val changedInput = event.delta.concernsFile(usedFiles.keySet)
 		if (event.delta != null && changedInput != null) {
-			val rs = rsProvider.get(rconfFile.getProject())
-			val r = rs.getResource(URI.createURI(rconfFile.getFullPath().toString()), true)
+			val rs = rsProvider.get(tecFile.getProject())
+			val r = rs.getResource(URI.createURI(tecFile.getFullPath().toString()), true)
 			val classResource = rs.getResource(usedFiles.get(changedInput), true)
 			classResource.unload
 			r.unload
 			r.load(Collections.EMPTY_MAP)
 			EcoreUtil.resolveAll(r)
-			val rc = r.contents.head as RunConfiguration
-			setInput(rc, rconfFile)
-		} else if (event.delta != null && rconfFile != null && event.delta.concernsFile(rconfFile)) {
-			val rs = rsProvider.get(rconfFile.getProject())
-			val r = rs.getResource(URI.createURI(rconfFile.getFullPath().toString()), true)
+			val ec = r.contents.head as ExecutionContext
+			setInput(ec, tecFile)
+		} else if (event.delta != null && tecFile != null && event.delta.concernsFile(tecFile)) {
+			val rs = rsProvider.get(tecFile.getProject())
+			val r = rs.getResource(URI.createURI(tecFile.getFullPath().toString()), true)
 			val classResource = inputExpression.eResource
 			classResource.unload
 			r.unload
 			r.load(Collections.EMPTY_MAP)
 			EcoreUtil.resolveAll(r)
-			val rc = r.contents.head as RunConfiguration
-			setInput(rc, rconfFile)
+			val ec = r.contents.head as ExecutionContext
+			setInput(ec, tecFile)
 		}
 		refreshJob.reschedule();
 	}
@@ -424,7 +431,7 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 	}
 
 	override protected String computeDescription(IWorkbenchPartSelection workbenchPartSelection) {
-		"TODO"
+		tecFile.name
 	}
 
 	override protected IDocument createDocument(String input) {

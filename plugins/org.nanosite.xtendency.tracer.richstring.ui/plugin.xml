@@ -13,20 +13,15 @@
    <extension
          point="org.eclipse.ui.commands">
       <command
-            defaultHandler="org.nanosite.xtendency.tracer.richstring.ui.ShowGeneratedViewHandler"
-            id="org.nanosite.xtendency.tracer.ui.showViewCommand"
-            name="Show Generated">
-      </command>
-      <command
             defaultHandler="org.nanosite.xtendency.tracer.richstring.ui.ShowGeneratedViewFromConfHandler"
             id="org.nanosite.xtendency.tracer.ui.showViewFromConfCommand"
             name="Show Generated From Conf">
       </command>
       <command
-            defaultHandler="org.nanosite.xtendency.tracer.richstring.ui.GenerateRunConfigHandler"
-            description="Generates an Xtendency run configuration for this method"
-            id="org.nanosite.xtendency.tracer.ui.GenerateRunConfig"
-            name="GenerateRunConfig">
+            defaultHandler="org.nanosite.xtendency.tracer.richstring.ui.GenerateExecutionContextHandler"
+            description="Generates an Xtendency execution context for this method"
+            id="org.nanosite.xtendency.tracer.ui.GenerateExecutionContext"
+            name="GenerateExecutionContext">
 		</command>
    </extension>
    <extension
@@ -35,36 +30,8 @@
             allPopups="false"
             locationURI="popup:org.eclipse.ui.popup.any?after=additions">
          <command
-               commandId="org.nanosite.xtendency.tracer.ui.showViewCommand"
-               label="Show generated code"
-               style="push">
-            <visibleWhen
-                  checkEnabled="false">
-               <with
-                     variable="selection">
-                  <and>
-                     <count
-                           value="1">
-                     </count>
-                     <iterate
-                           ifEmpty="false"
-                           operator="and">
-                        <test
-                              property="org.eclipse.core.resources.extension"
-                              value="xtend">
-                        </test>
-                     </iterate>
-                  </and>
-               </with>
-            </visibleWhen>
-         </command>
-      </menuContribution>
-      <menuContribution
-            allPopups="false"
-            locationURI="popup:org.eclipse.ui.popup.any?after=additions">
-         <command
                commandId="org.nanosite.xtendency.tracer.ui.showViewFromConfCommand"
-               label="Execute run configuration"
+               label="Run execution context"
                style="push">
             <visibleWhen
                   checkEnabled="false">
@@ -79,7 +46,7 @@
                            operator="and">
                         <test
                               property="org.eclipse.core.resources.extension"
-                              value="rconf">
+                              value="tec">
                         </test>
                      </iterate>
                   </and>
@@ -90,10 +57,10 @@
       <menuContribution
 			locationURI="popup:#TextEditorContext?after=group.open">
 			<command
-         commandId="org.nanosite.xtendency.tracer.ui.GenerateRunConfig"
-         label="Generate run config"
+         commandId="org.nanosite.xtendency.tracer.ui.GenerateExecutionContext"
+         label="Generate execution context"
          style="push"
-         tooltip="Generate Run Config">
+         tooltip="Generate Execution Context">
 			</command>
 		</menuContribution>
    </extension>

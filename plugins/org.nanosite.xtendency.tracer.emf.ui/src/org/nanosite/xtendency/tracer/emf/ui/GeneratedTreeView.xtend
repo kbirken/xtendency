@@ -13,7 +13,6 @@ import org.eclipse.emf.ecore.EObject
 import org.eclipse.jface.viewers.TreeNode
 import java.util.ArrayList
 import org.eclipse.emf.ecore.EStructuralFeature
-import org.nanosite.xtendency.tracer.runConf.RunConfiguration
 import org.eclipse.core.resources.IFile
 import org.eclipse.core.resources.ResourcesPlugin
 import org.eclipse.xtend.core.xtend.XtendFile
@@ -75,6 +74,7 @@ import org.eclipse.jface.viewers.TableViewerColumn
 import org.eclipse.jface.viewers.ColumnLabelProvider
 import org.nanosite.xtendency.tracer.emf.ChattyEvaluationContext
 import org.eclipse.swt.layout.FillLayout
+import org.nanosite.xtendency.tracer.tracingExecutionContext.ExecutionContext
 
 class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISelectionListener {
 	private static final ISchedulingRule SEQUENCE_RULE = SchedulingRuleFactory.INSTANCE.newSequence();
@@ -94,7 +94,7 @@ class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISe
 	protected TableViewer table
 	private int computeCount = 0
 
-	private IFile rconfFile
+	private IFile tecFile
 	private IFile selectedFile
 	private XExpression inputExpression
 	private IEvaluationContext initialContext
@@ -114,29 +114,29 @@ class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISe
 		refreshJob.schedule
 	}
 
-	def setInput(RunConfiguration rc, IFile rconfFile) {
-		val project = ResourcesPlugin.getWorkspace.root.getProject(rc.projectName)
+	def setInput(ExecutionContext ec, IFile tecFile) {
+		val project = ResourcesPlugin.getWorkspace.root.getProject(ec.projectName)
 		val urlClassLoader = interpreter.addProjectToClasspath(JavaCore.create(project))
 
-		val f = rc.getClazz().eContainer() as XtendFile
+		val f = ec.getClazz().eContainer() as XtendFile
 		val filePath = dropFirstSegment(f.eResource().getURI());
-		val file = (rconfFile as IFile).getProject().getFile(Path.fromPortableString(filePath));
-		val typeDecl = rc.getClazz();
-		val func = rc.getFunction();
+		val file = (tecFile as IFile).getProject().getFile(Path.fromPortableString(filePath));
+		val typeDecl = ec.getClazz();
+		val func = ec.getFunction();
 		val inputExpression = func.getExpression();
 		val context = new ChattyEvaluationContext();
 
-		val Injector injector = if(rc.injector != null) interpreter.evaluate(rc.injector).result as Injector else null
+		val Injector injector = if(ec.injector != null) interpreter.evaluate(ec.injector).result as Injector else null
 		val initContext = new ChattyEvaluationContext()
 
 		if (injector != null) {
-			for (im : rc.injectedMembers) {
+			for (im : ec.injectedMembers) {
 				val desiredClass = Class.forName(im.type.type.identifier, true, urlClassLoader)
 				initContext.newValue(QualifiedName.create(im.name), injector.getInstance(desiredClass))
 			}
 		}
 
-		for (i : rc.getInits()) {
+		for (i : ec.getInits()) {
 			try {
 				val result = interpreter.evaluate(i.getExpr(), initContext.fork, CancelIndicator.NullImpl);
 				val value = result.getResult();
@@ -154,7 +154,7 @@ class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISe
 			}
 		}
 
-		this.rconfFile = rconfFile
+		this.tecFile = tecFile
 		setInput(typeDecl, inputExpression, context, file)
 	}
 
@@ -196,12 +196,11 @@ class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISe
 						val node = NodeModelUtils.findActualNodeFor(setters.head.key)
 						if (editor instanceof XbaseEditor){
 							editor.selectAndReveal(node.offset, node.length)
-							table.setInput(setters.head.value.toPairList)
+							table.setInput(toPairList(setters.head.value)) 
 							table.table.columns.forEach[pack]
 						}
 					}
 				}
-
 			})
 
 		table = new TableViewer(composite, SWT.BORDER.bitwiseOr(SWT.H_SCROLL).bitwiseOr(SWT.V_SCROLL))
@@ -222,7 +221,7 @@ class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISe
 		colValue.setLabelProvider(
 			new ColumnLabelProvider() {
 				override String getText(Object element) {
-					(element as Pair<String, Object>).value.toString
+					(element as Pair<String, Object>)?.value?.toString ?: "null"
 				}
 				
 				override getImage(Object element) {
@@ -290,7 +289,7 @@ class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISe
 	override public void resourceChanged(IResourceChangeEvent event) {
 		lastInput = null;
 		if (event.delta != null && event.delta.concernsFile(selectedFile)) {
-			if (rconfFile == null) {
+			if (tecFile == null) {
 				val resource = inputExpression.eResource
 				resource.unload
 				resource.load(Collections.EMPTY_MAP)
@@ -299,26 +298,26 @@ class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISe
 					expression
 				interpreter.currentType = (resource.contents.head as XtendFile).xtendTypes.head
 			} else {
-				val rs = rsProvider.get(rconfFile.getProject())
-				val r = rs.getResource(URI.createURI(rconfFile.getFullPath().toString()), true)
+				val rs = rsProvider.get(tecFile.getProject())
+				val r = rs.getResource(URI.createURI(tecFile.getFullPath().toString()), true)
 				val classResource = inputExpression.eResource
 				classResource.unload
 				r.unload
 				r.load(Collections.EMPTY_MAP)
 				EcoreUtil.resolveAll(r)
-				val rc = r.contents.head as RunConfiguration
-				setInput(rc, rconfFile)
+				val ec = r.contents.head as ExecutionContext
+				setInput(ec, tecFile)
 			}
-		} else if (event.delta != null && (rconfFile != null && event.delta.concernsFile(rconfFile))) {
-			val rs = rsProvider.get(rconfFile.getProject())
-			val r = rs.getResource(URI.createURI(rconfFile.getFullPath().toString()), true)
+		} else if (event.delta != null && (tecFile != null && event.delta.concernsFile(tecFile))) {
+			val rs = rsProvider.get(tecFile.getProject())
+			val r = rs.getResource(URI.createURI(tecFile.getFullPath().toString()), true)
 			val classResource = inputExpression.eResource
 			classResource.unload
 			r.unload
 			r.load(Collections.EMPTY_MAP)
 			EcoreUtil.resolveAll(r)
-			val rc = r.contents.head as RunConfiguration
-			setInput(rc, rconfFile)
+			val ec = r.contents.head as ExecutionContext
+			setInput(ec, tecFile)
 		}
 		refreshJob.reschedule();
 	}

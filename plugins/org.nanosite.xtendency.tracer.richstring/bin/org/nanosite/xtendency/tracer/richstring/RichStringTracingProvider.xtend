@@ -7,17 +7,28 @@ import org.eclipse.xtend.core.xtend.XtendClass
 import org.nanosite.xtendency.tracer.core.TraceTreeNode
 import org.eclipse.xtext.xbase.XExpression
 import org.nanosite.xtendency.tracer.core.InputData
-import org.nanosite.xtendency.tracer.core.DefaultTracingProvider
 import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
 import java.util.HashMap
+import org.nanosite.xtendency.tracer.core.AbstractTracingProvider
+import org.eclipse.xtend.core.xtend.RichString
+import java.util.List
+import java.util.ArrayList
 
-class RichStringTracingProvider extends DefaultTracingProvider<RichStringOutputLocation> {
+class RichStringTracingProvider extends AbstractTracingProvider<RichStringOutputLocation> {
 
 	public static final String RICH_STRING_TRACING_PROVIDER_ID = "org.nanosite.xtendency.tracer.richstring"
 
 	private int offset = 0
+	
+	private Stack<Stack<TraceTreeNode<RichStringOutputLocation>>> nodeStackStack = new Stack<Stack<TraceTreeNode<RichStringOutputLocation>>>
 
-	private Stack<Integer> offsetStack = new Stack<Integer>
+	private Stack<Stack<Integer>> offsetStackStack = new Stack<Stack<Integer>>
+	
+	private List<Pair<Object, TraceTreeNode<RichStringOutputLocation>>> functionOutputTreeMap = new ArrayList<Pair<Object, TraceTreeNode<RichStringOutputLocation>>>
+	
+	def Stack<Integer> getOffsetStack(){
+		offsetStackStack.peek
+	}
 
 	override canCreateTracePointForExpression(XExpression expr) {
 		if (expr.richString) {
@@ -46,12 +57,24 @@ class RichStringTracingProvider extends DefaultTracingProvider<RichStringOutputL
 		offset = 0
 	}
 
-	override enter() {
-		super.enter
-		offsetStack.push(offset)
+	override enter(XExpression input, IEvaluationContext ctx) {
+		if (input instanceof RichString){
+			nodeStackStack.push(new Stack<TraceTreeNode<RichStringOutputLocation>>)
+			offsetStackStack.push(new Stack<Integer>)
+			offset = 0
+		}
+		super.enter(input, ctx)
+		offsetStack.push(offset)		
 	}
 
-	override exit() {
+	override exit(XExpression input, IEvaluationContext ctx, Object output) {
+		if (functionOutputTreeMap.getNode(output) != null){
+			val richStringNode = functionOutputTreeMap.getNode(output)
+			richStringNode.addOffset(offsetStack.peek)
+			nodeStack.peek.children += richStringNode
+		}
+		setInput(input, ctx)
+		setOutput(output)
 		val node = nodeStack.pop
 		val previousOffset = offsetStack.pop
 
@@ -61,6 +84,27 @@ class RichStringTracingProvider extends DefaultTracingProvider<RichStringOutputL
 			nodeStack.peek.children.add(node)
 
 		offset = previousOffset + node.output.length
+		if (input instanceof RichString){
+			val lastNodeStack = nodeStackStack.pop
+			val lastOffsetStack = offsetStackStack.pop
+			functionOutputTreeMap += new Pair(output, node)
+		}
+	}
+	
+	def private TraceTreeNode<RichStringOutputLocation> getNode(List<Pair<Object, TraceTreeNode<RichStringOutputLocation>>> map, Object output){
+		for (p : map){
+			if (p.key === output){
+				return p.value
+			}
+		}
+		return null
+	}
+	
+	def addOffset(TraceTreeNode<RichStringOutputLocation> tree, int offset){
+		tree.output.offset = tree.output.offset + offset
+		for (c : tree.children){
+			c.addOffset(offset)
+		}
 	}
 
 	override skip(String output) {
@@ -74,6 +118,10 @@ class RichStringTracingProvider extends DefaultTracingProvider<RichStringOutputL
 	
 	override getRelevantContext(XExpression expr, IEvaluationContext context) {
 		new HashMap<String, Object>
+	}
+	
+	override getNodeStack() {
+		nodeStackStack.peek
 	}
 
 }
