@@ -186,28 +186,33 @@ class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISe
 
 				override doubleClick(DoubleClickEvent event) {
 					val selected = (event.selection as TreeSelection).firstElement as TreeNode
-					val traces = interpreter.getTraces(EmfTracingProvider.EMF_TRACING_PROVIDER_ID).output as Map<Pair<EObject, EStructuralFeature>, List<Pair<XExpression, Map<String, Object>>>>
+					val traces = interpreter.getTraces(EmfTracingProvider.EMF_TRACING_PROVIDER_ID).output as Map<Pair<EObject, EStructuralFeature>, List<Pair<Pair<XExpression, Map<String, Object>>, Object>>>
 					val nodeValue = selected.value as Pair<Pair<EObject, EStructuralFeature>, Object>
 					val setters = traces.get(nodeValue.key)
 					if (setters != null && !setters.empty) {
 						val desc = PlatformUI.getWorkbench().getEditorRegistry().getDefaultEditor(selectedFile.getName());
 						val editor = PlatformUI.workbench.activeWorkbenchWindow.activePage.openEditor(
 							new FileEditorInput(selectedFile), desc.id)
-						val node = NodeModelUtils.findActualNodeFor(setters.head.key)
-						if (editor instanceof XbaseEditor){
-							editor.selectAndReveal(node.offset, node.length)
-							table.setInput(toPairList(setters.head.value)) 
-							table.table.columns.forEach[pack]
+						val relevantAssignment = setters.findLast[concerns(nodeValue)]
+						if (relevantAssignment != null) {
+							val node = NodeModelUtils.findActualNodeFor(relevantAssignment.key.key)
+							if (editor instanceof XbaseEditor) {
+								editor.selectAndReveal(node.offset, node.length)
+								val tableInput = toPairList(relevantAssignment.key.value)
+								Collections.sort(tableInput, [p1, p2 | p1.key.compareTo(p2.key)])
+								table.setInput(tableInput)
+								table.table.columns.forEach[pack]
+							}
 						}
 					}
-				}
+				}	
 			})
 
 		table = new TableViewer(composite, SWT.BORDER.bitwiseOr(SWT.H_SCROLL).bitwiseOr(SWT.V_SCROLL))
 		table.contentProvider = ArrayContentProvider.getInstance()
 
 		val colName = new TableViewerColumn(table, SWT.NONE);
-//		colName.getColumn().setWidth(50);
+
 		colName.getColumn().setText("Variable");
 		colName.setLabelProvider(
 			new ColumnLabelProvider() {
@@ -215,7 +220,7 @@ class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISe
 					(element as Pair<String, Object>).key
 				}
 			});
-			
+
 		val colValue = new TableViewerColumn(table, SWT.NONE);
 		colValue.getColumn().setText("Value");
 		colValue.setLabelProvider(
@@ -223,19 +228,31 @@ class GeneratedTreeView extends ViewPart implements IResourceChangeListener, ISe
 				override String getText(Object element) {
 					(element as Pair<String, Object>)?.value?.toString ?: "null"
 				}
-				
+
 				override getImage(Object element) {
 					emfLabelProvider.getImage((element as Pair<String, Object>).value)
 				}
-				
+
 			});
 		table.table.columns.forEach[pack]
-		
 	}
 	
-	def <K,V> List<Pair<K,V>> toPairList(Map<K,V> map){
-		val result = new ArrayList<Pair<K,V>>
-		for (k : map.keySet){
+	def static boolean concerns(Pair<Pair<XExpression, Map<String, Object>>, Object> assg, Pair<Pair<EObject, EStructuralFeature>, Object> nodeValue) {
+		if (assg.value == nodeValue.value)
+			return true
+		if (assg.value instanceof Iterable<?>){
+			for (o : assg.value as Iterable<?>){
+				if (o == nodeValue.value){
+					return true
+				}
+			}
+		}
+		false
+	}
+
+	def <K, V> List<Pair<K, V>> toPairList(Map<K, V> map) {
+		val result = new ArrayList<Pair<K, V>>
+		for (k : map.keySet) {
 			result += k -> map.get(k)
 		}
 		result
