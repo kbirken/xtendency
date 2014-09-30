@@ -129,7 +129,7 @@ class XtendInterpreter extends XbaseInterpreter {
 			val currentTypeName = (currentType.eContainer as XtendFile).package + "." + currentType.name
 			if (currentTypeName == calledType && receiver == null) {
 				val calledFunc = getCalledFunction(currentType, op, argumentValues.size, firstArg)
-				println("interpreting function 1 " + calledFunc.name)
+//				println("interpreting function 1 " + calledFunc.name)
 				val newContext = context.fork
 				return evaluateOperation(calledFunc, argumentValues, null, newContext, indicator)
 			}
@@ -140,7 +140,7 @@ class XtendInterpreter extends XbaseInterpreter {
 			val type = (resource.contents.head as XtendFile).xtendTypes.findFirst[
 				name == operation.declaringType.simpleName]
 			val calledFunc = getCalledFunction(type, op, argumentValues.size, firstArg)
-			println("interpreting function 2 " + calledFunc.name)
+//			println("interpreting function 2 " + calledFunc.name)
 			usedClasses.put(locationInfo.key, locationInfo.value)
 			val newContext = context.fork
 			newContext.newValue(QualifiedName.create("this"), receiver)
