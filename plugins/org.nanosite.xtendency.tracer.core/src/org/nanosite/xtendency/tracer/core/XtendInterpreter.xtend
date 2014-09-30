@@ -41,6 +41,7 @@ import org.eclipse.xtext.common.types.JvmIdentifiableElement
 import org.eclipse.xtext.common.types.JvmGenericType
 import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
+import org.eclipse.xtext.xbase.interpreter.impl.EvaluationException
 
 @Data class XtendClassResource {
 	IFile file
@@ -145,32 +146,15 @@ class XtendInterpreter extends XbaseInterpreter {
 	protected override Object invokeOperation(JvmOperation operation, Object receiver, List<Object> argumentValues,
 		IEvaluationContext context, CancelIndicator indicator) {
 		val calledType = operation.declaringType.qualifiedName
+		val firstArg = if (argumentValues.empty) null else argumentValues.get(0)
+		val op = operation.simpleName
 		if (currentType != null) {
 			val currentTypeName = (currentType.eContainer as XtendFile).package + "." + currentType.name
 			if (currentTypeName == calledType && receiver == null) {
-				val calledFunc = currentType.members.findFirst[
-					it instanceof XtendFunction && (it as XtendFunction).name == operation.simpleName &&
-						(it as XtendFunction).parameters.size == argumentValues.size] as XtendFunction
+				val calledFunc = getCalledFunction(currentType, op, argumentValues.size, firstArg)
+				println("interpreting function 1 " + calledFunc.name)
 				val newContext = context.fork
-				for (var i = 0; i < argumentValues.size; i++) {
-					val paramName = calledFunc.parameters.get(i).name
-					newContext.newValue(QualifiedName.create(paramName), argumentValues.get(i))
-				}
-				try {
-					val result = doEvaluate(calledFunc.expression, newContext, indicator)
-					return result
-				} catch (RuntimeException r) {
-					if (r.class.simpleName == "ReturnValue") {
-						val rvField = r.class.getDeclaredField("returnValue")
-						rvField.accessible = true
-						return rvField.get(r)
-
-					// class Returnvalue is not visible from here apparently
-					} else {
-						throw r
-					}
-
-				}
+				return evaluateOperation(calledFunc, argumentValues, null, newContext, indicator)
 			}
 		} 
 		if (availableClasses.containsKey(calledType)) {
@@ -178,20 +162,77 @@ class XtendInterpreter extends XbaseInterpreter {
 			val resource = rs.getResource(locationInfo.value, true)
 			val type = (resource.contents.head as XtendFile).xtendTypes.findFirst[
 				name == operation.declaringType.simpleName]
-			val func = type.members.filter(XtendFunction).findFirst[
-				name == operation.simpleName && parameters.size == argumentValues.size]
-			println("interpreting function " + func.name)
+			val calledFunc = getCalledFunction(type, op, argumentValues.size, firstArg)
+			println("interpreting function 2 " + calledFunc.name)
 			usedClasses.put(locationInfo.key, locationInfo.value)
 			val newContext = context.fork
+			newContext.newValue(QualifiedName.create("this"), receiver)
+			return evaluateOperation(calledFunc, argumentValues, type, newContext, indicator)
+		}
+		super.invokeOperation(operation, receiver, argumentValues, context, indicator)
+	}
+
+	def private XtendFunction getCalledFunction(
+		XtendTypeDeclaration type,
+		String op,
+		int nArgs,
+		/*@Nullable*/ Object firstArg
+	) {
+		val candidates = type.members.filter(typeof(XtendFunction)).filter[name==op && parameters.size==nArgs]
+		if (candidates.empty) {
+			null
+		} else if (candidates.findFirst[dispatch]!=null) {
+			// this is a set of dispatch functions, select candidate based on type of first argument
+			if (firstArg==null) {
+				throw new RuntimeException("Dispatch function '" + op + "' without parameters, shouldn't occur!")
+			} else {
+				for(func : candidates.filter[dispatch]) {
+					val tFQN = func.parameters.get(0).parameterType.type.qualifiedName
+					if (isInstanceOf(firstArg, tFQN)) {
+						return func
+					}
+				}
+				null
+			}
+		} else {
+			if (candidates.size > 1) {
+				println("Choosing function call '" + op + "' among " + candidates.size + " candidates. " +
+					"This choice might be wrong."
+				)
+			}
+			candidates.get(0)
+		}
+	}
+
+	def private isInstanceOf (Object obj, String typeFQN) {
+		var Class<?> expectedType = null
+		val className = typeFQN
+		try {
+			expectedType = classFinder.forName(className)
+		} catch (ClassNotFoundException cnfe) {
+			throw new EvaluationException(new NoClassDefFoundError(className))
+		}
+		expectedType.isInstance(obj)
+	}
+
+	
+	def private evaluateOperation(
+		XtendFunction func,
+		List<Object> argumentValues,
+		XtendTypeDeclaration type,
+		IEvaluationContext context,
+		CancelIndicator indicator
+	) {
 			for (var i = 0; i < argumentValues.size; i++) {
 				val paramName = func.parameters.get(i).name
-				newContext.newValue(QualifiedName.create(paramName), argumentValues.get(i))
+			context.newValue(QualifiedName.create(paramName), argumentValues.get(i))
 			}
-			newContext.newValue(QualifiedName.create("this"), receiver)
 			try {
 				val currentTypeBefore = currentType
+			if (type!=null)
 				currentType = type
-				val result = doEvaluate(func.expression, newContext, indicator)
+			val result = doEvaluate(func.expression, context, indicator)
+			if (type!=null)
 				currentType = currentTypeBefore
 				return result
 			} catch (RuntimeException r) {
@@ -206,8 +247,6 @@ class XtendInterpreter extends XbaseInterpreter {
 				}
 			}
 		}
-		super.invokeOperation(operation, receiver, argumentValues, context, indicator)
-	}
 
 	protected override _invokeFeature(JvmField jvmField, XAbstractFeatureCall featureCall, Object receiver,
 		IEvaluationContext context, CancelIndicator indicator) {
