@@ -24,6 +24,7 @@ import org.eclipse.emf.ecore.EClass
 import org.eclipse.xtext.xbase.XbasePackage
 import org.eclipse.xtext.xbase.XBinaryOperation
 import org.eclipse.emf.common.util.EList
+import org.nanosite.xtendency.tracer.core.ChattyEvaluationContext
 
 class EmfTracingProvider implements ITracingProvider<Map<Pair<EObject, EStructuralFeature>, List<Pair<XExpression, Map<String, Object>>>>> {
 	public static final String EMF_TRACING_PROVIDER_ID = "org.nanosite.xtendency.tracer.emf"
