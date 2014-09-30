@@ -54,45 +54,22 @@ class XtendInterpreter extends XbaseInterpreter {
 	protected RichStringProcessor richStringProcessor
 
 	@Inject
-	protected IResourceSetProvider rsProvider
-
-	@Inject
 	protected Provider<DefaultIndentationHandler> indentationHandler
 
+	// TODO: remove IFile here, push to WorkspaceXtendInterpreter
 	protected BiMap<IFile, URI> usedClasses = HashBiMap.create
 	protected Map<String, Pair<IFile, URI>> availableClasses = new HashMap<String, Pair<IFile, URI>>
-	protected IContainer baseDir
 
 	XtendTypeDeclaration currentType
 
 	protected ClassLoader injectedClassLoader
 
-	private ResourceSet rs
+	protected ResourceSet rs
 	
 	def getUsedClasses(){
 		return usedClasses
 	}
-
-	def configure(IContainer container) {
-		this.rs = rsProvider.get(container.project)
-		this.baseDir = container
-		for (f : container.members.filter(IFile).filter[name.endsWith(".xtend")]) {
-			val uri = URI.createURI(f.fullPath.toString, true)
-			try {
-				val r = rs.getResource(uri, true)
-				val file = r.contents.head
-				if (file instanceof XtendFile) {
-					for (type : file.xtendTypes) {
-						val name = file.package + "." + type.name
-						availableClasses.put(name, f -> uri)
-					}
-				}
-			} catch (Exception e) {
-				// ignore
-			}
-		}
-	}
-
+	
 	def setCurrentType(XtendTypeDeclaration thisType, IFile file) {
 		this.currentType = thisType
 		usedClasses.put(file, thisType.eResource.URI)
@@ -223,30 +200,30 @@ class XtendInterpreter extends XbaseInterpreter {
 		IEvaluationContext context,
 		CancelIndicator indicator
 	) {
-			for (var i = 0; i < argumentValues.size; i++) {
-				val paramName = func.parameters.get(i).name
+		for (var i = 0; i < argumentValues.size; i++) {
+			val paramName = func.parameters.get(i).name
 			context.newValue(QualifiedName.create(paramName), argumentValues.get(i))
-			}
-			try {
-				val currentTypeBefore = currentType
+		}
+		try {
+			val currentTypeBefore = currentType
 			if (type!=null)
 				currentType = type
 			val result = doEvaluate(func.expression, context, indicator)
 			if (type!=null)
 				currentType = currentTypeBefore
-				return result
-			} catch (RuntimeException r) {
-				if (r.class.simpleName == "ReturnValue") {
-					val rvField = r.class.getDeclaredField("returnValue")
-					rvField.accessible = true
-					return rvField.get(r)
+			return result
+		} catch (RuntimeException r) {
+			if (r.class.simpleName == "ReturnValue") {
+				val rvField = r.class.getDeclaredField("returnValue")
+				rvField.accessible = true
+				return rvField.get(r)
 
-				// class Returnvalue is not visible from here apparently
-				} else {
-					throw r
-				}
+			// class Returnvalue is not visible from here apparently
+			} else {
+				throw r
 			}
 		}
+	}
 
 	protected override _invokeFeature(JvmField jvmField, XAbstractFeatureCall featureCall, Object receiver,
 		IEvaluationContext context, CancelIndicator indicator) {
