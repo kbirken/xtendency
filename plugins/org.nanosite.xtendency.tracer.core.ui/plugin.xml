@@ -4,7 +4,7 @@
    <extension
          point="org.eclipse.ui.commands">
       <command
-            defaultHandler="org.nanosite.xtendency.tracer.richstring.ui.GenerateExecutionContextHandler"
+            defaultHandler="org.nanosite.xtendency.tracer.core.ui.GenerateExecutionContextHandler"
             description="Generates an Xtendency execution context for this method"
             id="org.nanosite.xtendency.tracer.ui.GenerateExecutionContext"
             name="GenerateExecutionContext">
