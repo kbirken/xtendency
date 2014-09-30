@@ -1,17 +1,17 @@
 package org.nanosite.xtendency.tracer.core
 
 import java.util.HashMap
+import java.util.HashSet
 import java.util.Map
 import java.util.Set
 import org.eclipse.xtext.util.CancelIndicator
 import org.eclipse.xtext.xbase.XExpression
 import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
-import java.util.HashSet
 
 /*
  * Just added the tracing for rich strings for now, should be fused with the existing tracing mechanism.
  */
-class TracingInterpreter extends XtendInterpreter {
+class TracingInterpreter extends WorkspaceXtendInterpreter {
 	
 	Set<ITracingProvider<?>> tracingProviders = new HashSet<ITracingProvider<?>>
 	
