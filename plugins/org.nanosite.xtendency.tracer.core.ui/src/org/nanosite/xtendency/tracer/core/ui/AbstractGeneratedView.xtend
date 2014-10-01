@@ -39,6 +39,7 @@ import org.eclipse.core.resources.IProject
 import org.nanosite.xtendency.tracer.core.ChattyEvaluationContext
 import org.eclipse.ui.IPartListener2
 import org.eclipse.ui.IWorkbenchPartReference
+import org.eclipse.swt.widgets.Composite
 
 abstract class AbstractGeneratedView extends ViewPart implements IGeneratedView, IResourceChangeListener, ISelectionListener, IPartListener2 {
 	protected static final ISchedulingRule SEQUENCE_RULE = SchedulingRuleFactory.INSTANCE.newSequence();
@@ -112,6 +113,13 @@ abstract class AbstractGeneratedView extends ViewPart implements IGeneratedView,
 		setInput(typeDecl, inputExpression, context, file)
 		this.tecFile = tecFile
 		refreshJob.reschedule();
+	}
+	
+	def void doCreatePartControl(Composite parent)
+	
+	override createPartControl(Composite parent) {
+		parent.doCreatePartControl
+		getSite().getWorkbenchWindow().getPartService().addPartListener(this);
 	}
 
 	private def String dropFirstSegment(URI uri) {

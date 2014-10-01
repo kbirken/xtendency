@@ -89,7 +89,7 @@ class GeneratedTreeView extends AbstractGeneratedView {
 		interpreter.addTracingProvider(new EmfTracingProvider)
 	}
 
-	override createPartControl(Composite parent) {
+	override doCreatePartControl(Composite parent) {
 		val composite = new Composite(parent, SWT.BORDER);
 		val gridData = new GridData(SWT.FILL, SWT.FILL, true, true);
 		composite.setLayoutData(gridData);

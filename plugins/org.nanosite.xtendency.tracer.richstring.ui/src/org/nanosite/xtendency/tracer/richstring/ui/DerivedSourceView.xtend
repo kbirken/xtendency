@@ -82,6 +82,11 @@ import java.util.Map
 import java.util.HashMap
 import org.eclipse.ui.PlatformUI
 import org.nanosite.xtendency.tracer.tracingExecutionContext.ExecutionContext
+import org.nanosite.xtendency.tracer.core.ui.AbstractGeneratedView
+import org.eclipse.ui.IPartListener2
+import org.eclipse.jface.text.Document
+import com.google.common.collect.Multiset
+import com.google.common.collect.HashMultiset
 
 /**
  *
@@ -89,65 +94,35 @@ import org.nanosite.xtendency.tracer.tracingExecutionContext.ExecutionContext
  * @author Sven Efftinge - Initial contribution and API
  * @author Michael Clay
  */
-public class DerivedSourceView extends AbstractSourceView implements IResourceChangeListener {
+public class DerivedSourceView extends AbstractGeneratedView implements IPartListener2 {
 	protected static final int VERTICAL_RULER_WIDTH = 12;
 	protected static final int OVERVIEW_RULER_WIDTH = 12;
 	private static final ISchedulingRule SEQUENCE_RULE = SchedulingRuleFactory.INSTANCE.newSequence();
 
-	private String lastInput = null;
-
 	private static final Color COLOR_SELECTED = new Color(Display.getCurrent, 255, 0, 0)
+	private static final Color COLOR_DEFAULT = new Color(Display.getCurrent, 0, 0, 0)
 
-	private IFile tecFile
-
-	private Map<IWorkbenchPart, Pair<Integer, Integer>> lastEditorSelection = new HashMap<IWorkbenchPart, Pair<Integer, Integer>>
+	private Map<IWorkbenchPart, Multiset<Pair<Integer, Integer>>> lastEditorSelection = new HashMap<IWorkbenchPart, Multiset<Pair<Integer, Integer>>>
 
 	private int lastOffsetInView = -1
 	private int lastLengthInView = -1
 	private Set<IWorkbenchPart> justActivated = new HashSet<IWorkbenchPart>
 
-	private XExpression inputExpression
-
-	private IEvaluationContext initialContext
-
-	@Inject
-	private IWorkspace workspace;
-
 	@Inject
 	private ColorRegistry colorRegistry
 
-	@Inject
-	private TracingInterpreter interpreter
-
-	@Inject
-	private IResourceSetProvider rsProvider;
-
 	private DefaultMarkerAnnotationAccess defaultMarkerAnnotationAccess = new DefaultMarkerAnnotationAccess();
-	private DerivedSourceView.RefreshJob refreshJob = new DerivedSourceView.RefreshJob(SEQUENCE_RULE, this);
 
 	private ProjectionViewer sourceViewer
 
-	private long lastChange = System.currentTimeMillis
 
 	new() {
-		XtendActivator.getInstance().getInjector(XtendActivator.ORG_ECLIPSE_XTEND_CORE_XTEND).injectMembers(this);
+		super()
 		interpreter.addTracingProvider(new RichStringTracingProvider)
 		colorRegistry.put("de.itemis.codegenutil.ui.DerivedSourceView.backgroundColor", new RGB(255, 255, 255))
 	}
-	
-	override partActivated(IWorkbenchPartReference ref) {
-		println("activated: " + ref.getPart(false).title)
-		super.partActivated(ref)
-	}
-	
-	override partBroughtToTop(IWorkbenchPartReference ref) {
-		println("brought to top: " + ref.getPart(false).title)
-		justActivated += ref.getPart(false)
-		super.partBroughtToTop(ref)
-	}
 
 	override selectionChanged(IWorkbenchPart workbenchPart, ISelection selection) {
-		println("selection changed in " + workbenchPart.title + ", is now " + if (selection instanceof TextSelection) selection.offset + ":" + selection.length else selection)
 		if (workbenchPart instanceof XbaseEditor) {
 			if (workbenchPart.editorInput instanceof FileEditorInput) {
 				val fei = workbenchPart.editorInput as FileEditorInput
@@ -156,12 +131,18 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 						justActivated.remove(workbenchPart)
 						return
 					}
-//					if (associatedEditor == null)
-//						associatedEditor = workbenchPart
+
 					if (selection instanceof TextSelection) {
 						val lastSelection = lastEditorSelection.get(workbenchPart)
-						if (lastSelection == null || !(selection.offset == lastSelection.key && selection.length == lastSelection.value))
-							super.selectionChanged(workbenchPart, selection)
+						if (lastSelection != null){
+							for (s : lastSelection){
+								if (selection.offset == s.key && selection.length == s.value){
+									lastSelection.remove(s)
+									return
+								}
+							}
+						}
+						selectAndReveal(new DefaultWorkbenchPartSelection(workbenchPart, selection))
 					}
 				}
 			}
@@ -188,12 +169,10 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 						}
 						val length = end - start
 
-//						lastOffsetInEditor = start
-//						lastLengthInEditor = length
 						val desc = PlatformUI.getWorkbench().
 						        getEditorRegistry().getDefaultEditor(file.getName());
 						val editor = PlatformUI.workbench.activeWorkbenchWindow.activePage.openEditor(new FileEditorInput(file), desc.id)
-						lastEditorSelection.put(editor, start -> length)
+						lastEditorSelection.safeGet(editor).add(start -> length)
 						if (editor instanceof XbaseEditor)
 							editor.selectAndReveal(start, length)
 					}
@@ -228,71 +207,11 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		result
 	}
 
-	def setInput(XtendTypeDeclaration typeDecl, XExpression inputExpression, IEvaluationContext context, IFile file) {
-		interpreter.setCurrentType(typeDecl, file)
-		this.inputExpression = inputExpression
-		this.initialContext = context
-	}
-
-	def setInput(ExecutionContext ec, IFile tecFile) {
-		workspace.addResourceChangeListener(this);
-		val project = ResourcesPlugin.getWorkspace.root.getProject(ec.projectName)
-		val urlClassLoader = interpreter.addProjectToClasspath(JavaCore.create(project))
-
-		val f = ec.getClazz().eContainer() as XtendFile
-		val filePath = dropFirstSegment(f.eResource().getURI());
-		val file = (tecFile as IFile).getProject().getFile(Path.fromPortableString(filePath));
-		val typeDecl = ec.getClazz();
-		val func = ec.getFunction();
-		val inputExpression = func.getExpression();
-		val context = new DefaultEvaluationContext();
-
-		val Injector injector = if(ec.injector != null) interpreter.evaluate(ec.injector).result as Injector else null
-		val initContext = new DefaultEvaluationContext()
-
-		if (injector != null) {
-			for (im : ec.injectedMembers) {
-				val desiredClass = Class.forName(im.type.type.identifier, true, urlClassLoader)
-				initContext.newValue(QualifiedName.create(im.name), injector.getInstance(desiredClass))
-			}
-		}
-
-		for (i : ec.getInits()) {
-			try {
-				val result = interpreter.evaluate(i.getExpr(), initContext.fork, CancelIndicator.NullImpl);
-				val value = result.getResult();
-				if (result.exception == null) {
-					context.newValue(QualifiedName.create(i.getParam()), value);
-					if (injector != null && i.param == "this") {
-						injector.injectMembers(value)
-					}
-				} else {
-					println("Interpreter exception during evaluation of initializer '" + i.param + "':")
-					result.exception.printStackTrace
-				}
-			} catch (Exception e) {
-				e.printStackTrace
-			}
-		}
-		interpreter.configure(file.parent)
-		setInput(typeDecl, inputExpression, context, file)
-		this.tecFile = tecFile
-	}
-
-	private def String dropFirstSegment(URI uri) {
-		val sb = new StringBuilder();
-		for (var i = 2; i < uri.segmentCount(); i++) {
-			sb.append("/");
-			sb.append(uri.segment(i));
-		}
-		return sb.toString();
-	}
-
-	override isIgnored(IWorkbenchPartSelection s) {
+	def isIgnored(IWorkbenchPartSelection s) {
 		return !(s.selection instanceof TextSelection)
 	}
 
-	override protected SourceViewer createSourceViewer(Composite parent) {
+	def protected SourceViewer createSourceViewer(Composite parent) {
 		val IOverviewRuler overviewRuler = new OverviewRuler(defaultMarkerAnnotationAccess, OVERVIEW_RULER_WIDTH,
 			getSharedTextColors());
 		val AnnotationRulerColumn annotationRulerColumn = new AnnotationRulerColumn(VERTICAL_RULER_WIDTH,
@@ -321,27 +240,21 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		return sourceViewer;
 	}
 
-	override protected boolean isValidSelection(IWorkbenchPartSelection workbenchPartSelection) {
+	def protected boolean isValidSelection(IWorkbenchPartSelection workbenchPartSelection) {
 		return this.inputExpression != null && this.initialContext != null
 	}
 
-	override protected String getBackgroundColorKey() {
+	def protected String getBackgroundColorKey() {
 		return "de.itemis.codegenutil.ui.DerivedSourceView.backgroundColor"; //$NON-NLS-1$
 	}
 
-	override protected String getViewerFontName() {
+	def protected String getViewerFontName() {
 		return "org.eclipse.xtend.ui.editors.textfont"; //$NON-NLS-1$
 	}
 
-	override protected computeInput(IWorkbenchPartSelection workbenchPartSelection) {
-		if (lastInput == null) {
-			lastInput = doComputeInput(workbenchPartSelection);
-		}
-		return lastInput;
-	}
 
-	def protected String doComputeInput(IWorkbenchPartSelection workbenchPartSelection) {
-		println("recomputing input")
+
+	def protected String computeInput(IWorkbenchPartSelection workbenchPartSelection) {
 		val interpResult = SynchronizedInterpreterAccess.evaluate(interpreter, inputExpression, initialContext.fork)
 		if (interpResult.result != null && interpResult.result instanceof CharSequence) {
 			return interpResult.result.toString
@@ -350,96 +263,14 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		}
 	}
 
-	override public void propertyChange(PropertyChangeEvent event) {
-		super.propertyChange(event);
-		sourceViewer.invalidateTextPresentation();
-	}
 
 	override public void partVisible(IWorkbenchPartReference ref) {
-		super.partVisible(ref);
-	}
-
-	override public void partHidden(IWorkbenchPartReference workbenchPartReference) {
-		super.partHidden(workbenchPartReference);
-		if (workbenchPartReference.getId().equals(getSite().getId())) {
-			workspace.removeResourceChangeListener(this);
-		}
-		if (getWorkbenchPartSelection() != null &&
-			workbenchPartReference.getPart(false) == getWorkbenchPartSelection().getWorkbenchPart()) {
-			setWorkbenchPartSelection(null);
-			setContentDescription("");
-			setInput("");
-		}
-	}
-
-	//TODO: clean up this mess
-	override public void resourceChanged(IResourceChangeEvent event) {
-		lastInput = null;
-		val usedFiles = interpreter.usedClasses
-		val changedInput = event.delta.concernsFile(usedFiles.keySet)
-		if (event.delta != null && changedInput != null) {
-			val rs = rsProvider.get(tecFile.getProject())
-			val r = rs.getResource(URI.createURI(tecFile.getFullPath().toString()), true)
-			val classResource = rs.getResource(usedFiles.get(changedInput), true)
-			classResource.unload
-			r.unload
-			r.load(Collections.EMPTY_MAP)
-			EcoreUtil.resolveAll(r)
-			val ec = r.contents.head as ExecutionContext
-			setInput(ec, tecFile)
-		} else if (event.delta != null && tecFile != null && event.delta.concernsFile(tecFile)) {
-			val rs = rsProvider.get(tecFile.getProject())
-			val r = rs.getResource(URI.createURI(tecFile.getFullPath().toString()), true)
-			val classResource = inputExpression.eResource
-			classResource.unload
-			r.unload
-			r.load(Collections.EMPTY_MAP)
-			EcoreUtil.resolveAll(r)
-			val ec = r.contents.head as ExecutionContext
-			setInput(ec, tecFile)
-		}
-		refreshJob.reschedule();
-	}
-
-	def protected boolean concernsFile(IResourceDelta delta, IFile file) {
-		if (delta == null) {
-			println("concernsFile delta==null")
-			return false
-		}
-		if (file == null) {
-			println("concernsFile file==null")
-			return false
-		}
-		if (delta.fullPath == file.fullPath)
-			return true
-		return delta.affectedChildren.exists[concernsFile(file)]
-	}
-
-	def protected IFile concernsFile(IResourceDelta delta, Set<IFile> files) {
-		for (f : files) {
-			if (delta.concernsFile(f)) {
-				return f
-			}
-		}
-		return null
+		justActivated += ref.getPart(false)
 	}
 
 	override public void dispose() {
 		super.dispose();
 		workspace.removeResourceChangeListener(this);
-	}
-
-	override protected String computeDescription(IWorkbenchPartSelection workbenchPartSelection) {
-		tecFile.name
-	}
-
-	override protected IDocument createDocument(String input) {
-		val IDocument document = super.createDocument(input);
-		return document;
-	}
-
-	override protected AnnotationModel createAnnotationModel() {
-		super.createAnnotationModel();
 	}
 
 	// TODO: this is just a slightly changed version of findRelevantNodes, there should be
@@ -470,6 +301,16 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		}else{
 			val result = new HashSet<TraceTreeNode<RichStringOutputLocation>>
 			map.put(f, result)
+			result
+		}
+	}
+	
+	def <K> Multiset<Pair<Integer, Integer>> safeGet(Map<K, Multiset<Pair<Integer, Integer>>> m, K k){
+		if (m.containsKey(k)){
+			m.get(k)
+		}else{
+			val result = HashMultiset.create
+			m.put(k, result)
 			result
 		}
 	}
@@ -504,7 +345,7 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 		}
 	}
 
-	override protected void selectAndReveal(IWorkbenchPartSelection workbenchPartSelection) {
+	def protected void selectAndReveal(IWorkbenchPartSelection workbenchPartSelection) {
 		if (interpreter?.getTraces(RichStringTracingProvider.RICH_STRING_TRACING_PROVIDER_ID) != null) {
 			val traces = interpreter?.getTraces(RichStringTracingProvider.RICH_STRING_TRACING_PROVIDER_ID) as TraceTreeNode<RichStringOutputLocation>
 			if (workbenchPartSelection.selection instanceof TextSelection) {
@@ -525,9 +366,10 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 					lastOffsetInView = start
 					lastLengthInView = length
 
-					getSourceViewer().revealRange(textRegion.getOffset(), textRegion.getLength());
+					sourceViewer.revealRange(textRegion.getOffset(), textRegion.getLength());
 
 					//getSourceViewer.setSelection(new TextSelection(textRegion.offset, textRegion.length), true)
+					sourceViewer.setTextColor(COLOR_DEFAULT, 0, (sourceViewer.input as IDocument).length, true)
 					for (n : nodes) {
 						try {
 							sourceViewer.setTextColor(COLOR_SELECTED, n.output.offset, n.output.length, true)
@@ -539,27 +381,16 @@ public class DerivedSourceView extends AbstractSourceView implements IResourceCh
 			}
 		}
 	}
-
-	protected static class RefreshJob extends UIJob {
-		private DerivedSourceView view
-
-		new(ISchedulingRule schedulingRule, DerivedSourceView view) {
-			super(Messages.DerivedSourceView_RefreshJobTitle);
-			this.view = view
-			setRule(schedulingRule);
-		}
-
-		override public IStatus runInUIThread(IProgressMonitor monitor) {
-			view.computeAndSetInput(
-				new DefaultWorkbenchPartSelection(view.getSite().getPage().getActivePart(),
-					view.getSite().getPage().getSelection()), true);
-			return Status.OK_STATUS;
-		}
-
-		def protected void reschedule() {
-			cancel();
-			schedule();
-		}
+	
+	override protected computeAndSetInput(IWorkbenchPartSelection selection) {
+		sourceViewer.input = new Document(computeInput(selection))
+	}
+	
+	override doCreatePartControl(Composite parent) {
+		createSourceViewer(parent)
+	}
+	
+	override setFocus() {
 	}
 
 }
