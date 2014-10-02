@@ -17,7 +17,7 @@ Require-Bundle: org.nanosite.xtendency.tracer.executioncontext;visibility:=reexp
  org.eclipse.xtext.common.types.ui,
  org.eclipse.xtext.ui.codetemplates.ui,
  org.eclipse.compare,
- org.eclipse.xtext.purexbase.ui;bundle-version="2.6.0"
+ org.eclipse.xtext.purexbase.ui
 Import-Package: org.apache.log4j
 Export-Package: org.nanosite.xtendency.tracer.ui.quickfix,
  org.nanosite.xtendency.tracer.ui.contentassist,
