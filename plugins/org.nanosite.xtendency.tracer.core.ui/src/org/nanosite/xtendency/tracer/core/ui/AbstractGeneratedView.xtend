@@ -127,7 +127,8 @@ abstract class AbstractGeneratedView extends ViewPart implements IGeneratedView,
 		val firstSegment = if (uri.segment(0) == "resource") 2 else 1
 		for (var i = firstSegment; i < uri.segmentCount(); i++) {
 			sb.append("/");
-			sb.append(uri.segment(i));
+			val curSeg = uri.segment(i)
+			sb.append(curSeg);
 		}
 		return sb.toString();
 	}

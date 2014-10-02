@@ -59,22 +59,23 @@ class XtendInterpreter extends XbaseInterpreter {
 	// TODO: remove IFile here, push to WorkspaceXtendInterpreter
 	protected BiMap<IFile, URI> usedClasses = HashBiMap.create
 	protected Map<String, Pair<IFile, URI>> availableClasses = new HashMap<String, Pair<IFile, URI>>
+	protected Map<Pair<XtendFunction, Object>, Map<List<?>, Object>> createCache = new HashMap<Pair<XtendFunction, Object>, Map<List<?>, Object>>
 
 	XtendTypeDeclaration currentType
 
 	protected ClassLoader injectedClassLoader
 
 	protected ResourceSet rs
-	
-	def getUsedClasses(){
+
+	def getUsedClasses() {
 		return usedClasses
 	}
-	
+
 	def setCurrentType(XtendTypeDeclaration thisType, IFile file) {
 		this.currentType = thisType
 		usedClasses.put(file, thisType.eResource.URI)
 	}
-	
+
 	def setCurrentType(XtendTypeDeclaration thisType) {
 		this.currentType = thisType
 	}
@@ -123,24 +124,26 @@ class XtendInterpreter extends XbaseInterpreter {
 	protected override Object invokeOperation(JvmOperation operation, Object receiver, List<Object> argumentValues,
 		IEvaluationContext context, CancelIndicator indicator) {
 		val calledType = operation.declaringType.qualifiedName
-		val firstArg = if (argumentValues.empty) null else argumentValues.get(0)
+		val firstArg = if(argumentValues.empty) null else argumentValues.get(0)
 		val op = operation.simpleName
 		if (currentType != null) {
 			val currentTypeName = (currentType.eContainer as XtendFile).package + "." + currentType.name
 			if (currentTypeName == calledType && receiver == null) {
 				val calledFunc = getCalledFunction(currentType, op, argumentValues.size, firstArg)
-//				println("interpreting function 1 " + calledFunc.name)
+
+				//				println("interpreting function 1 " + calledFunc.name)
 				val newContext = context.fork
 				return evaluateOperation(calledFunc, argumentValues, null, newContext, indicator)
 			}
-		} 
+		}
 		if (availableClasses.containsKey(calledType)) {
 			val locationInfo = availableClasses.get(calledType)
 			val resource = rs.getResource(locationInfo.value, true)
 			val type = (resource.contents.head as XtendFile).xtendTypes.findFirst[
 				name == operation.declaringType.simpleName]
 			val calledFunc = getCalledFunction(type, op, argumentValues.size, firstArg)
-//			println("interpreting function 2 " + calledFunc.name)
+
+			//			println("interpreting function 2 " + calledFunc.name)
 			usedClasses.put(locationInfo.key, locationInfo.value)
 			val newContext = context.fork
 			newContext.newValue(QualifiedName.create("this"), receiver)
@@ -153,17 +156,19 @@ class XtendInterpreter extends XbaseInterpreter {
 		XtendTypeDeclaration type,
 		String op,
 		int nArgs,
-		/*@Nullable*/ Object firstArg
+		/*@Nullable*/
+		Object firstArg
 	) {
-		val candidates = type.members.filter(typeof(XtendFunction)).filter[name==op && parameters.size==nArgs]
+		val candidates = type.members.filter(typeof(XtendFunction)).filter[name == op && parameters.size == nArgs]
 		if (candidates.empty) {
 			null
-		} else if (candidates.findFirst[dispatch]!=null) {
+		} else if (candidates.findFirst[dispatch] != null) {
+
 			// this is a set of dispatch functions, select candidate based on type of first argument
-			if (firstArg==null) {
+			if (firstArg == null) {
 				throw new RuntimeException("Dispatch function '" + op + "' without parameters, shouldn't occur!")
 			} else {
-				for(func : candidates.filter[dispatch]) {
+				for (func : candidates.filter[dispatch]) {
 					val tFQN = func.parameters.get(0).parameterType.type.qualifiedName
 					if (isInstanceOf(firstArg, tFQN)) {
 						return func
@@ -173,15 +178,16 @@ class XtendInterpreter extends XbaseInterpreter {
 			}
 		} else {
 			if (candidates.size > 1) {
-				println("Choosing function call '" + op + "' among " + candidates.size + " candidates. " +
-					"This choice might be wrong."
+				println(
+					"Choosing function call '" + op + "' among " + candidates.size + " candidates. " +
+						"This choice might be wrong."
 				)
 			}
 			candidates.get(0)
 		}
 	}
 
-	def private isInstanceOf (Object obj, String typeFQN) {
+	def private isInstanceOf(Object obj, String typeFQN) {
 		var Class<?> expectedType = null
 		val className = typeFQN
 		try {
@@ -191,25 +197,45 @@ class XtendInterpreter extends XbaseInterpreter {
 		}
 		expectedType.isInstance(obj)
 	}
-
 	
-	def private evaluateOperation(
-		XtendFunction func,
-		List<Object> argumentValues,
-		XtendTypeDeclaration type,
-		IEvaluationContext context,
-		CancelIndicator indicator
-	) {
+	def private Map<List<?>, Object> safeGet(Map<Pair<XtendFunction, Object>, Map<List<?>, Object>> map, Pair<XtendFunction, Object> k){
+		if (map.containsKey(k)){
+			return map.get(k)
+		}else{
+			val result = new HashMap<List<?>, Object>
+			map.put(k, result)
+			result
+		}
+	}
+
+	def private evaluateOperation(XtendFunction func, List<Object> argumentValues, XtendTypeDeclaration type,
+		IEvaluationContext context, CancelIndicator indicator) {
+		val receiver = context.getValue(QualifiedName.create("this"))
+		if (func.createExtensionInfo != null){
+			val functionCache = createCache.safeGet(func -> receiver)
+			if (functionCache.containsKey(argumentValues)){
+				return functionCache.get(argumentValues)
+			}else{
+				val created = doEvaluate(func.createExtensionInfo.createExpression, context, indicator)
+				functionCache.put(argumentValues, created)
+				val varName = func.createExtensionInfo.name
+				context.newValue(QualifiedName.create(varName), created)
+			}
+		}
+			
 		for (var i = 0; i < argumentValues.size; i++) {
 			val paramName = func.parameters.get(i).name
-			context.newValue(QualifiedName.create(paramName), argumentValues.get(i))
+			val qname = QualifiedName.create(paramName)
+			context.newValue(qname, argumentValues.get(i))
 		}
 		try {
 			val currentTypeBefore = currentType
-			if (type!=null)
+			if (type != null)
 				currentType = type
-			val result = doEvaluate(func.expression, context, indicator)
-			if (type!=null)
+			var result = doEvaluate(func.expression, context, indicator)
+			if (func.createExtensionInfo != null)
+				result = createCache.safeGet(func -> receiver).get(argumentValues)
+			if (type != null)
 				currentType = currentTypeBefore
 			return result
 		} catch (RuntimeException r) {
@@ -268,15 +294,16 @@ class XtendInterpreter extends XbaseInterpreter {
 		}
 		super._assigneValueTo(jvmField, assignment, value, context, indicator)
 	}
-	
-	override Object _invokeFeature(JvmIdentifiableElement identifiable, XAbstractFeatureCall featureCall, Object receiver,
-			IEvaluationContext context, CancelIndicator indicator) {
-		if (featureCall.toString =="this" && currentType != null && identifiable instanceof JvmGenericType && identifiable.simpleName == currentType.name){
+
+	override Object _invokeFeature(JvmIdentifiableElement identifiable, XAbstractFeatureCall featureCall,
+		Object receiver, IEvaluationContext context, CancelIndicator indicator) {
+		if (featureCall.toString == "this" && currentType != null && identifiable instanceof JvmGenericType &&
+			identifiable.simpleName == currentType.name) {
 			val result = context.getValue(QualifiedName.create("this"))
 			if (result != null)
 				return result
 		}
 		super._invokeFeature(identifiable, featureCall, receiver, context, indicator)
 	}
-	
+
 }
