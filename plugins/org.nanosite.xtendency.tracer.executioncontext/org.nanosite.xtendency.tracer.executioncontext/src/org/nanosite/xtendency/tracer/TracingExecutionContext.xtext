@@ -17,7 +17,13 @@ ExecutionContext:
 			
 			(inits += InitBlock)*
 		'}')?
+		
+		('tracingScope' scope = TracingScope)?
 	'}'
+;
+
+TracingScope:
+	'package' | 'project'
 ;
 
 FUNCTIONID:

@@ -109,7 +109,15 @@ abstract class AbstractGeneratedView extends ViewPart implements IGeneratedView,
 				e.printStackTrace
 			}
 		}
-		interpreter.configure(file.parent)
+		switch (ec.scope){
+			case null:
+				interpreter.configure(file.parent)
+			case "package":
+				interpreter.configure(file.parent)
+			case "project":
+				interpreter.configure(file.project)
+		}
+		
 		setInput(typeDecl, inputExpression, context, file)
 		this.tecFile = tecFile
 		refreshJob.reschedule();

@@ -32,6 +32,7 @@ class WorkspaceXtendInterpreter extends XtendInterpreter {
 				// ignore
 			}
 		}
+		container.members.filter(IContainer).forEach[configure]
 	}
 
 }
