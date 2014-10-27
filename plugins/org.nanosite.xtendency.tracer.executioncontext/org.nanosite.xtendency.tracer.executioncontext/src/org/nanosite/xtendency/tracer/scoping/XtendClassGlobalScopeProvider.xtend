@@ -29,8 +29,6 @@ class XtendClassGlobalScopeProvider extends TypesAwareDefaultGlobalScopeProvider
 	
 	override protected getScope(IScope parent, Resource context, boolean ignoreCase, EClass type, Predicate<IEObjectDescription> filter) {
 		if (type == XtendPackage.eINSTANCE.xtendTypeDeclaration){
-			println("looking for xtendtype")
-			println("context is " + context)
 			val tec = context.contents.findFirst[it instanceof ExecutionContext] as  ExecutionContext
 			if (tec != null && tec.projectName != null){
 				val project = ResourcesPlugin.getWorkspace.root.getProject(tec.projectName)

@@ -40,8 +40,9 @@ import org.nanosite.xtendency.tracer.core.ChattyEvaluationContext
 import org.eclipse.ui.IPartListener2
 import org.eclipse.ui.IWorkbenchPartReference
 import org.eclipse.swt.widgets.Composite
+import org.nanosite.xtendency.tracer.core.IGeneratedView
 
-abstract class AbstractGeneratedView extends ViewPart implements IGeneratedView, IResourceChangeListener, ISelectionListener, IPartListener2 {
+abstract class AbstractGeneratedView extends ViewPart implements IResourceChangeListener, ISelectionListener, IPartListener2, IGeneratedView {
 	protected static final ISchedulingRule SEQUENCE_RULE = SchedulingRuleFactory.INSTANCE.newSequence();
 	
 	protected IFile tecFile
@@ -248,4 +249,12 @@ abstract class AbstractGeneratedView extends ViewPart implements IGeneratedView,
 			schedule();
 		}
 	} 
+	
+	override boolean acceptsInputClass(String qualifiedName){
+		if (qualifiedName == null)
+			return false
+		acceptsClass(Class.forName(qualifiedName))
+	}
+	
+	def boolean acceptsClass(Class<?> returnType)
 }

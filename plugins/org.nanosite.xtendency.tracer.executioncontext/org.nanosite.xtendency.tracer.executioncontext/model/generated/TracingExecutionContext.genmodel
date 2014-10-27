@@ -19,6 +19,7 @@
       <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference TracingExecutionContext.ecore#//ExecutionContext/injectedMembers"/>
       <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference TracingExecutionContext.ecore#//ExecutionContext/inits"/>
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute TracingExecutionContext.ecore#//ExecutionContext/scope"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute TracingExecutionContext.ecore#//ExecutionContext/view"/>
     </genClasses>
     <genClasses ecoreClass="TracingExecutionContext.ecore#//InitBlock">
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute TracingExecutionContext.ecore#//InitBlock/param"/>

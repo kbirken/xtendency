@@ -7,8 +7,15 @@ import org.eclipse.xtend.core.xtend.XtendField
 import org.eclipse.xtext.common.types.JvmDeclaredType
 import org.eclipse.xtend.core.xtend.XtendConstructor
 import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
+import org.eclipse.core.runtime.Platform
+import org.nanosite.xtendency.tracer.core.IGeneratedView
+import org.eclipse.xtext.common.types.JvmTypeReference
+import com.google.inject.Inject
+import org.eclipse.xtext.xbase.jvmmodel.JvmTypesBuilder
 
 class ExecutionContextTemplateGenerator {
+	@Inject static extension JvmTypesBuilder
+	
 	def static generateTemplate(XtendFunction func, IFile classFile)'''
 	executionContext «func.name» {
 		project "«classFile.project.name»"
@@ -45,8 +52,24 @@ class ExecutionContextTemplateGenerator {
 «««			«ENDFOR»
 		}
 		«ENDIF»
+		tracingScope package
+		view "«func.getFittingView»"
 	}
 	'''
+	
+	def private static getFittingView(XtendFunction func){
+		val views = Platform.getExtensionRegistry().getConfigurationElementsFor("org.nanosite.xtendency.tracer.view")
+		//val fitting = views.findFirst[v | (v.createExecutableExtension("class") as IGeneratedView).acceptsInputClass(func?.actualType?.type?.qualifiedName)]
+		val fitting = views.head
+		//TODO
+		fitting.getAttribute("name")
+	}
+	
+	def static private JvmTypeReference getActualType(XtendFunction func){
+		if (func.returnType != null)
+			return func.returnType
+		func.expression.inferredType
+	}
 	
 	def private static hasNoArgConstructor(XtendTypeDeclaration type) {
 		val constrs = type.members.filter(XtendConstructor)

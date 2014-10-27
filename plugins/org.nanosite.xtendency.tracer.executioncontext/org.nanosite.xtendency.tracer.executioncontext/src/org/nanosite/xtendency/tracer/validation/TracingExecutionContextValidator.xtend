@@ -3,10 +3,15 @@
  */
 package org.nanosite.xtendency.tracer.validation
 
-import org.eclipse.xtext.validation.Check
-import org.nanosite.xtendency.tracer.tracingExecutionContext.ExecutionContext
+import org.eclipse.core.runtime.Platform
 import org.eclipse.xtend.core.xtend.XtendField
+import org.eclipse.xtext.validation.Check
+import org.nanosite.xtendency.tracer.core.IGeneratedView
+import org.nanosite.xtendency.tracer.tracingExecutionContext.ExecutionContext
 import org.nanosite.xtendency.tracer.tracingExecutionContext.TracingExecutionContextPackage
+import org.eclipse.xtext.xbase.jvmmodel.JvmTypesBuilder
+import com.google.inject.Inject
+import org.eclipse.xtend.core.xtend.XtendFunction
 
 //import org.eclipse.xtext.validation.Check
 
@@ -16,6 +21,7 @@ import org.nanosite.xtendency.tracer.tracingExecutionContext.TracingExecutionCon
  * see http://www.eclipse.org/Xtext/documentation.html#validation
  */
 class TracingExecutionContextValidator extends AbstractTracingExecutionContextValidator {
+	@Inject extension JvmTypesBuilder
 
 	@Check
 	def checkAllParametersDefined(ExecutionContext ec){
@@ -34,5 +40,26 @@ class TracingExecutionContextValidator extends AbstractTracingExecutionContextVa
 				}
 			}
 		}
+	}
+	
+	@Check
+	def checkValidViewSelected(ExecutionContext ec){
+		if (ec.function != null && ec.view != null){
+			val views = Platform.getExtensionRegistry().getConfigurationElementsFor("org.nanosite.xtendency.tracer.view")
+			val selected = views.findFirst[getAttribute("name") == ec.view]
+			if (selected == null)
+				error("Unknown view: " + ec.view, TracingExecutionContextPackage.Literals.EXECUTION_CONTEXT__VIEW)
+//			selected.getAttribute("class")
+//			val viewInstance = selected.createExecutableExtension("class") as IGeneratedView
+//			if (!viewInstance.acceptsInputClass(ec.function.actualType.type.qualifiedName))
+//				error("View " + ec.view + " does not accept return type " + ec.function.actualType.qualifiedName, TracingExecutionContextPackage.Literals.EXECUTION_CONTEXT__VIEW)
+		}
+	}
+	
+	def private getActualType(XtendFunction func){
+		if (func.returnType != null)
+			func.returnType
+		else
+			func.expression.inferredType
 	}
 }

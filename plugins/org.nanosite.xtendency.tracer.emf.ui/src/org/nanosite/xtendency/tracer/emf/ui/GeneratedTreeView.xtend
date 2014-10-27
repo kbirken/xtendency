@@ -290,4 +290,8 @@ class GeneratedTreeView extends AbstractGeneratedView {
 		}
 	}
 
+	override acceptsClass(Class<?> returnType) {
+		EObject.isAssignableFrom(returnType)
+	}
+	
 }

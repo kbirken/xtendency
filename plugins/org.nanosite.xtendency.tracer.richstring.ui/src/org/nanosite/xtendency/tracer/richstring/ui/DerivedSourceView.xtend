@@ -87,6 +87,7 @@ import org.eclipse.ui.IPartListener2
 import org.eclipse.jface.text.Document
 import com.google.common.collect.Multiset
 import com.google.common.collect.HashMultiset
+import org.eclipse.xtend.core.xtend.RichString
 
 /**
  *
@@ -107,9 +108,6 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 	private int lastOffsetInView = -1
 	private int lastLengthInView = -1
 	private Set<IWorkbenchPart> justActivated = new HashSet<IWorkbenchPart>
-
-	@Inject
-	private ColorRegistry colorRegistry
 
 	private DefaultMarkerAnnotationAccess defaultMarkerAnnotationAccess = new DefaultMarkerAnnotationAccess();
 
@@ -392,5 +390,9 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 	
 	override setFocus() {
 	}
-
+	
+	override acceptsClass(Class<?> returnType) {
+		CharSequence.isAssignableFrom(returnType)
+	}
+	
 }

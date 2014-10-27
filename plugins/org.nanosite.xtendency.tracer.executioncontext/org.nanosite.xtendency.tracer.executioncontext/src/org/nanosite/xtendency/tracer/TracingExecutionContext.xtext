@@ -19,6 +19,8 @@ ExecutionContext:
 		'}')?
 		
 		('tracingScope' scope = TracingScope)?
+		
+		'view' view = STRING
 	'}'
 ;
 

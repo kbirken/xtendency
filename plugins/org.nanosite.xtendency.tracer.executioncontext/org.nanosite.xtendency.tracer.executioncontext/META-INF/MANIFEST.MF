@@ -14,7 +14,8 @@ Require-Bundle: org.eclipse.xtext;visibility:=reexport,
  org.eclipse.emf.mwe2.launch;resolution:=optional,
  org.eclipse.xtend.core,
  org.eclipse.core.resources;bundle-version="3.9.0",
- org.eclipse.xtext.ui
+ org.eclipse.xtext.ui,
+ org.nanosite.xtendency.tracer.core;bundle-version="0.1.0"
 Import-Package: org.apache.log4j
 Export-Package: org.nanosite.xtendency.tracer,
  org.nanosite.xtendency.tracer.services,

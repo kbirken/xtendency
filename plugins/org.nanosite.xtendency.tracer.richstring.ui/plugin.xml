@@ -11,43 +11,12 @@
       </view>
    </extension>
    <extension
-         point="org.eclipse.ui.commands">
-      <command
-            defaultHandler="org.nanosite.xtendency.tracer.richstring.ui.ShowGeneratedViewFromConfHandler"
-            id="org.nanosite.xtendency.tracer.ui.showViewFromConfCommand"
-            name="Show Generated From Conf">
-      </command>
-   </extension>
-   <extension
-         point="org.eclipse.ui.menus">
-      <menuContribution
-            allPopups="false"
-            locationURI="popup:org.eclipse.ui.popup.any?after=additions">
-         <command
-               commandId="org.nanosite.xtendency.tracer.ui.showViewFromConfCommand"
-               label="Run execution context"
-               style="push">
-            <visibleWhen
-                  checkEnabled="false">
-               <with
-                     variable="selection">
-                  <and>
-                     <count
-                           value="1">
-                     </count>
-                     <iterate
-                           ifEmpty="false"
-                           operator="and">
-                        <test
-                              property="org.eclipse.core.resources.extension"
-                              value="tec">
-                        </test>
-                     </iterate>
-                  </and>
-               </with>
-            </visibleWhen>
-         </command>
-      </menuContribution>
+         point="org.nanosite.xtendency.tracer.view">
+      <view
+            class="org.nanosite.xtendency.tracer.richstring.ui.DerivedSourceView"
+            extension="org.nanosite.xtendency.tracer.ui.generatedView"
+            name="RichStringView">
+      </view>
    </extension>
 
 </plugin>
