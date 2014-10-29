@@ -1,0 +1,18 @@
+executionContext createClassCode {
+	project "org.eclipsecon.xtendency.demo"
+	class org.eclipsecon.xtendency.demo.JavaGenerator : createClassCode(Package)
+	initialize {
+		// parameter pkg of type Package
+		"pkg" = {
+			val rs = new org.eclipse.emf.ecore.resource.impl.ResourceSetImpl
+			val r = rs.getResource(org.eclipse.emf.common.util.URI.createFileURI("/home/meilers/workspaces/runtime-EclipseConDemo/org.eclipsecon.xtendency.demo/input.uml"), true)
+			(r.contents.head as org.eclipse.uml2.uml.Model).packagedElements.get(0) as org.eclipse.uml2.uml.Package
+		}
+		// the current instance
+		"this" = {
+			return new org.eclipsecon.xtendency.demo.JavaGenerator()
+		}
+	}
+	tracingScope package
+	view "RichStringView"
+}

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="20131001" xmlns:xmi="http://www.omg.org/spec/XMI/20131001" xmlns:uml="http://www.eclipse.org/uml2/5.0.0/UML" xmi:id="_OGiwQF5_EeSLf_hlmyrUQg" name="SampleModel">
+  <packagedElement xmi:type="uml:Package" xmi:id="_VKOOYF5_EeSLf_hlmyrUQg" name="package1">
+    <packagedElement xmi:type="uml:Class" xmi:id="_aWHEcF5_EeSLf_hlmyrUQg" name="AbstractClass" isAbstract="true"/>
+    <packagedElement xmi:type="uml:Class" xmi:id="_fW2acF5_EeSLf_hlmyrUQg" name="SomeClass" redefinedClassifier="_aWHEcF5_EeSLf_hlmyrUQg">
+      <ownedAttribute xmi:id="_r02zQF5_EeSLf_hlmyrUQg" name="anAttribute" type="_aWHEcF5_EeSLf_hlmyrUQg"/>
+    </packagedElement>
+  </packagedElement>
+  <packagedElement xmi:type="uml:Package" xmi:id="_Xh3bMF5_EeSLf_hlmyrUQg" name="package2">
+    <packagedElement xmi:type="uml:Class" xmi:id="_woruoF5_EeSLf_hlmyrUQg" name="OtherClass" redefinedClassifier="_aWHEcF5_EeSLf_hlmyrUQg">
+      <ownedAttribute xmi:id="_7e64YF5_EeSLf_hlmyrUQg" name="anotherAttribute" type="_woruoF5_EeSLf_hlmyrUQg"/>
+      <ownedOperation xmi:id="_1CzJgF5_EeSLf_hlmyrUQg" name="doSomething">
+        <ownedParameter xmi:id="_BPoSwF6AEeSLf_hlmyrUQg" name="aParameter" type="_aWHEcF5_EeSLf_hlmyrUQg"/>
+      </ownedOperation>
+    </packagedElement>
+  </packagedElement>
+</uml:Model>

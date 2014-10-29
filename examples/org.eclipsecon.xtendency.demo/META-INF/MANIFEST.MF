@@ -1,0 +1,15 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Demo
+Bundle-SymbolicName: org.eclipsecon.xtendency.demo
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: org.eclipsecon.xtendency.demo.internal.Activator
+Require-Bundle: org.eclipse.core.runtime,
+ org.eclipse.xtend.lib,
+ com.google.guava,
+ org.eclipse.xtext.xbase.lib,
+ org.eclipse.uml2.uml;bundle-version="5.0.1",
+ org.eclipse.emf.codegen.ecore;bundle-version="2.10.0"
+Bundle-RequiredExecutionEnvironment: JavaSE-1.7
+Bundle-ActivationPolicy: lazy
+
