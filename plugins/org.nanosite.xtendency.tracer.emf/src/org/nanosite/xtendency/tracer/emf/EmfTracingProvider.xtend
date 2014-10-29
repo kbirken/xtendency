@@ -58,17 +58,6 @@ class EmfTracingProvider implements ITracingProvider<Map<Pair<EObject, EStructur
 	}
 
 	override exit(XExpression expr, IEvaluationContext ctx, Object output) {
-//		if (expr instanceof XMemberFeatureCall) {
-//			val rec = expr.actualReceiver
-//			if (!lastEvaluated.peek.containsKey(rec))
-//				throw new IllegalStateException
-//			val receiverObj = if(rec == null) null else lastEvaluated.peek.get(rec)
-//
-//			val feat = expr.feature
-//			if (receiverObj != null && receiverObj instanceof EObject && feat instanceof JvmOperation) {
-//				logChange(feat as JvmOperation, receiverObj as EObject, expr)
-//			}
-//		} 
 		if (expr instanceof XAssignment) {
 			if (expr.feature instanceof JvmOperation) {
 				if (!lastEvaluated.peek.containsKey(expr.assignable))

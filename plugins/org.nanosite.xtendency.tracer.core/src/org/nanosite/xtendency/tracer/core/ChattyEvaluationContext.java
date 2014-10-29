@@ -10,7 +10,7 @@ import org.eclipse.xtext.xbase.interpreter.impl.NullEvaluationContext;
 
 import com.google.common.collect.Maps;
 
-public class ChattyEvaluationContext implements IEvaluationContext{
+public class ChattyEvaluationContext implements IExtendedEvaluationContext{
 	private IEvaluationContext parent;
 	private Map<QualifiedName, Object> values = new HashMap<QualifiedName, Object>();
 	
@@ -43,7 +43,7 @@ public class ChattyEvaluationContext implements IEvaluationContext{
 			values.put(qualifiedName, value);
 	}
 
-	public IEvaluationContext fork() {
+	public IExtendedEvaluationContext fork() {
 		return new ChattyEvaluationContext(this);
 	}
 	
@@ -56,5 +56,10 @@ public class ChattyEvaluationContext implements IEvaluationContext{
 			result.put(k.toString(), values.get(k));
 		}
 		return result;
+	}
+
+	@Override
+	public IEvaluationContext getParent() {
+		return parent;
 	}
 }

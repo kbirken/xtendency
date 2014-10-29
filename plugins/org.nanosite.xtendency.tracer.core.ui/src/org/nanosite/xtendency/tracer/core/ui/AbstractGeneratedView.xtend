@@ -41,6 +41,7 @@ import org.eclipse.ui.IPartListener2
 import org.eclipse.ui.IWorkbenchPartReference
 import org.eclipse.swt.widgets.Composite
 import org.nanosite.xtendency.tracer.core.IGeneratedView
+import org.nanosite.xtendency.tracer.core.IExtendedEvaluationContext
 
 abstract class AbstractGeneratedView extends ViewPart implements IResourceChangeListener, ISelectionListener, IPartListener2, IGeneratedView {
 	protected static final ISchedulingRule SEQUENCE_RULE = SchedulingRuleFactory.INSTANCE.newSequence();
@@ -65,10 +66,11 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 		XtendActivator.getInstance().getInjector(XtendActivator.ORG_ECLIPSE_XTEND_CORE_XTEND).injectMembers(this);
 	}
 	
-	def setInput(XtendTypeDeclaration typeDecl, XExpression inputExpression, IEvaluationContext context, IFile file) {
+	def setInput(XtendTypeDeclaration typeDecl, XExpression inputExpression, IEvaluationContext context, IExtendedEvaluationContext globalContext, IFile file) {
 		interpreter.setCurrentType(typeDecl, file)
 		this.inputExpression = inputExpression
 		this.initialContext = context
+		interpreter.globalScope = globalContext
 	}
 
 	def setInput(ExecutionContext ec, IFile tecFile) {
@@ -81,7 +83,8 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 		val typeDecl = ec.getClazz();
 		val func = ec.getFunction();
 		val inputExpression = func.getExpression();
-		val context = new ChattyEvaluationContext();
+		val globalContext = new ChattyEvaluationContext();
+		val context = globalContext.fork
 
 		val Injector injector = if(ec.injector != null) interpreter.evaluate(ec.injector).result as Injector else null
 		val initContext = new ChattyEvaluationContext()
@@ -119,7 +122,7 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 				interpreter.configure(file.project)
 		}
 		
-		setInput(typeDecl, inputExpression, context, file)
+		setInput(typeDecl, inputExpression, context, globalContext, file)
 		this.tecFile = tecFile
 		refreshJob.reschedule();
 	}

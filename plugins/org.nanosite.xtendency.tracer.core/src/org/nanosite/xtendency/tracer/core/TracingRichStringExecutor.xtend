@@ -7,6 +7,7 @@ import org.eclipse.xtext.util.CancelIndicator
 import org.eclipse.xtext.xbase.XExpression
 import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
 import org.eclipse.xtext.xbase.interpreter.IExpressionInterpreter
+import org.eclipse.xtext.xbase.interpreter.impl.DefaultEvaluationResult
 
 class TracingRichStringExecutor extends DefaultRichStringExecutor {
 
@@ -58,7 +59,7 @@ class TracingRichStringExecutor extends DefaultRichStringExecutor {
 			result
 		} catch (Exception e) {
 			e.printStackTrace
-			null
+			throw new RichStringException(e)
 		}
 	}
 }

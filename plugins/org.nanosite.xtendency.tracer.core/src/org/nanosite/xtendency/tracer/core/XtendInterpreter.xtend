@@ -42,6 +42,7 @@ import org.eclipse.xtext.common.types.JvmGenericType
 import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
 import org.eclipse.xtext.xbase.interpreter.impl.EvaluationException
+import java.util.IdentityHashMap
 
 @Data class XtendClassResource {
 	IFile file
@@ -60,6 +61,8 @@ class XtendInterpreter extends XbaseInterpreter {
 	protected BiMap<IFile, URI> usedClasses = HashBiMap.create
 	protected Map<String, Pair<IFile, URI>> availableClasses = new HashMap<String, Pair<IFile, URI>>
 	protected Map<Pair<XtendFunction, Object>, Map<List<?>, Object>> createCache = new HashMap<Pair<XtendFunction, Object>, Map<List<?>, Object>>
+	
+	IExtendedEvaluationContext globalScope
 
 	XtendTypeDeclaration currentType
 
@@ -102,10 +105,18 @@ class XtendInterpreter extends XbaseInterpreter {
 		}
 		null
 	}
+	
+	def setGlobalScope(IExtendedEvaluationContext context){
+		globalScope = context
+	}
 
 	protected def Object _doEvaluate(RichString rs, IEvaluationContext context, CancelIndicator indicator) {
 		val helper = createRichStringExecutor(context, indicator)
-		richStringProcessor.process(rs, helper, indentationHandler.get)
+		try{
+			richStringProcessor.process(rs, helper, indentationHandler.get)
+		}catch(RichStringException e){
+			return e.target.message
+		}
 		helper.result
 	}
 
@@ -132,7 +143,8 @@ class XtendInterpreter extends XbaseInterpreter {
 				val calledFunc = getCalledFunction(currentType, op, argumentValues.size, firstArg)
 
 				//				println("interpreting function 1 " + calledFunc.name)
-				val newContext = context.fork
+				val newContext = globalScope.fork
+				newContext.newValue(QualifiedName.create("this"), context.getValue(QualifiedName.create("this")))
 				return evaluateOperation(calledFunc, argumentValues, null, newContext, indicator)
 			}
 		}
@@ -145,7 +157,7 @@ class XtendInterpreter extends XbaseInterpreter {
 
 			//			println("interpreting function 2 " + calledFunc.name)
 			usedClasses.put(locationInfo.key, locationInfo.value)
-			val newContext = context.fork
+			val newContext = globalScope.fork
 			newContext.newValue(QualifiedName.create("this"), receiver)
 			return evaluateOperation(calledFunc, argumentValues, type, newContext, indicator)
 		}
@@ -211,6 +223,11 @@ class XtendInterpreter extends XbaseInterpreter {
 	def private evaluateOperation(XtendFunction func, List<Object> argumentValues, XtendTypeDeclaration type,
 		IEvaluationContext context, CancelIndicator indicator) {
 		val receiver = context.getValue(QualifiedName.create("this"))
+		for (var i = 0; i < argumentValues.size; i++) {
+			val paramName = func.parameters.get(i).name
+			val qname = QualifiedName.create(paramName)
+			context.newValue(qname, argumentValues.get(i))
+		}
 		if (func.createExtensionInfo != null){
 			val functionCache = createCache.safeGet(func -> receiver)
 			if (functionCache.containsKey(argumentValues)){
@@ -221,12 +238,6 @@ class XtendInterpreter extends XbaseInterpreter {
 				val varName = func.createExtensionInfo.name
 				context.newValue(QualifiedName.create(varName), created)
 			}
-		}
-			
-		for (var i = 0; i < argumentValues.size; i++) {
-			val paramName = func.parameters.get(i).name
-			val qname = QualifiedName.create(paramName)
-			context.newValue(qname, argumentValues.get(i))
 		}
 		try {
 			val currentTypeBefore = currentType

@@ -10,6 +10,8 @@ import org.eclipse.xtext.util.CancelIndicator
 import org.eclipse.xtext.xbase.XExpression
 import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
 import org.eclipse.xtext.xbase.interpreter.IExpressionInterpreter
+import org.eclipse.xtext.xbase.interpreter.impl.DefaultEvaluationResult
+import org.eclipse.xtext.xbase.interpreter.IEvaluationResult
 
 class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOnce implements IRichStringExecutor {
 
@@ -198,7 +200,7 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 		val result = interpreter.evaluate(expression, contextStack.peek, indicator)
 		if (result.exception != null) {
 			System.err.println("ERROR during evaluation: " + result.exception.toString)
-			null
+			throw new RichStringException(result.exception)
 		} else {
 			result.result
 		}
