@@ -112,11 +112,9 @@ class XtendInterpreter extends XbaseInterpreter {
 
 	protected def Object _doEvaluate(RichString rs, IEvaluationContext context, CancelIndicator indicator) {
 		val helper = createRichStringExecutor(context, indicator)
-		try{
-			richStringProcessor.process(rs, helper, indentationHandler.get)
-		}catch(RichStringException e){
-			return e.target.message
-		}
+		
+		richStringProcessor.process(rs, helper, indentationHandler.get)
+		
 		helper.result
 	}
 

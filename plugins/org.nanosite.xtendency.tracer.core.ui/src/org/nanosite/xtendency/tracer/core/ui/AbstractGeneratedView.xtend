@@ -42,6 +42,8 @@ import org.eclipse.ui.IWorkbenchPartReference
 import org.eclipse.swt.widgets.Composite
 import org.nanosite.xtendency.tracer.core.IGeneratedView
 import org.nanosite.xtendency.tracer.core.IExtendedEvaluationContext
+import java.io.StringWriter
+import java.io.PrintWriter
 
 abstract class AbstractGeneratedView extends ViewPart implements IResourceChangeListener, ISelectionListener, IPartListener2, IGeneratedView {
 	protected static final ISchedulingRule SEQUENCE_RULE = SchedulingRuleFactory.INSTANCE.newSequence();
@@ -159,7 +161,6 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 			EcoreUtil.resolveAll(r)
 			val ec = r.contents.head as ExecutionContext
 			setInput(ec, tecFile)
-			refreshJob.reschedule();
 		} else if (event.delta != null && tecFile != null && event.delta.concernsFile(tecFile)) {
 			val rs = rsProvider.get(tecFile.getProject())
 			val r = rs.getResource(URI.createURI(tecFile.getFullPath().toString()), true)
@@ -170,7 +171,6 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 			EcoreUtil.resolveAll(r)
 			val ec = r.contents.head as ExecutionContext
 			setInput(ec, tecFile)
-			refreshJob.reschedule();
 		}
 	}
 
@@ -260,4 +260,11 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 	}
 	
 	def boolean acceptsClass(Class<?> returnType)
+	
+	def static String getStackTraceString(Throwable t) {
+		val sw = new StringWriter()
+		val pw = new PrintWriter(sw)
+		t.printStackTrace(pw)
+		sw.toString
+	}
 }

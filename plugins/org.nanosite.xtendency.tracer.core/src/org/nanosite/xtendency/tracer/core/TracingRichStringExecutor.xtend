@@ -29,8 +29,8 @@ class TracingRichStringExecutor extends DefaultRichStringExecutor {
 
 		tracingProviders.filter[canCreateTracePointFor(input)].forEach[enter(input, contextStack.peek)]
 		val result = eval(input)
-		val str = if (result == null) "NULL" else result.toString
-			
+		val str = if(result == null) "NULL" else result.toString
+
 		for (tp : tracingProviders) {
 
 			if (tp.canCreateTracePointFor(input)) {
@@ -43,8 +43,6 @@ class TracingRichStringExecutor extends DefaultRichStringExecutor {
 	override void append(RichStringLiteral lit, String str) {
 		super.append(lit, str)
 
-		val ctx = new HashMap<String, Object>
-
 		for (tp : tracingProviders) {
 			if (tp.canCreateTracePointFor(lit)) {
 				tp.enter(lit, contextStack.peek)
@@ -54,12 +52,7 @@ class TracingRichStringExecutor extends DefaultRichStringExecutor {
 	}
 
 	override protected eval(XExpression expression) {
-		try {
-			val result = (interpreter as TracingInterpreter).doEvaluate(expression, contextStack.peek, indicator, false)
-			result
-		} catch (Exception e) {
-			e.printStackTrace
-			throw new RichStringException(e)
-		}
+		val result = (interpreter as TracingInterpreter).doEvaluate(expression, contextStack.peek, indicator, false)
+		result
 	}
 }

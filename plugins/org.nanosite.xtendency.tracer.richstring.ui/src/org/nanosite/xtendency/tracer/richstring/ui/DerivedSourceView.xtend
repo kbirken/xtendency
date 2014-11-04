@@ -257,7 +257,7 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 		if (interpResult.result != null && interpResult.result instanceof CharSequence) {
 			return interpResult.result.toString
 		} else {
-			return interpResult.exception.toString
+			return interpResult.exception.stackTraceString
 		}
 	}
 
@@ -316,10 +316,6 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 	def protected boolean findRelevantNodes(TraceTreeNode<RichStringOutputLocation> current,
 		Set<TraceTreeNode<RichStringOutputLocation>> nodes, int offset, int length) {
 		val node = NodeModelUtils.findActualNodeFor(current.input.expression)
-		if (current.input.expression instanceof XAbstractFeatureCall) {
-			val a = node.offset
-			val b = node.length
-		}
 
 		if (new Range(node.offset, node.offset + node.length).overlaps(new Range(offset, offset + length))) {
 			val tempSet = new HashSet<TraceTreeNode<RichStringOutputLocation>>

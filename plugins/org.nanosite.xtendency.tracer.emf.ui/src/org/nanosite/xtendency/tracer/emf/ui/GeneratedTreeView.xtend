@@ -1,100 +1,113 @@
 package org.nanosite.xtendency.tracer.emf.ui
 
-import org.eclipse.ui.part.ViewPart
-import org.eclipse.swt.widgets.Composite
-import org.eclipse.jface.viewers.TreeViewer
-import org.eclipse.jface.viewers.TreeNodeContentProvider
-import org.eclipse.emf.edit.provider.ReflectiveItemProviderAdapterFactory
-import org.eclipse.emf.edit.provider.ComposedAdapterFactory
-import org.eclipse.emf.edit.provider.resource.ResourceItemProviderAdapterFactory
-import org.eclipse.emf.edit.ui.provider.AdapterFactoryLabelProvider
-import org.eclipse.ui.part.FileEditorInput
-import org.eclipse.emf.ecore.EObject
-import org.eclipse.jface.viewers.TreeNode
 import java.util.ArrayList
-import org.eclipse.emf.ecore.EStructuralFeature
-import org.eclipse.core.resources.IFile
-import org.eclipse.core.resources.ResourcesPlugin
-import org.eclipse.xtend.core.xtend.XtendFile
-import org.eclipse.xtext.xbase.interpreter.impl.DefaultEvaluationContext
-import com.google.inject.Injector
-import com.google.inject.Inject
-import org.nanosite.xtendency.tracer.core.TracingInterpreter
-import org.eclipse.core.runtime.Path
-import org.eclipse.xtext.naming.QualifiedName
-import org.eclipse.xtext.util.CancelIndicator
-import org.eclipse.emf.common.util.URI
-import org.eclipse.xtext.xbase.XExpression
-import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
-import org.eclipse.jdt.core.JavaCore
-import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
-import org.eclipse.core.resources.IResourceChangeListener
-import org.eclipse.jface.viewers.ISelectionChangedListener
-import org.eclipse.xtend.ide.internal.XtendActivator
-import org.eclipse.core.resources.IWorkspace
-import org.eclipse.ui.ISelectionListener
-import org.eclipse.core.resources.IResourceChangeEvent
-import org.eclipse.ui.IWorkbenchPart
-import org.eclipse.jface.viewers.ISelection
 import java.util.Collections
-import org.eclipse.emf.ecore.util.EcoreUtil
-import org.eclipse.xtext.ui.resource.IResourceSetProvider
-import org.eclipse.xtend.core.xtend.XtendFunction
-import org.eclipse.ui.progress.UIJob
-import org.eclipse.core.runtime.jobs.ISchedulingRule
-import org.eclipse.core.runtime.IStatus
-import org.eclipse.core.runtime.IProgressMonitor
-import org.eclipse.core.runtime.Status
-import org.eclipse.xtext.ui.views.DefaultWorkbenchPartSelection
-import org.eclipse.xtext.ui.views.IWorkbenchPartSelection
-import java.util.concurrent.Executors
-
-import static org.eclipse.xtext.ui.util.DisplayRunHelper.*
-import org.eclipse.swt.widgets.Display
-import org.eclipse.core.resources.IResourceDelta
-import org.eclipse.xtext.ui.editor.SchedulingRuleFactory
-import org.nanosite.xtendency.tracer.core.SynchronizedInterpreterAccess
-import org.nanosite.xtendency.tracer.emf.EmfTracingProvider
-import org.eclipse.swt.SWT
-import java.util.Arrays
 import java.util.List
-import org.eclipse.jface.viewers.IDoubleClickListener
-import org.eclipse.jface.viewers.DoubleClickEvent
-import org.eclipse.jface.viewers.TreeSelection
 import java.util.Map
-import org.eclipse.emf.common.util.EList
-import org.eclipse.ui.PlatformUI
-import org.eclipse.xtext.xbase.ui.editor.XbaseEditor
-import org.eclipse.xtext.nodemodel.util.NodeModelUtils
-import org.eclipse.swt.layout.GridData
-import org.eclipse.swt.layout.GridLayout
-import org.eclipse.jface.viewers.TableViewer
+import java.util.concurrent.Executors
+import org.eclipse.emf.ecore.EObject
+import org.eclipse.emf.ecore.EStructuralFeature
+import org.eclipse.emf.ecore.util.EcoreUtil.EqualityHelper
+import org.eclipse.emf.edit.provider.ComposedAdapterFactory
+import org.eclipse.emf.edit.provider.ReflectiveItemProviderAdapterFactory
+import org.eclipse.emf.edit.provider.resource.ResourceItemProviderAdapterFactory
+import org.eclipse.jface.text.Document
+import org.eclipse.jface.text.source.Annotation
+import org.eclipse.jface.text.source.AnnotationRulerColumn
+import org.eclipse.jface.text.source.CompositeRuler
+import org.eclipse.jface.text.source.IOverviewRuler
+import org.eclipse.jface.text.source.LineNumberRulerColumn
+import org.eclipse.jface.text.source.OverviewRuler
+import org.eclipse.jface.text.source.projection.ProjectionViewer
 import org.eclipse.jface.viewers.ArrayContentProvider
-import org.eclipse.jface.viewers.TableViewerColumn
 import org.eclipse.jface.viewers.ColumnLabelProvider
+import org.eclipse.jface.viewers.DoubleClickEvent
+import org.eclipse.jface.viewers.IDoubleClickListener
+import org.eclipse.jface.viewers.ISelection
+import org.eclipse.jface.viewers.TableViewer
+import org.eclipse.jface.viewers.TableViewerColumn
+import org.eclipse.jface.viewers.TreeNode
+import org.eclipse.jface.viewers.TreeNodeContentProvider
+import org.eclipse.jface.viewers.TreeSelection
+import org.eclipse.jface.viewers.TreeViewer
+import org.eclipse.swt.SWT
+import org.eclipse.swt.custom.StackLayout
 import org.eclipse.swt.layout.FillLayout
-import org.nanosite.xtendency.tracer.tracingExecutionContext.ExecutionContext
+import org.eclipse.swt.layout.GridData
+import org.eclipse.swt.widgets.Composite
+import org.eclipse.swt.widgets.Display
+import org.eclipse.ui.IWorkbenchPart
+import org.eclipse.ui.PlatformUI
+import org.eclipse.ui.part.FileEditorInput
+import org.eclipse.ui.texteditor.DefaultMarkerAnnotationAccess
+import org.eclipse.xtext.nodemodel.util.NodeModelUtils
+import org.eclipse.xtext.ui.views.IWorkbenchPartSelection
+import org.eclipse.xtext.xbase.XExpression
+import org.eclipse.xtext.xbase.ui.editor.XbaseEditor
+import org.nanosite.xtendency.tracer.core.SynchronizedInterpreterAccess
 import org.nanosite.xtendency.tracer.core.ui.AbstractGeneratedView
-import org.eclipse.ui.IWorkbenchPartReference
+import org.nanosite.xtendency.tracer.emf.EmfTracingProvider
+
+import static org.eclipse.ui.editors.text.EditorsUI.*
+import static org.eclipse.xtext.ui.util.DisplayRunHelper.*
+
+import static extension org.nanosite.xtendency.tracer.emf.ui.GeneratedTreeView.*
 
 class GeneratedTreeView extends AbstractGeneratedView {
 
 	protected TreeViewer tree
 	protected TableViewer table
+	protected ProjectionViewer errorViewer
+	protected Composite errorCompositeContainer
+	protected Composite errorComposite
+	protected Composite mainComposite
 	private int computeCount = 0
+	
+	private DefaultMarkerAnnotationAccess defaultMarkerAnnotationAccess = new DefaultMarkerAnnotationAccess();
+	protected static final int VERTICAL_RULER_WIDTH = 12;
+	protected static final int OVERVIEW_RULER_WIDTH = 12;
 
 	new() {
 		super()
-		workspace.addResourceChangeListener(this)
 		interpreter.addTracingProvider(new EmfTracingProvider)
 	}
 
 	override doCreatePartControl(Composite parent) {
-		val composite = new Composite(parent, SWT.BORDER);
+		errorCompositeContainer = new Composite(parent, SWT.NONE)
+		val stackLayout = new StackLayout
+		val errorGridContainerData = new GridData(SWT.FILL, SWT.FILL, true, true);
+		val errorGridData = new GridData(SWT.FILL, SWT.FILL, true, true);
 		val gridData = new GridData(SWT.FILL, SWT.FILL, true, true);
-		composite.setLayoutData(gridData);
-		composite.setLayout(new FillLayout);
-		tree = new TreeViewer(composite, SWT.BORDER.bitwiseOr(SWT.H_SCROLL).bitwiseOr(SWT.V_SCROLL))
+		errorCompositeContainer.layoutData = errorGridContainerData
+		errorCompositeContainer.layout = stackLayout
+		
+		val IOverviewRuler overviewRuler = new OverviewRuler(defaultMarkerAnnotationAccess, OVERVIEW_RULER_WIDTH,
+			getSharedTextColors());
+		val AnnotationRulerColumn annotationRulerColumn = new AnnotationRulerColumn(VERTICAL_RULER_WIDTH,
+			defaultMarkerAnnotationAccess);
+
+		annotationRulerColumn.addAnnotationType(Annotation.TYPE_UNKNOWN);
+		val LineNumberRulerColumn lineNumberRuleColumn = new LineNumberRulerColumn();
+		lineNumberRuleColumn.setBackground(Display.getDefault().getSystemColor(SWT.COLOR_WIDGET_BACKGROUND));
+		//lineNumberRuleColumn.setFont(getFont(getViewerFontName()));
+		val CompositeRuler compositeRuler = new CompositeRuler();
+		compositeRuler.addDecorator(0, annotationRulerColumn);
+		compositeRuler.addDecorator(1, lineNumberRuleColumn);
+		
+		errorComposite = new Composite(errorCompositeContainer, SWT.BORDER);
+		errorComposite.setLayoutData(errorGridData);
+		errorComposite.setLayout(new FillLayout);
+		
+		errorViewer = new ProjectionViewer(errorComposite, compositeRuler, overviewRuler, true,
+			SWT.V_SCROLL.bitwiseOr(SWT.H_SCROLL));
+		errorViewer.editable = false
+		
+		mainComposite = new Composite(errorCompositeContainer, SWT.BORDER);
+		stackLayout.topControl = mainComposite
+		mainComposite.setLayoutData(gridData);
+		mainComposite.setLayout(new FillLayout);
+		
+		tree = new TreeViewer(mainComposite, SWT.BORDER.bitwiseOr(SWT.H_SCROLL).bitwiseOr(SWT.V_SCROLL))
 		tree.contentProvider = new TreeNodeContentProvider
 
 		val adapterFactory = new ComposedAdapterFactory(ComposedAdapterFactory.Descriptor.Registry.INSTANCE);
@@ -133,7 +146,7 @@ class GeneratedTreeView extends AbstractGeneratedView {
 				}	
 			})
 
-		table = new TableViewer(composite, SWT.BORDER.bitwiseOr(SWT.H_SCROLL).bitwiseOr(SWT.V_SCROLL))
+		table = new TableViewer(mainComposite, SWT.BORDER.bitwiseOr(SWT.H_SCROLL).bitwiseOr(SWT.V_SCROLL))
 		table.contentProvider = ArrayContentProvider.getInstance()
 
 		val colName = new TableViewerColumn(table, SWT.NONE);
@@ -187,21 +200,28 @@ class GeneratedTreeView extends AbstractGeneratedView {
 		// TODO ? 
 	}
 
-	def protected void setInput(EObject eo) {
-		val root = eo.convertToTreeNode(null, null)
-		val TreeNode[] nodeArray = newArrayOfSize(1)
-		nodeArray.set(0, root)
-		tree.input = nodeArray
+	def protected void setTreeInput(EObject eo) {
+		if (eo == null){
+			tree.input = null
+		}else{
+			val eqHelper = new TreeEqualityHelper
+			val root = eo.convertToTreeNode(null, null, eqHelper)
+			val TreeNode[] nodeArray = newArrayOfSize(1)
+			nodeArray.set(0, root)
+			val expanded = tree.expandedElements
+			tree.input = nodeArray
+			tree.expandedElements = expanded
+		}
 	}
 
-	def dispatch TreeNode convertToTreeNode(EObject o, EObject parent, EStructuralFeature f) {
-		val result = new LazyTreeNode((parent -> f) -> o)
+	def dispatch TreeNode convertToTreeNode(EObject o, EObject parent, EStructuralFeature f, EqualityHelper helper) {
+		val result = new EMFTreeNode((parent -> f) -> o, helper)
 		result.children = [ |
 			val children = new ArrayList<TreeNode>
 			for (sf : o.eClass.EAllStructuralFeatures) {
 				if (o.eIsSet(sf)) {
 					val value = o.eGet(sf)
-					children += value.convertToTreeNode(o, sf)
+					children += value.convertToTreeNode(o, sf, helper)
 				}
 			}
 			children
@@ -209,17 +229,17 @@ class GeneratedTreeView extends AbstractGeneratedView {
 		result
 	}
 
-	def dispatch TreeNode convertToTreeNode(Object o, EObject parent, EStructuralFeature f) {
-		new LazyTreeNode((parent -> f) -> o)
+	def dispatch TreeNode convertToTreeNode(Object o, EObject parent, EStructuralFeature f, EqualityHelper helper) {
+		new EMFTreeNode((parent -> f) -> o, helper)
 	}
 
-	def dispatch TreeNode convertToTreeNode(List<?> o, EObject parent, EStructuralFeature f) {
-		val result = new LazyTreeNode((parent -> f) -> o)
+	def dispatch TreeNode convertToTreeNode(List<?> o, EObject parent, EStructuralFeature f, EqualityHelper helper) {
+		val result = new EMFTreeNode((parent -> f) -> o, helper)
 		result.children = [ |
 			val children = new ArrayList<TreeNode>
 			for (e : o) {
 				if (e != null) {
-					children += e.convertToTreeNode(parent, f)
+					children += e.convertToTreeNode(parent, f, helper)
 				}
 			}
 			children
@@ -253,9 +273,9 @@ class GeneratedTreeView extends AbstractGeneratedView {
 						return;
 					}
 					val input = computeInput(selection);
-					if (input == null) {
-						return;
-					}
+//					if (input == null) {
+//						return;
+//					}
 					val display = getDisplay();
 					if (display == null) {
 						return;
@@ -266,9 +286,16 @@ class GeneratedTreeView extends AbstractGeneratedView {
 								if (computeCount != currentCount || getViewSite().getShell().isDisposed()) {
 									return;
 								}
-								setInput(input);
-
-							//selectAndReveal(workbenchPartSelection);
+								if (input.result != null && input.result instanceof EObject) {
+									setTreeInput(input.result as EObject)
+									(errorCompositeContainer.getLayout as StackLayout).topControl = mainComposite
+									errorCompositeContainer.layout()
+								} else {
+									setTreeInput(null)
+									errorViewer.input = new Document(input.exception.getStackTraceString)
+									(errorCompositeContainer.getLayout as StackLayout).topControl = errorComposite
+									errorCompositeContainer.layout()
+								}
 							}
 
 						});
@@ -279,15 +306,10 @@ class GeneratedTreeView extends AbstractGeneratedView {
 		thread.start();
 	}
 
-	def protected EObject computeInput(IWorkbenchPartSelection workbenchPartSelection) {
+	def protected computeInput(IWorkbenchPartSelection workbenchPartSelection) {
 		println("recomputing input")
 		val interpResult = SynchronizedInterpreterAccess.evaluate(interpreter, inputExpression, initialContext.fork)
-		if (interpResult.result != null && interpResult.result instanceof EObject) {
-			return interpResult.result as EObject
-		} else {
-			interpResult.exception.printStackTrace
-			return null
-		}
+		interpResult
 	}
 
 	override acceptsClass(Class<?> returnType) {
