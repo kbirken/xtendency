@@ -87,6 +87,15 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 		val inputExpression = func.getExpression();
 		val globalContext = new ChattyEvaluationContext();
 		val context = globalContext.fork
+		
+		switch (ec.scope){
+			case null:
+				interpreter.configure(file.parent)
+			case "package":
+				interpreter.configure(file.parent)
+			case "project":
+				interpreter.configure(file.project)
+		}
 
 		val Injector injector = if(ec.injector != null) interpreter.evaluate(ec.injector).result as Injector else null
 		val initContext = new ChattyEvaluationContext()
@@ -114,14 +123,6 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 			} catch (Exception e) {
 				e.printStackTrace
 			}
-		}
-		switch (ec.scope){
-			case null:
-				interpreter.configure(file.parent)
-			case "package":
-				interpreter.configure(file.parent)
-			case "project":
-				interpreter.configure(file.project)
 		}
 		
 		setInput(typeDecl, inputExpression, context, globalContext, file)

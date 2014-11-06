@@ -43,6 +43,10 @@ import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
 import org.eclipse.xtext.xbase.interpreter.impl.EvaluationException
 import java.util.IdentityHashMap
+import org.eclipse.xtend.core.xtend.XtendClass
+import org.eclipse.xtext.common.types.JvmTypeReference
+import org.eclipse.xtext.common.types.JvmDeclaredType
+import org.eclipse.xtext.xbase.typesystem.IBatchTypeResolver
 
 @Data class XtendClassResource {
 	IFile file
@@ -50,6 +54,9 @@ import java.util.IdentityHashMap
 }
 
 class XtendInterpreter extends XbaseInterpreter {
+	
+	@Inject 
+	protected IBatchTypeResolver typeResolver
 
 	@Inject
 	protected RichStringProcessor richStringProcessor
@@ -132,34 +139,115 @@ class XtendInterpreter extends XbaseInterpreter {
 
 	protected override Object invokeOperation(JvmOperation operation, Object receiver, List<Object> argumentValues,
 		IEvaluationContext context, CancelIndicator indicator) {
-		val calledType = operation.declaringType.qualifiedName
+		// to do polymorphism properly
+		// find out which class the object actually has
+		// then iterate through types
+		var String calledTypeFqn = null
+		var String calledTypeSimpleNonFinal = null
+		if (receiver != null){
+			val calledType = findCalledMethodType(operation, receiver.class.canonicalName, receiver.class.simpleName)
+			//calledtype may be null if the class is not available in xtend
+			if (calledType == null)
+				return super.invokeOperation(operation, receiver, argumentValues, context, indicator)
+			
+			calledTypeFqn = calledType.key
+			calledTypeSimpleNonFinal = calledType.value
+		}else{
+			calledTypeFqn = operation.declaringType.qualifiedName 
+		}
+		val calledTypeSimple = calledTypeSimpleNonFinal
 		val firstArg = if(argumentValues.empty) null else argumentValues.get(0)
 		val op = operation.simpleName
 		if (currentType != null) {
 			val currentTypeName = (currentType.eContainer as XtendFile).package + "." + currentType.name
-			if (currentTypeName == calledType && receiver == null) {
+			if (currentTypeName == calledTypeFqn && receiver == null) {
 				val calledFunc = getCalledFunction(currentType, op, argumentValues.size, firstArg)
 
-				//				println("interpreting function 1 " + calledFunc.name)
 				val newContext = globalScope.fork
 				newContext.newValue(QualifiedName.create("this"), context.getValue(QualifiedName.create("this")))
 				return evaluateOperation(calledFunc, argumentValues, null, newContext, indicator)
 			}
 		}
-		if (availableClasses.containsKey(calledType)) {
-			val locationInfo = availableClasses.get(calledType)
+		if (availableClasses.containsKey(calledTypeFqn)) {
+			val locationInfo = availableClasses.get(calledTypeFqn)
 			val resource = rs.getResource(locationInfo.value, true)
 			val type = (resource.contents.head as XtendFile).xtendTypes.findFirst[
-				name == operation.declaringType.simpleName]
+				name == calledTypeSimple]
 			val calledFunc = getCalledFunction(type, op, argumentValues.size, firstArg)
 
-			//			println("interpreting function 2 " + calledFunc.name)
 			usedClasses.put(locationInfo.key, locationInfo.value)
 			val newContext = globalScope.fork
 			newContext.newValue(QualifiedName.create("this"), receiver)
 			return evaluateOperation(calledFunc, argumentValues, type, newContext, indicator)
 		}
 		super.invokeOperation(operation, receiver, argumentValues, context, indicator)
+	}
+	
+	// given an operation and the actual runtime type of an object, returns the FQN of the class which first implements it
+	def Pair<String, String> findCalledMethodType(JvmOperation operation, String actualTypeName, String actualTypeSimpleName){
+		if (availableClasses.containsKey(actualTypeName)){
+			val locationInfo = availableClasses.get(actualTypeName)
+			val resource = rs.getResource(locationInfo.value, true)
+			val type = (resource.contents.head as XtendFile).xtendTypes.filter(XtendClass).findFirst[
+				name == actualTypeSimpleName]
+			if (type.hasMethod(operation)){
+				return actualTypeName -> actualTypeSimpleName
+			}else{
+				if (type.extends.type instanceof JvmDeclaredType){
+					return findCalledMethodType(operation, type.extends.type as JvmDeclaredType)
+				}
+			}
+		}else{
+			return null
+		}
+	}
+	
+	def Pair<String, String> findCalledMethodType(JvmOperation operation, JvmDeclaredType type){
+		if (type.hasMethod(operation)){
+			return type.qualifiedName -> type.simpleName
+		}else{
+			findCalledMethodType(operation, type.extendedClass.type as JvmDeclaredType)
+		}
+	}
+	
+	def boolean hasMethod(JvmDeclaredType type, JvmOperation op){
+		type.declaredOperations.exists[operationsEqual(it, op)]
+	}
+	
+	def boolean hasMethod(XtendClass type, JvmOperation op){
+		type.members.filter(XtendFunction).exists[operationsEqual(it, op)]
+	}
+	
+	def boolean operationsEqual(XtendFunction op1, JvmOperation op2){
+		if (op1.name != op2.simpleName)
+			return false
+		if (op1.parameters.size != op2.parameters.size)
+			return false
+//		if (op1.returnType != op2.returnType)
+//			return false
+		for (i : 0..<op1.parameters.size){
+			val p1 = op1.parameters.get(i)
+			val p2 = op2.parameters.get(i)
+			if (p1.parameterType.qualifiedName != p2.qualifiedName)
+				return false
+		}
+		return true
+	}
+	
+	def boolean operationsEqual(JvmOperation op1, JvmOperation op2){
+		if (op1.simpleName != op2.simpleName)
+			return false
+		if (op1.parameters.size != op2.parameters.size)
+			return false
+		if (op1.returnType != op2.returnType)
+			return false
+		for (i : 0..<op1.parameters.size){
+			val p1 = op1.parameters.get(i)
+			val p2 = op2.parameters.get(i)
+			if (p1.qualifiedName != p2.qualifiedName)
+				return false
+		}
+		return true
 	}
 
 	def private XtendFunction getCalledFunction(
@@ -169,6 +257,7 @@ class XtendInterpreter extends XbaseInterpreter {
 		/*@Nullable*/
 		Object firstArg
 	) {
+		//TODO Marco: this should probably handle polymorphism as well
 		val candidates = type.members.filter(typeof(XtendFunction)).filter[name == op && parameters.size == nArgs]
 		if (candidates.empty) {
 			null

@@ -14,7 +14,7 @@ class WorkspaceXtendInterpreter extends XtendInterpreter {
 
 	protected IContainer baseDir
 
-	def configure(IContainer container) {
+	def void configure(IContainer container) {
 		this.rs = rsProvider.get(container.project)
 		this.baseDir = container
 		for (f : container.members.filter(IFile).filter[name.endsWith(".xtend")]) {
