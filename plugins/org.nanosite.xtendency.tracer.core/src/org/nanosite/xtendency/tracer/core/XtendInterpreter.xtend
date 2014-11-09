@@ -98,7 +98,6 @@ class XtendInterpreter extends XbaseInterpreter {
 
 	def ClassLoader addProjectToClasspath(IJavaProject jp) {
 		if (injectedClassLoader != null) {
-			println("injected class loader is " + injectedClassLoader)
 			val classPathEntries = JavaRuntime.computeDefaultRuntimeClassPath(jp)
 			val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
 
@@ -184,7 +183,7 @@ class XtendInterpreter extends XbaseInterpreter {
 	}
 	
 	// given an operation and the actual runtime type of an object, returns the FQN of the class which first implements it
-	def Pair<String, String> findCalledMethodType(JvmOperation operation, String actualTypeName, String actualTypeSimpleName){
+	protected def Pair<String, String> findCalledMethodType(JvmOperation operation, String actualTypeName, String actualTypeSimpleName){
 		if (availableClasses.containsKey(actualTypeName)){
 			val locationInfo = availableClasses.get(actualTypeName)
 			val resource = rs.getResource(locationInfo.value, true)
@@ -202,7 +201,7 @@ class XtendInterpreter extends XbaseInterpreter {
 		}
 	}
 	
-	def Pair<String, String> findCalledMethodType(JvmOperation operation, JvmDeclaredType type){
+	protected def Pair<String, String> findCalledMethodType(JvmOperation operation, JvmDeclaredType type){
 		if (type.hasMethod(operation)){
 			return type.qualifiedName -> type.simpleName
 		}else{
@@ -210,15 +209,15 @@ class XtendInterpreter extends XbaseInterpreter {
 		}
 	}
 	
-	def boolean hasMethod(JvmDeclaredType type, JvmOperation op){
+	protected def boolean hasMethod(JvmDeclaredType type, JvmOperation op){
 		type.declaredOperations.exists[operationsEqual(it, op)]
 	}
 	
-	def boolean hasMethod(XtendClass type, JvmOperation op){
+	protected def boolean hasMethod(XtendClass type, JvmOperation op){
 		type.members.filter(XtendFunction).exists[operationsEqual(it, op)]
 	}
 	
-	def boolean operationsEqual(XtendFunction op1, JvmOperation op2){
+	protected def boolean operationsEqual(XtendFunction op1, JvmOperation op2){
 		if (op1.name != op2.simpleName)
 			return false
 		if (op1.parameters.size != op2.parameters.size)
@@ -234,7 +233,7 @@ class XtendInterpreter extends XbaseInterpreter {
 		return true
 	}
 	
-	def boolean operationsEqual(JvmOperation op1, JvmOperation op2){
+	protected def boolean operationsEqual(JvmOperation op1, JvmOperation op2){
 		if (op1.simpleName != op2.simpleName)
 			return false
 		if (op1.parameters.size != op2.parameters.size)
@@ -250,14 +249,13 @@ class XtendInterpreter extends XbaseInterpreter {
 		return true
 	}
 
-	def private XtendFunction getCalledFunction(
+	def protected XtendFunction getCalledFunction(
 		XtendTypeDeclaration type,
 		String op,
 		int nArgs,
 		/*@Nullable*/
 		Object firstArg
 	) {
-		//TODO Marco: this should probably handle polymorphism as well
 		val candidates = type.members.filter(typeof(XtendFunction)).filter[name == op && parameters.size == nArgs]
 		if (candidates.empty) {
 			null
@@ -267,8 +265,12 @@ class XtendInterpreter extends XbaseInterpreter {
 			if (firstArg == null) {
 				throw new RuntimeException("Dispatch function '" + op + "' without parameters, shouldn't occur!")
 			} else {
-				for (func : candidates.filter[dispatch]) {
+				val sortedCandidates = candidates.sort[f1, f2 | 
+					compareFunctions(f1, f2)
+				]
+				for (func : sortedCandidates.filter[dispatch]) {
 					val tFQN = func.parameters.get(0).parameterType.type.qualifiedName
+					//TODO: dont just check first arg
 					if (isInstanceOf(firstArg, tFQN)) {
 						return func
 					}
@@ -285,8 +287,35 @@ class XtendInterpreter extends XbaseInterpreter {
 			candidates.get(0)
 		}
 	}
+	
+	def int compareFunctions(XtendFunction f1, XtendFunction f2){
+		for (i : 0..<f1.parameters.size){
+			val currentParam = f1.parameters.get(i).parameterType.compareTypes(f2.parameters.get(i).parameterType)
+			if (currentParam != 0)
+				return currentParam
+		}
+		throw new IllegalArgumentException
+	}
+	
+	def int compareTypes(JvmTypeReference t1, JvmTypeReference t2){
+		val t1Type = classFinder.forName(t1.type.qualifiedName)
+		val t2Type = classFinder.forName(t2.type.qualifiedName)
+		val t2get1 = t2Type.isAssignableFrom(t1Type)
+		val t1get2 = t1Type.isAssignableFrom(t2Type)
+		if (t2get1){
+			if (t1get2){
+				throw new IllegalArgumentException
+			}else{
+				-1
+			}
+		}else if (t1get2){
+			1
+		}else{
+			0
+		}
+	}
 
-	def private isInstanceOf(Object obj, String typeFQN) {
+	def protected isInstanceOf(Object obj, String typeFQN) {
 		var Class<?> expectedType = null
 		val className = typeFQN
 		try {
@@ -297,7 +326,7 @@ class XtendInterpreter extends XbaseInterpreter {
 		expectedType.isInstance(obj)
 	}
 	
-	def private Map<List<?>, Object> safeGet(Map<Pair<XtendFunction, Object>, Map<List<?>, Object>> map, Pair<XtendFunction, Object> k){
+	def protected Map<List<?>, Object> safeGet(Map<Pair<XtendFunction, Object>, Map<List<?>, Object>> map, Pair<XtendFunction, Object> k){
 		if (map.containsKey(k)){
 			return map.get(k)
 		}else{
@@ -307,7 +336,7 @@ class XtendInterpreter extends XbaseInterpreter {
 		}
 	}
 
-	def private evaluateOperation(XtendFunction func, List<Object> argumentValues, XtendTypeDeclaration type,
+	def protected evaluateOperation(XtendFunction func, List<Object> argumentValues, XtendTypeDeclaration type,
 		IEvaluationContext context, CancelIndicator indicator) {
 		val receiver = context.getValue(QualifiedName.create("this"))
 		for (var i = 0; i < argumentValues.size; i++) {
