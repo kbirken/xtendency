@@ -84,6 +84,62 @@ class BasicTest extends AbstractInterpreterTest {
 	}
 	
 	@Test
+	def void T05_IfThenElse(){
+		val source = '''
+		def T05_IfThenElse(int input)"""
+		<<IF input > 3>>
+		input <<input>> is greater than 3
+		<<ELSE>>
+		input <<input>> is not greater than 3
+		<<ENDIF>>"""
+		'''.toXtendClass("SomeClass05")
+		
+		val file = parser.parse(source)
+		val resultTrue = file.runTest("SomeClass05", "T05_IfThenElse", #[17])
+		val resultFalse = file.runTest("SomeClass05", "T05_IfThenElse", #[1])
+		assertEquals("input 17 is greater than 3", resultTrue.result)
+		assertEquals("input 1 is not greater than 3", resultFalse.result)
+	}
+	
+	@Test
+	def void T11_LocalMethodCall(){
+		val source = '''
+		def private T11_HelperMethod(){
+			"FromOtherMethod"
+		}
+	
+		def T11_SimpleMethodCall(){
+			"GettingString" + T11_HelperMethod
+		}
+		'''.toXtendClass("SomeClass11")
+		
+		var file = parser.parse(source)
+		
+		val result = file.runTest("SomeClass11", "T11_SimpleMethodCall", #[])
+		
+		assertEquals("GettingStringFromOtherMethod", result.result)
+	}
+	
+	@Test
+	def void T12_ThisMethodCall(){
+		val source = '''
+		def private T11_HelperMethod(){
+			"FromOtherMethod"
+		}
+		
+		def T12_ThisMethodCall(){
+			"GettingString" + this.T11_HelperMethod
+		}
+		'''.toXtendClass("SomeClass12")
+		
+		val file = parser.parse(source)
+		
+		val result = file.runTest("SomeClass12", "T12_ThisMethodCall", #[])
+		
+		assertEquals("GettingStringFromOtherMethod", result.result)
+	}
+	
+	@Test
 	def void T081_SimpleDispatch(){
 		val source = '''
 		def T08_SimpleDispatchInvoker(Iterable<String> strings){
@@ -110,6 +166,46 @@ class BasicTest extends AbstractInterpreterTest {
 		assertEquals("ArrayList", file.runTest("SomeClass08", "T08_SimpleDispatchInvoker", #[arrayListArg]).result)
 		assertEquals("List", file.runTest("SomeClass08", "T08_SimpleDispatchInvoker", #[listArg]).result)
 		assertEquals("Iterable", file.runTest("SomeClass08", "T08_SimpleDispatchInvoker", #[iterableArg]).result)
+	}
+	
+	@Test
+	def void T15_BasicCreateMethod(){
+		val source = '''
+		def T15_BasicCreateMethodInvoker(String input){
+			T15_BasicCreateMethod(input)
+		}
+		
+		def create result : new StringBuffer("Something") T15_BasicCreateMethod(String input){
+			result.append("AppendedInBody")
+		}
+		'''.toXtendClass("SomeClass15")
+		
+		val file = parser.parse(source)
+		val result1 = file.runTest("SomeClass15", "T15_BasicCreateMethodInvoker", #["Input"])
+		assertEquals("SomethingAppendedInBody", result1.result.toString)
+		val result2 = file.runTest("SomeClass15", "T15_BasicCreateMethodInvoker", #["Input"])
+		assertTrue(result1.result.identityEquals(result2.result))
+		val result3 = file.runTest("SomeClass15", "T15_BasicCreateMethodInvoker", #["OtherInput"])
+		assertFalse(result1.result.identityEquals(result3.result))
+	}
+	
+	@Test
+	def void T16_CreateMethodArg(){
+		val source = '''
+		def T16_BasicCreateMethodInvoker(String input){
+			T16_BasicCreateMethod(input)
+		}
+		
+		def create result : new StringBuffer(input) T16_BasicCreateMethod(String input){
+			result.append("AppendedInBody")
+		}
+		'''.toXtendClass("SomeClass16")
+		
+		val file = parser.parse(source)
+		val result1 = file.runTest("SomeClass16", "T16_BasicCreateMethodInvoker", #["Input"])
+		assertEquals("InputAppendedInBody", result1.result.toString)
+		val result2 = file.runTest("SomeClass16", "T16_BasicCreateMethodInvoker", #["Input"])
+		assertTrue(result1.result.identityEquals(result2.result))
 	}
 	
 	
