@@ -6,13 +6,18 @@ import java.util.List;
 
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
+import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.wiring.BundleWiring;
 
 public class DelegatorClassLoader extends SecureClassLoader {
 	private ClassLoader parent;
 	private List<ClassLoader> delegates = new ArrayList<ClassLoader>();
+	
+	public DelegatorClassLoader(ClassLoader parent, Class<?> classInBundle, List<String> classPathUrls){
+		this(parent, FrameworkUtil.getBundle(classInBundle).getBundleContext(), classPathUrls);
+	}
 
-	public DelegatorClassLoader(ClassLoader parent, BundleContext context, List<String> classPathUrls) {
+	private DelegatorClassLoader(ClassLoader parent, BundleContext context, List<String> classPathUrls) {
 		super(parent);
 		this.parent = parent;
 		for (String url : classPathUrls){

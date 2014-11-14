@@ -102,7 +102,7 @@ class XtendInterpreter extends XbaseInterpreter {
 			val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
 
 			var ClassLoader parent = injectedClassLoader
-			parent = new DelegatorClassLoader(parent, FrameworkUtil.getBundle(XtendInterpreter).getBundleContext(),
+			parent = new DelegatorClassLoader(parent, XtendInterpreter,
 				classPathUrls.map[toString])
 
 			val result = new URLClassLoader(classPathUrls, parent)
@@ -153,6 +153,7 @@ class XtendInterpreter extends XbaseInterpreter {
 			calledTypeSimpleNonFinal = calledType.value
 		}else{
 			calledTypeFqn = operation.declaringType.qualifiedName 
+			calledTypeSimpleNonFinal = operation.declaringType.simpleName
 		}
 		val calledTypeSimple = calledTypeSimpleNonFinal
 		val firstArg = if(argumentValues.empty) null else argumentValues.get(0)

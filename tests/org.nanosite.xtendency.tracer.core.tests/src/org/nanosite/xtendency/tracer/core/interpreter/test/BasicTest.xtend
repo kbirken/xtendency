@@ -84,19 +84,36 @@ class BasicTest extends AbstractInterpreterTest {
 	}
 	
 	@Test
-	def void T05_IfThenElse(){
+	def void T05_IfThen(){
 		val source = '''
-		def T05_IfThenElse(int input)"""
+		def T05_IfThen(int input)"""
+		<<IF input > 3>>
+		input <<input>> is greater than 3
+		<<ENDIF>>"""
+		'''.toXtendClass("SomeClass05")
+		
+		val file = parser.parse(source)
+		println("resource is " + file.eResource)
+		val resultTrue = file.runTest("SomeClass05", "T05_IfThen", #[8])
+		val resultFalse = file.runTest("SomeClass05", "T05_IfThen", #[-2])
+		assertEquals("input 8 is greater than 3\n", resultTrue.result)
+		assertEquals("", resultFalse.result)
+	}
+	
+	@Test
+	def void T06_IfThenElse(){
+		val source = '''
+		def T06_IfThenElse(int input)"""
 		<<IF input > 3>>
 		input <<input>> is greater than 3
 		<<ELSE>>
 		input <<input>> is not greater than 3
 		<<ENDIF>>"""
-		'''.toXtendClass("SomeClass05")
+		'''.toXtendClass("SomeClass06")
 		
 		val file = parser.parse(source)
-		val resultTrue = file.runTest("SomeClass05", "T05_IfThenElse", #[17])
-		val resultFalse = file.runTest("SomeClass05", "T05_IfThenElse", #[1])
+		val resultTrue = file.runTest("SomeClass06", "T06_IfThenElse", #[17])
+		val resultFalse = file.runTest("SomeClass06", "T06_IfThenElse", #[1])
 		assertEquals("input 17 is greater than 3", resultTrue.result)
 		assertEquals("input 1 is not greater than 3", resultFalse.result)
 	}
@@ -206,6 +223,28 @@ class BasicTest extends AbstractInterpreterTest {
 		assertEquals("InputAppendedInBody", result1.result.toString)
 		val result2 = file.runTest("SomeClass16", "T16_BasicCreateMethodInvoker", #["Input"])
 		assertTrue(result1.result.identityEquals(result2.result))
+	}
+	
+	@Test
+	def void T17_Polymorphism(){
+		val source = '''
+		package org.nanosite.xtendency.tracer.core.interpreter.test.input
+		
+		class MainClass17 {
+			def T17_Polymorphism(){
+				val list = #[new SuperClass(), new SubClass()]
+				var result = ""
+				list.forEach[result += doSomething]
+				result
+			}
+		}
+		'''.unescape
+		val file = parser.parse(source)
+		val uri = "platform:/plugin/org.nanosite.xtendency.tracer.core.tests/src/org/nanosite/xtendency/tracer/core/interpreter/test/input/SuperClass.xtend"
+		val result = file.runTestWithClasses("MainClass17", "T17_Polymorphism", #[], #["org.nanosite.xtendency.tracer.core.interpreter.test.input.SuperClass" -> uri, "org.nanosite.xtendency.tracer.core.interpreter.test.input.SubClass" -> uri])
+		
+		assertEquals("From the SuperClass. From the SubClass and From the SuperClass. ", result.result)
+		
 	}
 	
 	

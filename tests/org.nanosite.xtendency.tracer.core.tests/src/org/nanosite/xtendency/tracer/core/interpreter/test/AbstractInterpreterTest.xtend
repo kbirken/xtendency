@@ -13,17 +13,26 @@ import org.eclipse.xtext.util.CancelIndicator
 import org.eclipse.xtext.junit4.InjectWith
 import org.junit.runner.RunWith
 import org.eclipse.xtext.junit4.XtextRunner
+import org.eclipse.xtext.resource.XtextResourceSet
+import org.eclipse.xtext.ui.resource.IResourceSetProvider
+import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl
+import org.eclipse.emf.common.util.URI
 
 @InjectWith(RuntimeInjectorProvider)
 @RunWith(XtextRunner)
 class AbstractInterpreterTest {
 	@Inject
-	protected ParseHelper<XtendFile> parser
+	protected ParseHelper<XtendFile> parser 
 	
 	@Inject
 	protected StandaloneXtendInterpreter interpreter
 	
 	def <T extends Object> runTest(XtendFile file, String className, String methodName, List<T> arguments){
+		runTestWithClasses(file, className, methodName, arguments, #[])
+	}
+	
+	def <T extends Object> runTestWithClasses(XtendFile file, String className, String methodName, List<T> arguments, List<Pair<String, String>> additionalClasses){
+		interpreter.init(file.eResource.resourceSet)
 		val XtendTypeDeclaration type = file.xtendTypes.findFirst[name == className]
 		val XtendFunction func = type.members.filter(XtendFunction).findFirst[name == methodName]
 		
@@ -39,6 +48,13 @@ class AbstractInterpreterTest {
 		
 		//interpreter.configure(classContainer)
 		//interpreter.addProjectToClasspath(JavaCore.create(classContainer))
+		file.xtendTypes.forEach[clazz |
+			val fqn = file.package + "." + clazz.name
+			interpreter.addAvailableClass(fqn, file)
+		]
+		additionalClasses.forEach[
+			interpreter.addAvailableClass(key, URI.createURI(value))
+		]
 		interpreter.currentType = type
 		interpreter.globalScope = globalContext
 		return interpreter.evaluate(func.expression, methodContext, CancelIndicator.NullImpl)
