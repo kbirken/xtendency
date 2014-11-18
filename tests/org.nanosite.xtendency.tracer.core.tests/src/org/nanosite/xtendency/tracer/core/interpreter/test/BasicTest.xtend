@@ -1,17 +1,17 @@
 package org.nanosite.xtendency.tracer.core.interpreter.test
 
+import java.util.ArrayList
+import java.util.HashSet
+import java.util.LinkedList
 import org.junit.Test
-import org.eclipse.core.resources.IProject
-import org.eclipse.core.resources.ResourcesPlugin
-import org.eclipse.emf.common.util.URI
 
 import static org.junit.Assert.*
-import java.util.ArrayList
-import java.util.LinkedList
-import java.util.HashSet
-import org.nanosite.xtendency.tracer.core.XtendEvaluationResult
+import org.nanosite.xtendency.tracer.core.interpreter.test.input.CreateMethodArgClass
+import org.nanosite.xtendency.tracer.core.interpreter.test.input.BasicCreateMethodClass
 
 class BasicTest extends AbstractInterpreterTest {
+	
+	private final String uri = "platform:/plugin/org.nanosite.xtendency.tracer.core.tests/src/org/nanosite/xtendency/tracer/core/interpreter/test/input/TestClasses.xtend"
 
 	@Test
 	def void T01_SimpleRichStringTest() {
@@ -189,40 +189,38 @@ class BasicTest extends AbstractInterpreterTest {
 	@Test
 	def void T15_BasicCreateMethod(){
 		val source = '''
-		def T15_BasicCreateMethodInvoker(String input){
-			T15_BasicCreateMethod(input)
-		}
-		
-		def create result : new StringBuffer("Something") T15_BasicCreateMethod(String input){
-			result.append("AppendedInBody")
+		def T15_BasicCreateMethodInvoker(String input, org.nanosite.xtendency.tracer.core.interpreter.test.input.BasicCreateMethodClass in){
+			in.T15_BasicCreateMethod(input)
 		}
 		'''.toXtendClass("SomeClass15")
 		
+		val className = "org.nanosite.xtendency.tracer.core.interpreter.test.input.BasicCreateMethodClass"
+		val object = new BasicCreateMethodClass
 		val file = parser.parse(source)
-		val result1 = file.runTest("SomeClass15", "T15_BasicCreateMethodInvoker", #["Input"])
+		val result1 = file.runTestWithClasses("SomeClass15", "T15_BasicCreateMethodInvoker", #["Input", object], #[className -> uri])
 		assertEquals("SomethingAppendedInBody", result1.result.toString)
-		val result2 = file.runTest("SomeClass15", "T15_BasicCreateMethodInvoker", #["Input"])
+		val result2 = file.runTestWithClasses("SomeClass15", "T15_BasicCreateMethodInvoker", #["Input", object], #[className -> uri])
 		assertTrue(result1.result.identityEquals(result2.result))
-		val result3 = file.runTest("SomeClass15", "T15_BasicCreateMethodInvoker", #["OtherInput"])
+		val result3 = file.runTestWithClasses("SomeClass15", "T15_BasicCreateMethodInvoker", #["OtherInput", object], #[className -> uri])
 		assertFalse(result1.result.identityEquals(result3.result))
 	}
 	
 	@Test
 	def void T16_CreateMethodArg(){
 		val source = '''
-		def T16_BasicCreateMethodInvoker(String input){
-			T16_BasicCreateMethod(input)
-		}
-		
-		def create result : new StringBuffer(input) T16_BasicCreateMethod(String input){
-			result.append("AppendedInBody")
+		def T16_BasicCreateMethodInvoker(String input, org.nanosite.xtendency.tracer.core.interpreter.test.input.CreateMethodArgClass in){
+			in.T16_BasicCreateMethod(input)
 		}
 		'''.toXtendClass("SomeClass16")
 		
+		val className = "org.nanosite.xtendency.tracer.core.interpreter.test.input.CreateMethodArgClass"
+		
+		val object = new CreateMethodArgClass
+		
 		val file = parser.parse(source)
-		val result1 = file.runTest("SomeClass16", "T16_BasicCreateMethodInvoker", #["Input"])
+		val result1 = file.runTestWithClasses("SomeClass16", "T16_BasicCreateMethodInvoker", #["Input", object], #[className -> uri])
 		assertEquals("InputAppendedInBody", result1.result.toString)
-		val result2 = file.runTest("SomeClass16", "T16_BasicCreateMethodInvoker", #["Input"])
+		val result2 = file.runTestWithClasses("SomeClass16", "T16_BasicCreateMethodInvoker", #["Input", object], #[className -> uri])
 		assertTrue(result1.result.identityEquals(result2.result))
 	}
 	
@@ -241,7 +239,6 @@ class BasicTest extends AbstractInterpreterTest {
 		}
 		'''.unescape
 		val file = parser.parse(source)
-		val uri = "platform:/plugin/org.nanosite.xtendency.tracer.core.tests/src/org/nanosite/xtendency/tracer/core/interpreter/test/input/SuperClass.xtend"
 		val result = file.runTestWithClasses("MainClass17", "T17_Polymorphism", #[], #["org.nanosite.xtendency.tracer.core.interpreter.test.input.SuperClass" -> uri, "org.nanosite.xtendency.tracer.core.interpreter.test.input.SubClass" -> uri])
 		
 		assertEquals("From the SuperClass. From the SubClass and From the SuperClass. ", result.result)
@@ -269,7 +266,6 @@ class BasicTest extends AbstractInterpreterTest {
 		}
 		'''.toXtendClass("SomeClass18")
 		val file = parser.parse(source)
-		val uri = "platform:/plugin/org.nanosite.xtendency.tracer.core.tests/src/org/nanosite/xtendency/tracer/core/interpreter/test/input/SuperClass.xtend"
 		val result = file.runTestWithClasses("SomeClass18", "T18_PublicVariables", #[], #["org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithPublicMember" -> uri])
 		assertEquals("initialinitialsetDirectlysetDirectlysetMethodsetMethod", result.result)
 	}
@@ -308,7 +304,6 @@ class BasicTest extends AbstractInterpreterTest {
 		}
 		'''.toXtendClass("SomeClass19")
 		val file = parser.parse(source)
-		val uri = "platform:/plugin/org.nanosite.xtendency.tracer.core.tests/src/org/nanosite/xtendency/tracer/core/interpreter/test/input/SuperClass.xtend"
 		val result = file.runTestWithClasses("SomeClass19", "T19_StaticVariables", #[], #["org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember" -> uri])
 
 		

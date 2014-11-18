@@ -1,5 +1,17 @@
 package org.nanosite.xtendency.tracer.core.interpreter.test.input
 
+class BasicCreateMethodClass {
+	def create result : new StringBuffer("Something") T15_BasicCreateMethod(String input) {
+		result.append("AppendedInBody")
+	}
+}
+
+class CreateMethodArgClass {
+	def create result : new StringBuffer(input) T16_BasicCreateMethod(String input) {
+		result.append("AppendedInBody")
+	}
+}
+
 class SuperClass {
 	def doSomething() {
 		"From the SuperClass. "
@@ -15,32 +27,32 @@ class SubClass extends SuperClass {
 
 class ClassWithPublicMember {
 	public String someString = "initial"
-	
-	def set(String newString){
+
+	def set(String newString) {
 		this.someString = newString
 	}
-	
-	def get(){
+
+	def get() {
 		someString
 	}
 }
 
 class ClassWithStaticMember {
 	public static String SOMESTRING = "INITIAL"
-	
-	def static setStatic(String newString){
+
+	def static setStatic(String newString) {
 		SOMESTRING = newString
 	}
-	
-	def setNonStatic(String newString){
+
+	def setNonStatic(String newString) {
 		SOMESTRING = newString
 	}
-	
-	def static getStatic(){
+
+	def static getStatic() {
 		SOMESTRING
 	}
 
-	def getNonStatic(){
+	def getNonStatic() {
 		SOMESTRING
 	}
 }

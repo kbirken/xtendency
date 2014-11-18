@@ -1,51 +1,41 @@
 package org.nanosite.xtendency.tracer.core
 
+import com.google.common.collect.BiMap
+import com.google.common.collect.HashBiMap
 import com.google.inject.Inject
 import com.google.inject.Provider
+import java.net.URLClassLoader
+import java.util.HashMap
 import java.util.List
+import java.util.Map
+import org.eclipse.core.resources.IFile
+import org.eclipse.core.runtime.Path
+import org.eclipse.emf.common.util.URI
+import org.eclipse.emf.ecore.resource.ResourceSet
+import org.eclipse.jdt.core.IJavaProject
+import org.eclipse.jdt.launching.JavaRuntime
+import org.eclipse.osgi.internal.loader.EquinoxClassLoader
 import org.eclipse.xtend.core.richstring.DefaultIndentationHandler
 import org.eclipse.xtend.core.richstring.RichStringProcessor
 import org.eclipse.xtend.core.xtend.RichString
-import org.eclipse.xtend.core.xtend.RichStringForLoop
-import org.eclipse.xtend.core.xtend.RichStringIf
-import org.eclipse.xtend.core.xtend.RichStringLiteral
+import org.eclipse.xtend.core.xtend.XtendClass
+import org.eclipse.xtend.core.xtend.XtendField
 import org.eclipse.xtend.core.xtend.XtendFile
 import org.eclipse.xtend.core.xtend.XtendFunction
 import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
+import org.eclipse.xtext.common.types.JvmDeclaredType
+import org.eclipse.xtext.common.types.JvmField
+import org.eclipse.xtext.common.types.JvmGenericType
+import org.eclipse.xtext.common.types.JvmIdentifiableElement
 import org.eclipse.xtext.common.types.JvmOperation
+import org.eclipse.xtext.common.types.JvmTypeReference
 import org.eclipse.xtext.naming.QualifiedName
 import org.eclipse.xtext.util.CancelIndicator
+import org.eclipse.xtext.xbase.XAbstractFeatureCall
 import org.eclipse.xtext.xbase.XExpression
 import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
-import org.eclipse.xtext.xbase.interpreter.impl.XbaseInterpreter
-import org.eclipse.xtend.core.richstring.IRichStringPartAcceptor
-import org.eclipse.xtext.xbase.interpreter.IExpressionInterpreter
-import org.eclipse.xtext.common.types.JvmField
-import org.eclipse.xtext.xbase.XAbstractFeatureCall
-import org.eclipse.core.resources.IProject
-import org.eclipse.osgi.internal.loader.EquinoxClassLoader
-import org.eclipse.jdt.core.IJavaProject
-import org.eclipse.core.runtime.Path
-import java.net.URLClassLoader
-import org.eclipse.jdt.launching.JavaRuntime
-import org.osgi.framework.FrameworkUtil
-import org.eclipse.core.resources.IFile
-import org.eclipse.emf.common.util.URI
-import java.util.ArrayList
-import org.eclipse.core.resources.IContainer
-import java.util.Map
-import java.util.HashMap
-import org.eclipse.xtext.ui.resource.IResourceSetProvider
-import org.eclipse.emf.ecore.resource.ResourceSet
-import org.eclipse.xtext.common.types.JvmIdentifiableElement
-import org.eclipse.xtext.common.types.JvmGenericType
-import com.google.common.collect.BiMap
-import com.google.common.collect.HashBiMap
 import org.eclipse.xtext.xbase.interpreter.impl.EvaluationException
-import java.util.IdentityHashMap
-import org.eclipse.xtend.core.xtend.XtendClass
-import org.eclipse.xtext.common.types.JvmTypeReference
-import org.eclipse.xtext.common.types.JvmDeclaredType
+import org.eclipse.xtext.xbase.interpreter.impl.XbaseInterpreter
 import org.eclipse.xtext.xbase.typesystem.IBatchTypeResolver
 
 @Data class XtendClassResource {
@@ -67,7 +57,6 @@ class XtendInterpreter extends XbaseInterpreter {
 	// TODO: remove IFile here, push to WorkspaceXtendInterpreter
 	protected BiMap<IFile, URI> usedClasses = HashBiMap.create
 	protected Map<String, Pair<IFile, URI>> availableClasses = new HashMap<String, Pair<IFile, URI>>
-	protected Map<Pair<XtendFunction, Object>, Map<List<?>, Object>> createCache = new HashMap<Pair<XtendFunction, Object>, Map<List<?>, Object>>
 
 	IExtendedEvaluationContext globalScope
 
@@ -345,7 +334,7 @@ class XtendInterpreter extends XbaseInterpreter {
 			context.newValue(qname, argumentValues.get(i))
 		}
 		if (func.createExtensionInfo != null) {
-			val functionCache = createCache.safeGet(func -> receiver)
+			val functionCache = receiver.getCreateCache(func) 
 			if (functionCache.containsKey(argumentValues)) {
 				return functionCache.get(argumentValues)
 			} else {
@@ -361,7 +350,7 @@ class XtendInterpreter extends XbaseInterpreter {
 				currentType = type
 			var result = doEvaluate(func.expression, context, indicator)
 			if (func.createExtensionInfo != null)
-				result = createCache.safeGet(func -> receiver).get(argumentValues)
+				result = receiver.getCreateCache(func).get(argumentValues)
 			if (type != null)
 				currentType = currentTypeBefore
 			return result
@@ -376,6 +365,42 @@ class XtendInterpreter extends XbaseInterpreter {
 				throw r
 			}
 		}
+	}
+	
+	protected def getCreateCache(Object receiver, XtendFunction func){
+		var index = 0
+		var methodIndex = 0
+		
+		val clazz = func.declaringType
+		val methods = clazz.members.filter(XtendFunction).filter[f | f.name == func.name && f.createExtensionInfo != null]
+		
+		var foundFittingName = false		
+		
+		while(!foundFittingName){
+			val currentName = func.getFieldName(index)
+			if (clazz.members.filter(XtendField).exists[name == currentName]){
+				index++
+			}else{
+				if (methods.get(methodIndex) == func){
+					foundFittingName = true
+				}else{
+					methodIndex++
+					index++
+				}
+			}
+		}
+		val fieldName = func.getFieldName(index)
+		val field = receiver.class.getDeclaredField(fieldName)
+		field.accessible = true
+		field.get(receiver) as Map<List<?>, Object>
+	}
+	
+	protected def getFieldName(XtendFunction func, int index){
+		val result = "_createCache_" + func.name
+		if (index > 0)
+			return result + "_" + index
+		else
+			return result
 	}
 
 	protected override _invokeFeature(JvmField jvmField, XAbstractFeatureCall featureCall, Object receiver,

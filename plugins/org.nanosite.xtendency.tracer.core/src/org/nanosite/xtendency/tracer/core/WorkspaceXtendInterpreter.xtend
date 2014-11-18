@@ -16,7 +16,8 @@ class WorkspaceXtendInterpreter extends XtendInterpreter {
 
 	protected IContainer baseDir
 
-	def void configure(IContainer container) {
+	@Deprecated
+	def void addClassesInContainerWithPreloading(IContainer container) {
 		this.rs = rsProvider.get(container.project)
 		this.baseDir = container
 		for (f : container.members.filter(IFile).filter[name.endsWith(".xtend")]) {
@@ -34,7 +35,7 @@ class WorkspaceXtendInterpreter extends XtendInterpreter {
 				// ignore
 			}
 		}
-		container.members.filter(IContainer).forEach[configure]
+		container.members.filter(IContainer).forEach[addClassesInContainerWithPreloading]
 	}
 	
 	def void addClassesInContainer(IContainer container, IFile entryClassFile, XtendTypeDeclaration entryClass){
