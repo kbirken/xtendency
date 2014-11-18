@@ -57,7 +57,10 @@ class AbstractInterpreterTest {
 		]
 		interpreter.currentType = type
 		interpreter.globalScope = globalContext
-		return interpreter.evaluate(func.expression, methodContext, CancelIndicator.NullImpl)
+		val result = interpreter.evaluate(func.expression, methodContext, CancelIndicator.NullImpl)
+		if (result.exception != null)
+			throw result.exception
+		result
 	}
 	
 	def String toXtendClass(CharSequence methods, String className)'''

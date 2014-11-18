@@ -12,3 +12,35 @@ class SubClass extends SuperClass {
 		"From the SubClass and " + super.doSomething
 	}
 }
+
+class ClassWithPublicMember {
+	public String someString = "initial"
+	
+	def set(String newString){
+		this.someString = newString
+	}
+	
+	def get(){
+		someString
+	}
+}
+
+class ClassWithStaticMember {
+	public static String SOMESTRING = "INITIAL"
+	
+	def static setStatic(String newString){
+		SOMESTRING = newString
+	}
+	
+	def setNonStatic(String newString){
+		SOMESTRING = newString
+	}
+	
+	def static getStatic(){
+		SOMESTRING
+	}
+
+	def getNonStatic(){
+		SOMESTRING
+	}
+}

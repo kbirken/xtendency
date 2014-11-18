@@ -9,6 +9,7 @@ import static org.junit.Assert.*
 import java.util.ArrayList
 import java.util.LinkedList
 import java.util.HashSet
+import org.nanosite.xtendency.tracer.core.XtendEvaluationResult
 
 class BasicTest extends AbstractInterpreterTest {
 
@@ -245,6 +246,73 @@ class BasicTest extends AbstractInterpreterTest {
 		
 		assertEquals("From the SuperClass. From the SubClass and From the SuperClass. ", result.result)
 		
+	}
+	
+	@Test
+	def void T18_PublicVariables(){
+		val source = '''
+		def T18_PublicVariables(){
+			val instance = new org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithPublicMember()
+			
+			val initial_directGet = instance.someString
+			val initial_methodGet = instance.get
+			
+			instance.someString = "setDirectly"
+			val setDirectly_directGet = instance.someString
+			val setDirectly_methodGet = instance.get
+			
+			instance.set("setMethod")
+			val setMethod_directGet = instance.someString
+			val setMethod_methodGet = instance.get
+			
+			return initial_directGet + initial_methodGet + setDirectly_directGet + setDirectly_methodGet + setMethod_directGet + setMethod_methodGet
+		}
+		'''.toXtendClass("SomeClass18")
+		val file = parser.parse(source)
+		val uri = "platform:/plugin/org.nanosite.xtendency.tracer.core.tests/src/org/nanosite/xtendency/tracer/core/interpreter/test/input/SuperClass.xtend"
+		val result = file.runTestWithClasses("SomeClass18", "T18_PublicVariables", #[], #["org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithPublicMember" -> uri])
+		assertEquals("initialinitialsetDirectlysetDirectlysetMethodsetMethod", result.result)
+	}
+	
+	@Test
+	def void T19_StaticVariables(){
+		val source = '''
+		def T19_StaticVariables(){
+			val instance = new org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember()
+			
+			val initial_directGet = org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.SOMESTRING
+			val initial_staticGet = org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.getStatic
+			val initial_nonStaticGet = instance.getNonStatic
+			
+			org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.SOMESTRING = "SETDIRECTLY"
+			val setDirectly_directGet = org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.SOMESTRING
+			val setDirectly_staticGet = org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.getStatic
+			val setDirectly_nonStaticGet = instance.getNonStatic
+			
+			org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.setStatic("SETSTATIC")
+			val setStatic_directGet = org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.SOMESTRING
+			val setStatic_staticGet = org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.getStatic
+			val setStatic_nonStaticGet = instance.getNonStatic
+			
+			instance.setNonStatic("NONSTATIC")
+			val setNonStatic_directGet = org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.SOMESTRING
+			val setNonStatic_staticGet = org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.getStatic
+			val setNonStatic_nonStaticGet = instance.getNonStatic
+			
+			val other = instance.getStatic
+			
+			return initial_directGet + initial_staticGet + initial_nonStaticGet
+				+  setDirectly_directGet + setDirectly_staticGet + setDirectly_nonStaticGet
+				+  setStatic_directGet + setStatic_staticGet + setStatic_nonStaticGet
+				+  setNonStatic_directGet + setNonStatic_staticGet + setNonStatic_nonStaticGet + other
+		}
+		'''.toXtendClass("SomeClass19")
+		val file = parser.parse(source)
+		val uri = "platform:/plugin/org.nanosite.xtendency.tracer.core.tests/src/org/nanosite/xtendency/tracer/core/interpreter/test/input/SuperClass.xtend"
+		val result = file.runTestWithClasses("SomeClass19", "T19_StaticVariables", #[], #["org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember" -> uri])
+
+		
+		assertEquals("INITIALINITIALINITIALSETDIRECTLYSETDIRECTLYSETDIRECTLYSETSTATICSETSTATICSETSTATICNONSTATICNONSTATICNONSTATICNONSTATIC", result.result)
 	}
 	
 	
