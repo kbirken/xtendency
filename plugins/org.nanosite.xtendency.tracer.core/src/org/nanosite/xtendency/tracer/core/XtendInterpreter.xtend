@@ -156,12 +156,11 @@ class XtendInterpreter extends XbaseInterpreter {
 			calledTypeSimpleNonFinal = operation.declaringType.simpleName
 		}
 		val calledTypeSimple = calledTypeSimpleNonFinal
-		val firstArg = if(argumentValues.empty) null else argumentValues.get(0)
 		val op = operation.simpleName
 		if (currentType != null) {
 			val currentTypeName = (currentType.eContainer as XtendFile).package + "." + currentType.name
 			if (currentTypeName == calledTypeFqn && receiver == null) {
-				val calledFunc = getCalledFunction(currentType, op, argumentValues.size, firstArg)
+				val calledFunc = getCalledFunction(currentType, op, argumentValues.size, argumentValues)
 
 				val newContext = globalScope.fork
 				newContext.newValue(QualifiedName.create("this"), context.getValue(QualifiedName.create("this")))
@@ -173,7 +172,7 @@ class XtendInterpreter extends XbaseInterpreter {
 			val resource = rs.getResource(locationInfo.value, true)
 			val type = (resource.contents.head as XtendFile).xtendTypes.findFirst[
 				name == calledTypeSimple]
-			val calledFunc = getCalledFunction(type, op, argumentValues.size, firstArg)
+			val calledFunc = getCalledFunction(type, op, argumentValues.size, argumentValues)
 
 			usedClasses.put(locationInfo.key, locationInfo.value)
 			val newContext = globalScope.fork
@@ -254,8 +253,7 @@ class XtendInterpreter extends XbaseInterpreter {
 		XtendTypeDeclaration type,
 		String op,
 		int nArgs,
-		/*@Nullable*/
-		Object firstArg
+		List<Object> args
 	) {
 		val candidates = type.members.filter(typeof(XtendFunction)).filter[name == op && parameters.size == nArgs]
 		if (candidates.empty) {
@@ -263,18 +261,15 @@ class XtendInterpreter extends XbaseInterpreter {
 		} else if (candidates.findFirst[dispatch] != null) {
 
 			// this is a set of dispatch functions, select candidate based on type of first argument
-			if (firstArg == null) {
+			if (args.empty) {
 				throw new RuntimeException("Dispatch function '" + op + "' without parameters, shouldn't occur!")
 			} else {
 				val sortedCandidates = candidates.sort[f1, f2 | 
 					compareFunctions(f1, f2)
 				]
 				for (func : sortedCandidates.filter[dispatch]) {
-					val tFQN = func.parameters.get(0).parameterType.type.qualifiedName
-					//TODO: dont just check first arg
-					if (isInstanceOf(firstArg, tFQN)) {
+					if ((0..<nArgs).forall[i | isInstanceOf(args.get(i), func.parameters.get(i).parameterType.type.qualifiedName)])
 						return func
-					}
 				}
 				null
 			}
