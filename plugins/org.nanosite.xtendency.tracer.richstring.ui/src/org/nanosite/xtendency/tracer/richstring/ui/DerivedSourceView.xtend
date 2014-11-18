@@ -88,6 +88,7 @@ import org.eclipse.jface.text.Document
 import com.google.common.collect.Multiset
 import com.google.common.collect.HashMultiset
 import org.eclipse.xtend.core.xtend.RichString
+import org.nanosite.xtendency.tracer.core.XtendEvaluationResult
 
 /**
  *
@@ -257,7 +258,10 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 		if (interpResult.result != null && interpResult.result instanceof CharSequence) {
 			return interpResult.result.toString
 		} else {
-			return interpResult.exception.stackTraceString
+			if (interpResult instanceof XtendEvaluationResult)
+				return interpResult.stackTrace
+			else
+				return interpResult.exception.stackTraceString
 		}
 	}
 

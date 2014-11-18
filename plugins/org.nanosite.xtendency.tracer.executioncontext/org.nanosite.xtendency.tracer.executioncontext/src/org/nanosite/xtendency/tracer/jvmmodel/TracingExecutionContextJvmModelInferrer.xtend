@@ -73,7 +73,6 @@ class TracingExecutionContextJvmModelInferrer extends AbstractModelInferrer {
 	}
 
 	def JvmTypeReference getTypeForParam(String name, ExecutionContext ec) {
-		println("type for param " + (name ?: "null") + " in context " + ec)
 		if (ec.function?.parameters?.findFirst[it.name == name]?.parameterType != null){
 			val type = ec.function.parameters.findFirst[it.name == name].parameterType
 			return type.copy(ec)

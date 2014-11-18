@@ -1,6 +1,7 @@
 package org.nanosite.xtendency.tracer.core;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import org.eclipse.xtext.naming.QualifiedName;
@@ -61,5 +62,21 @@ public class ChattyEvaluationContext implements IExtendedEvaluationContext{
 	@Override
 	public IEvaluationContext getParent() {
 		return parent;
+	}
+	
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder("[");
+		Iterator<QualifiedName> it = values.keySet().iterator();
+		while (it.hasNext()){
+			QualifiedName qn = it.next();
+			sb.append(qn.toString());
+			sb.append(" -> ");
+			sb.append(values.get(qn).toString());
+			if (it.hasNext())
+				sb.append(", ");
+		}
+		sb.append("]");
+		return parent.toString() + sb.toString();
 	}
 }
