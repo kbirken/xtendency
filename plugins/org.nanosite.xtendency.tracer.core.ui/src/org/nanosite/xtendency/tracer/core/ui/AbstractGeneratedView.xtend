@@ -87,14 +87,17 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 		val inputExpression = func.getExpression();
 		val globalContext = new ChattyEvaluationContext();
 		val context = globalContext.fork
-		
+		val IFile entryClassFile = f.eResource.URI.getFileForUri(tecFile.project)
 		switch (ec.scope){
 			case null:
-				interpreter.configure(file.parent)
+				interpreter.addClassesInContainer(file.parent, entryClassFile, ec.clazz)
 			case "package":
-				interpreter.configure(file.parent)
-			case "project":
-				interpreter.configure(file.project)
+				interpreter.addClassesInContainer(file.parent, entryClassFile, ec.clazz)
+			case "project":{
+				//TODO: get rid of "src" folder assumption
+				interpreter.addClassesInContainer(file.project.getFolder("src"), entryClassFile, ec.clazz)
+			}
+				
 		}
 
 		val Injector injector = if(ec.injector != null) interpreter.evaluate(ec.injector).result as Injector else null
@@ -236,7 +239,7 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 		private AbstractGeneratedView view
 
 		new(ISchedulingRule schedulingRule, AbstractGeneratedView view) {
-			super("TODO");
+			super("Interpreting code");
 			this.view = view
 			setRule(schedulingRule);
 		}

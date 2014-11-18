@@ -146,6 +146,8 @@ class TracingInterpreter extends WorkspaceXtendInterpreter {
 				val rvField = e.class.getDeclaredField("returnValue")
 				rvField.accessible = true
 				return new DefaultEvaluationResult(rvField.get(e), null)
+			}else{
+				throw e
 			}
 				
 		}

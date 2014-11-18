@@ -228,7 +228,7 @@ class XtendInterpreter extends XbaseInterpreter {
 		for (i : 0..<op1.parameters.size){
 			val p1 = op1.parameters.get(i)
 			val p2 = op2.parameters.get(i)
-			if (p1.parameterType.qualifiedName != p2.qualifiedName)
+			if (p1.parameterType.qualifiedName != p2.parameterType.qualifiedName)
 				return false
 		}
 		return true
@@ -244,7 +244,7 @@ class XtendInterpreter extends XbaseInterpreter {
 		for (i : 0..<op1.parameters.size){
 			val p1 = op1.parameters.get(i)
 			val p2 = op2.parameters.get(i)
-			if (p1.qualifiedName != p2.qualifiedName)
+			if (p1.parameterType.qualifiedName != p2.parameterType.qualifiedName)
 				return false
 		}
 		return true
