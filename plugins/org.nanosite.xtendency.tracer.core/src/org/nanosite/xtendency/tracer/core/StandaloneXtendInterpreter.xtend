@@ -1,13 +1,15 @@
 package org.nanosite.xtendency.tracer.core
 
-import org.eclipse.core.resources.IFile
+import java.util.HashMap
+import java.util.Map
 import org.eclipse.emf.common.util.URI
 import org.eclipse.emf.ecore.resource.ResourceSet
 import org.eclipse.xtend.core.xtend.XtendFile
-import org.eclipse.xtext.ui.resource.IResourceSetProvider
-import com.google.inject.Inject
 
 class StandaloneXtendInterpreter extends XtendInterpreter {
+	
+	protected Map<String, URI> availableClasses = new HashMap<String, URI>
+	
 
 	def void init (ResourceSet rs) {
 		this.rs = rs
@@ -15,11 +17,23 @@ class StandaloneXtendInterpreter extends XtendInterpreter {
 	}
 
 	def void addAvailableClass (String classname, URI classResource) {
-		// we supply "null" as IFile because in stand-alone mode we do not have a workspace
-		availableClasses.put(classname, (null as IFile) -> classResource)
+		availableClasses.put(classname, classResource)
 	}
 	
 	def void addAvailableClass(String classname, XtendFile classContainer){
-		availableClasses.put(classname, (null as IFile) -> classContainer.eResource.URI)
+		availableClasses.put(classname, classContainer.eResource.URI)
 	}
+	
+	override protected recordClassUse(String fqn) {
+		//empty
+	}
+	
+	override protected canInterpretClass(String fqn) {
+		availableClasses.containsKey(fqn)
+	}
+	
+	override protected getClassUri(String fqn) {
+		availableClasses.get(fqn)
+	}
+	
 }

@@ -8,6 +8,14 @@ import org.eclipse.xtend.core.xtend.XtendFile
 import org.eclipse.xtext.ui.resource.IResourceSetProvider
 import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
 import org.eclipse.core.resources.IFolder
+import org.eclipse.jdt.core.IJavaProject
+import org.eclipse.jdt.launching.JavaRuntime
+import org.eclipse.core.runtime.Path
+import java.net.URLClassLoader
+import com.google.common.collect.HashBiMap
+import java.util.HashMap
+import com.google.common.collect.BiMap
+import java.util.Map
 
 class WorkspaceXtendInterpreter extends XtendInterpreter {
 	
@@ -15,6 +23,9 @@ class WorkspaceXtendInterpreter extends XtendInterpreter {
 	protected IResourceSetProvider rsProvider
 
 	protected IContainer baseDir
+	
+	protected BiMap<IFile, URI> usedClasses = HashBiMap.create
+	protected Map<String, Pair<IFile, URI>> availableClasses = new HashMap<String, Pair<IFile, URI>>
 
 	@Deprecated
 	def void addClassesInContainerWithPreloading(IContainer container) {
@@ -64,6 +75,43 @@ class WorkspaceXtendInterpreter extends XtendInterpreter {
 		for (d : container.members.filter(IFolder)){
 			doAddClasses(d, packagePrefix + "." + d.name)
 		}
+	}
+	
+	def ClassLoader addProjectToClasspath(IJavaProject jp) {
+		if (injectedClassLoader != null) {
+			val classPathEntries = JavaRuntime.computeDefaultRuntimeClassPath(jp)
+			val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
+
+			var ClassLoader parent = injectedClassLoader
+			parent = new DelegatorClassLoader(parent, XtendInterpreter, classPathUrls.map[toString])
+
+			val result = new URLClassLoader(classPathUrls, parent)
+			super.classLoader = result
+			return result
+		}
+		null
+	}
+	
+	def setCurrentType(XtendTypeDeclaration thisType, IFile file) {
+		this.currentType = thisType
+		usedClasses.put(file, thisType.eResource.URI)
+	}
+	
+	override protected recordClassUse(String fqn) {
+		val locationInfo = availableClasses.get(fqn)
+		usedClasses.put(locationInfo.key, locationInfo.value)
+	}
+	
+	override protected canInterpretClass(String fqn) {
+		availableClasses.containsKey(fqn)
+	}
+	
+	override protected getClassUri(String fqn) {
+		availableClasses.get(fqn).value
+	}
+	
+	def getUsedClasses() {
+		return usedClasses
 	}
 
 }

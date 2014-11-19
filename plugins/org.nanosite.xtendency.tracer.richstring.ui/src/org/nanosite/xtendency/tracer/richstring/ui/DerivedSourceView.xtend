@@ -90,6 +90,12 @@ import com.google.common.collect.HashMultiset
 import org.eclipse.xtend.core.xtend.RichString
 import org.nanosite.xtendency.tracer.core.XtendEvaluationResult
 
+@Data class SelectionEvent {
+	int offset
+	int length
+	long time
+}
+
 /**
  *
  * Heavily inspired by Xtend's DerivedSourceView by
@@ -104,7 +110,7 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 	private static final Color COLOR_SELECTED = new Color(Display.getCurrent, 255, 0, 0)
 	private static final Color COLOR_DEFAULT = new Color(Display.getCurrent, 0, 0, 0)
 
-	private Map<IWorkbenchPart, Multiset<Pair<Integer, Integer>>> lastEditorSelection = new HashMap<IWorkbenchPart, Multiset<Pair<Integer, Integer>>>
+	private Map<IWorkbenchPart, Multiset<SelectionEvent>> lastEditorSelection = new HashMap<IWorkbenchPart, Multiset<SelectionEvent>>
 
 	private int lastOffsetInView = -1
 	private int lastLengthInView = -1
@@ -133,9 +139,12 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 
 					if (selection instanceof TextSelection) {
 						val lastSelection = lastEditorSelection.get(workbenchPart)
+						val currentTime = System.currentTimeMillis
 						if (lastSelection != null){
 							for (s : lastSelection){
-								if (selection.offset == s.key && selection.length == s.value){
+								if (currentTime > s.time + 3000)
+									lastSelection.remove(s)
+								else if (selection.offset == s.offset && selection.length == s.length){
 									lastSelection.remove(s)
 									return
 								}
@@ -171,7 +180,7 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 						val desc = PlatformUI.getWorkbench().
 						        getEditorRegistry().getDefaultEditor(file.getName());
 						val editor = PlatformUI.workbench.activeWorkbenchWindow.activePage.openEditor(new FileEditorInput(file), desc.id)
-						lastEditorSelection.safeGet(editor).add(start -> length)
+						lastEditorSelection.safeGet(editor).add(new SelectionEvent(start, length, System.currentTimeMillis))
 						if (editor instanceof XbaseEditor)
 							editor.selectAndReveal(start, length)
 					}
@@ -307,7 +316,7 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 		}
 	}
 	
-	def <K> Multiset<Pair<Integer, Integer>> safeGet(Map<K, Multiset<Pair<Integer, Integer>>> m, K k){
+	def <K> Multiset<SelectionEvent> safeGet(Map<K, Multiset<SelectionEvent>> m, K k){
 		if (m.containsKey(k)){
 			m.get(k)
 		}else{

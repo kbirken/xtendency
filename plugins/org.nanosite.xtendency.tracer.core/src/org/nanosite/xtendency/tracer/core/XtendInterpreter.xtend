@@ -1,19 +1,12 @@
 package org.nanosite.xtendency.tracer.core
 
-import com.google.common.collect.BiMap
-import com.google.common.collect.HashBiMap
 import com.google.inject.Inject
 import com.google.inject.Provider
-import java.net.URLClassLoader
 import java.util.HashMap
 import java.util.List
 import java.util.Map
-import org.eclipse.core.resources.IFile
-import org.eclipse.core.runtime.Path
 import org.eclipse.emf.common.util.URI
 import org.eclipse.emf.ecore.resource.ResourceSet
-import org.eclipse.jdt.core.IJavaProject
-import org.eclipse.jdt.launching.JavaRuntime
 import org.eclipse.osgi.internal.loader.EquinoxClassLoader
 import org.eclipse.xtend.core.richstring.DefaultIndentationHandler
 import org.eclipse.xtend.core.richstring.RichStringProcessor
@@ -38,12 +31,7 @@ import org.eclipse.xtext.xbase.interpreter.impl.EvaluationException
 import org.eclipse.xtext.xbase.interpreter.impl.XbaseInterpreter
 import org.eclipse.xtext.xbase.typesystem.IBatchTypeResolver
 
-@Data class XtendClassResource {
-	IFile file
-	URI uri
-}
-
-class XtendInterpreter extends XbaseInterpreter {
+abstract class XtendInterpreter extends XbaseInterpreter {
 
 	@Inject
 	protected IBatchTypeResolver typeResolver
@@ -52,11 +40,7 @@ class XtendInterpreter extends XbaseInterpreter {
 	protected RichStringProcessor richStringProcessor
 
 	@Inject
-	protected Provider<DefaultIndentationHandler> indentationHandler
-
-	// TODO: remove IFile here, push to WorkspaceXtendInterpreter
-	protected BiMap<IFile, URI> usedClasses = HashBiMap.create
-	protected Map<String, Pair<IFile, URI>> availableClasses = new HashMap<String, Pair<IFile, URI>>
+	protected Provider<DefaultIndentationHandler> indentationHandler	
 
 	IExtendedEvaluationContext globalScope
 
@@ -66,15 +50,6 @@ class XtendInterpreter extends XbaseInterpreter {
 
 	protected ResourceSet rs
 
-	def getUsedClasses() {
-		return usedClasses
-	}
-
-	def setCurrentType(XtendTypeDeclaration thisType, IFile file) {
-		this.currentType = thisType
-		usedClasses.put(file, thisType.eResource.URI)
-	}
-
 	def setCurrentType(XtendTypeDeclaration thisType) {
 		this.currentType = thisType
 	}
@@ -83,21 +58,6 @@ class XtendInterpreter extends XbaseInterpreter {
 		if (cl instanceof EquinoxClassLoader)
 			this.injectedClassLoader = cl
 		super.classLoader = cl
-	}
-
-	def ClassLoader addProjectToClasspath(IJavaProject jp) {
-		if (injectedClassLoader != null) {
-			val classPathEntries = JavaRuntime.computeDefaultRuntimeClassPath(jp)
-			val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
-
-			var ClassLoader parent = injectedClassLoader
-			parent = new DelegatorClassLoader(parent, XtendInterpreter, classPathUrls.map[toString])
-
-			val result = new URLClassLoader(classPathUrls, parent)
-			super.classLoader = result
-			return result
-		}
-		null
 	}
 
 	def setGlobalScope(IExtendedEvaluationContext context) {
@@ -157,26 +117,32 @@ class XtendInterpreter extends XbaseInterpreter {
 				return evaluateOperation(calledFunc, argumentValues, null, newContext, indicator)
 			}
 		}
-		if (availableClasses.containsKey(calledTypeFqn)) {
-			val locationInfo = availableClasses.get(calledTypeFqn)
-			val resource = rs.getResource(locationInfo.value, true)
+		if (canInterpretClass(calledTypeFqn)) {
+			val locationInfo = getClassUri(calledTypeFqn)
+			val resource = rs.getResource(locationInfo, true)
 			val type = (resource.contents.head as XtendFile).xtendTypes.findFirst[name == calledTypeSimple]
 			val calledFunc = getCalledFunction(type, op, argumentValues.size, argumentValues)
 
-			usedClasses.put(locationInfo.key, locationInfo.value)
+			recordClassUse(calledTypeFqn)
 			val newContext = globalScope.fork
 			newContext.newValue(QualifiedName.create("this"), receiver)
 			return evaluateOperation(calledFunc, argumentValues, type, newContext, indicator)
 		}
 		super.invokeOperation(operation, receiver, argumentValues, context, indicator)
 	}
+	
+	protected def void recordClassUse(String fqn)
+	
+	protected def boolean canInterpretClass(String fqn)
+	
+	protected def URI getClassUri(String fqn)
 
 	// given an operation and the actual runtime type of an object, returns the FQN of the class which first implements it
 	protected def Pair<String, String> findCalledMethodType(JvmOperation operation, String actualTypeName,
 		String actualTypeSimpleName) {
-		if (availableClasses.containsKey(actualTypeName)) {
-			val locationInfo = availableClasses.get(actualTypeName)
-			val resource = rs.getResource(locationInfo.value, true)
+		if (canInterpretClass(actualTypeName)) {
+			val locationInfo = getClassUri(actualTypeName)
+			val resource = rs.getResource(locationInfo, true)
 			val type = (resource.contents.head as XtendFile).xtendTypes.filter(XtendClass).findFirst[
 				name == actualTypeSimpleName]
 			if (type.hasMethod(operation)) {

@@ -1,31 +1,28 @@
 package org.nanosite.xtendency.tracer.core
 
+import java.io.BufferedReader
+import java.io.PrintWriter
+import java.io.StringReader
+import java.io.StringWriter
 import java.util.HashMap
 import java.util.HashSet
 import java.util.Map
 import java.util.Set
-import org.eclipse.xtext.util.CancelIndicator
-import org.eclipse.xtext.xbase.XExpression
-import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
 import java.util.Stack
-import org.eclipse.xtext.xbase.XAbstractFeatureCall
-import org.eclipse.xtend.core.macro.declaration.JvmMethodDeclarationImpl
+import org.eclipse.emf.ecore.EObject
+import org.eclipse.xtend.core.xtend.XtendClass
+import org.eclipse.xtend.core.xtend.XtendFile
+import org.eclipse.xtend.core.xtend.XtendFunction
 import org.eclipse.xtext.common.types.JvmExecutable
-import org.eclipse.xtext.common.types.JvmOperation
-import java.util.List
+import org.eclipse.xtext.nodemodel.util.NodeModelUtils
+import org.eclipse.xtext.util.CancelIndicator
+import org.eclipse.xtext.xbase.XAbstractFeatureCall
+import org.eclipse.xtext.xbase.XExpression
 import org.eclipse.xtext.xbase.XMemberFeatureCall
+import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
 import org.eclipse.xtext.xbase.interpreter.impl.DefaultEvaluationResult
 import org.eclipse.xtext.xbase.interpreter.impl.EvaluationException
 import org.eclipse.xtext.xbase.interpreter.impl.InterpreterCanceledException
-import org.eclipse.emf.ecore.EObject
-import org.eclipse.xtend.core.xtend.XtendFile
-import org.eclipse.xtext.nodemodel.util.NodeModelUtils
-import org.eclipse.xtend.core.xtend.XtendFunction
-import org.eclipse.xtend.core.xtend.XtendClass
-import java.io.StringWriter
-import java.io.PrintWriter
-import java.io.BufferedReader
-import java.io.StringReader
 
 /*
  * Just added the tracing for rich strings for now, should be fused with the existing tracing mechanism.
