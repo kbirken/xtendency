@@ -27,7 +27,7 @@ import org.eclipse.xtext.xbase.interpreter.impl.InterpreterCanceledException
 /*
  * Just added the tracing for rich strings for now, should be fused with the existing tracing mechanism.
  */
-class TracingInterpreter extends WorkspaceXtendInterpreter {
+class TracingInterpreter extends XtendInterpreter {
 	
 	Set<ITracingProvider<?>> tracingProviders = new HashSet<ITracingProvider<?>>
 	
@@ -71,15 +71,19 @@ class TracingInterpreter extends WorkspaceXtendInterpreter {
 		if (featureCall.feature instanceof JvmExecutable){
 			if (!currentStackTrace.empty())
 				before = currentStackTrace.peek
+			println("pushing " + currentStackTrace.size)
 			currentStackTrace.push(featureCall)
 		}
 		val result = super._doEvaluate(featureCall, context, indicator)
 		if (featureCall.feature instanceof JvmExecutable){
+			println("popping " + currentStackTrace.size)
 			currentStackTrace.pop
 			
 			// maybe something bad happened in the meantime? like a thrown and caught exception?
 			// in which case there may be other stuff on the stack now? and we should remove it
-			while (before != null && currentStackTrace.peek != before){
+			// actually this seems to cause problems with recursive calls??
+			while (!currentStackTrace.empty() && before != null && currentStackTrace.peek != before){
+				println("popping " + currentStackTrace.size)			
 				currentStackTrace.pop
 			}
 		}
@@ -88,16 +92,19 @@ class TracingInterpreter extends WorkspaceXtendInterpreter {
 	
 	override protected _doEvaluate(XMemberFeatureCall featureCall, IEvaluationContext context, CancelIndicator indicator) {
 		if (featureCall.feature instanceof JvmExecutable){
+			println("pushing " + currentStackTrace.size)
 			currentStackTrace.push(featureCall)
 		}
 		val result = super._doEvaluate(featureCall, context, indicator)
 		if (featureCall.feature instanceof JvmExecutable){
+			println("popping " + currentStackTrace.size)
 			currentStackTrace.pop
 		}
 		return result
 	}
 	
 	override evaluate(XExpression expression, IEvaluationContext context, CancelIndicator indicator) {
+		println("clearing " + currentStackTrace.size)
 		currentStackTrace.clear
 		try {
 			val result = internalEvaluate(expression, context, if (indicator!=null) indicator else CancelIndicator.NullImpl);

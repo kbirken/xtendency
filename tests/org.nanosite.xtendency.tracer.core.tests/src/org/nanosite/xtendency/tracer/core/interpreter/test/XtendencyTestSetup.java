@@ -30,8 +30,11 @@ import org.eclipse.xtext.util.IAcceptor;
 import org.eclipse.xtext.validation.ConfigurableIssueCodesProvider;
 import org.eclipse.xtext.validation.SeverityConverter;
 import org.eclipse.xtext.xbase.validation.IssueCodes;
+import org.nanosite.xtendency.tracer.core.IClassManager;
+import org.nanosite.xtendency.tracer.core.StandaloneClassManager;
 
 import com.google.common.io.CharStreams;
+import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Singleton;
@@ -39,7 +42,7 @@ import com.google.inject.Singleton;
 /**
  * @author Sebastian Zarnekow - Initial contribution and API
  */
-public class RuntimeTestSetup extends XtendStandaloneSetup {
+public class XtendencyTestSetup extends XtendStandaloneSetup {
 
 	@Override
 	public Injector createInjector() {
@@ -50,9 +53,17 @@ public class RuntimeTestSetup extends XtendStandaloneSetup {
 	 * @author Sebastian Zarnekow - Initial contribution and API
 	 */
 	public static class XtendRuntimeTestModule extends XtendRuntimeModule {
+		public void configureSomething(Binder binder){
+//			StandaloneClassManager instance = new StandaloneClassManager();
+//			binder.bind(IClassManager.class).toInstance(instance);
+//			binder.bind(StandaloneClassManager.class).toInstance(instance);
+			binder.bind(IClassManager.class).to(StandaloneClassManager.class);
+			binder.bind(StandaloneClassManager.class).in(Singleton.class);
+		}
+		
 		@Override
 		public ClassLoader bindClassLoaderToInstance() {
-			return RuntimeTestSetup.class.getClassLoader();
+			return XtendencyTestSetup.class.getClassLoader();
 		}
 
 		public XtendFactory bindFactory() {

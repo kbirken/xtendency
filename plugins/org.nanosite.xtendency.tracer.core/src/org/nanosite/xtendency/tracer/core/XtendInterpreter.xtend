@@ -30,6 +30,8 @@ import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
 import org.eclipse.xtext.xbase.interpreter.impl.EvaluationException
 import org.eclipse.xtext.xbase.interpreter.impl.XbaseInterpreter
 import org.eclipse.xtext.xbase.typesystem.IBatchTypeResolver
+import org.eclipse.xtext.xbase.XClosure
+import java.lang.reflect.Proxy
 
 abstract class XtendInterpreter extends XbaseInterpreter {
 
@@ -47,17 +49,28 @@ abstract class XtendInterpreter extends XbaseInterpreter {
 	XtendTypeDeclaration currentType
 
 	protected ClassLoader injectedClassLoader
-
-	protected ResourceSet rs
+	
+	protected ClassLoader usedClassLoader
+		
+	@Inject
+	protected IClassManager classManager
 
 	def setCurrentType(XtendTypeDeclaration thisType) {
 		this.currentType = thisType
+		
+		val fqn = (thisType.eContainer as XtendFile).package + "." + thisType.name
+		classManager.recordClassUse(fqn)
 	}
 
 	override void setClassLoader(ClassLoader cl) {
-		if (cl instanceof EquinoxClassLoader)
+		if (cl instanceof EquinoxClassLoader){}
 			this.injectedClassLoader = cl
 		super.classLoader = cl
+		this.usedClassLoader = cl
+	}
+	
+	def ClassLoader getDefaultClassLoader(){
+		injectedClassLoader
 	}
 
 	def setGlobalScope(IExtendedEvaluationContext context) {
@@ -117,13 +130,13 @@ abstract class XtendInterpreter extends XbaseInterpreter {
 				return evaluateOperation(calledFunc, argumentValues, null, newContext, indicator)
 			}
 		}
-		if (canInterpretClass(calledTypeFqn)) {
-			val locationInfo = getClassUri(calledTypeFqn)
-			val resource = rs.getResource(locationInfo, true)
+		if (classManager.canInterpretClass(calledTypeFqn)) {
+			val locationInfo = classManager.getClassUri(calledTypeFqn)
+			val resource = classManager.resourceSet.getResource(locationInfo, true)
 			val type = (resource.contents.head as XtendFile).xtendTypes.findFirst[name == calledTypeSimple]
 			val calledFunc = getCalledFunction(type, op, argumentValues.size, argumentValues)
 
-			recordClassUse(calledTypeFqn)
+			classManager.recordClassUse(calledTypeFqn)
 			val newContext = globalScope.fork
 			newContext.newValue(QualifiedName.create("this"), receiver)
 			return evaluateOperation(calledFunc, argumentValues, type, newContext, indicator)
@@ -131,18 +144,14 @@ abstract class XtendInterpreter extends XbaseInterpreter {
 		super.invokeOperation(operation, receiver, argumentValues, context, indicator)
 	}
 	
-	protected def void recordClassUse(String fqn)
 	
-	protected def boolean canInterpretClass(String fqn)
-	
-	protected def URI getClassUri(String fqn)
 
 	// given an operation and the actual runtime type of an object, returns the FQN of the class which first implements it
 	protected def Pair<String, String> findCalledMethodType(JvmOperation operation, String actualTypeName,
 		String actualTypeSimpleName) {
-		if (canInterpretClass(actualTypeName)) {
-			val locationInfo = getClassUri(actualTypeName)
-			val resource = rs.getResource(locationInfo, true)
+		if (classManager.canInterpretClass(actualTypeName)) {
+			val locationInfo = classManager.getClassUri(actualTypeName)
+			val resource = classManager.resourceSet.getResource(locationInfo, true)
 			val type = (resource.contents.head as XtendFile).xtendTypes.filter(XtendClass).findFirst[
 				name == actualTypeSimpleName]
 			if (type.hasMethod(operation)) {
@@ -290,6 +299,10 @@ abstract class XtendInterpreter extends XbaseInterpreter {
 			result
 		}
 	}
+	
+	override protected internalEvaluate(XExpression expression, IEvaluationContext context, CancelIndicator indicator) throws EvaluationException {
+		super.internalEvaluate(expression, context, indicator)
+	}
 
 	def protected evaluateOperation(XtendFunction func, List<Object> argumentValues, XtendTypeDeclaration type,
 		IEvaluationContext context, CancelIndicator indicator) {
@@ -427,4 +440,28 @@ abstract class XtendInterpreter extends XbaseInterpreter {
 		super._invokeFeature(identifiable, featureCall, receiver, context, indicator)
 	}
 
+	override protected Object _doEvaluate(XClosure closure, IEvaluationContext context, CancelIndicator indicator) {
+		var Class<?> functionIntf = null;
+		switch (closure.getFormalParameters().size()) {
+			case 0:
+				functionIntf = getClass(Functions.Function0)
+			case 1:
+				functionIntf = getClass(Functions.Function1)
+			case 2:
+				functionIntf = getClass(Functions.Function2)
+			case 3:
+				functionIntf = getClass(Functions.Function3)
+			case 4:
+				functionIntf = getClass(Functions.Function4)
+			case 5:
+				functionIntf = getClass(Functions.Function5)
+			case 6:
+				functionIntf = getClass(Functions.Function6)
+			default:
+				throw new IllegalStateException("Closures with more than 6 parameters are not supported.")
+		}
+		val invocationHandler = new XtendClosureInvocationHandler(closure, context, this, indicator);
+		val proxy = Proxy.newProxyInstance(usedClassLoader, #[functionIntf], invocationHandler);
+		return proxy;
+	}
 }

@@ -6,10 +6,11 @@ import org.eclipse.emf.common.util.URI
 import org.eclipse.emf.ecore.resource.ResourceSet
 import org.eclipse.xtend.core.xtend.XtendFile
 
-class StandaloneXtendInterpreter extends XtendInterpreter {
+class StandaloneClassManager implements IClassManager {
 	
 	protected Map<String, URI> availableClasses = new HashMap<String, URI>
 	
+	protected ResourceSet rs
 
 	def void init (ResourceSet rs) {
 		this.rs = rs
@@ -24,16 +25,24 @@ class StandaloneXtendInterpreter extends XtendInterpreter {
 		availableClasses.put(classname, classContainer.eResource.URI)
 	}
 	
-	override protected recordClassUse(String fqn) {
+	override recordClassUse(String fqn) {
 		//empty
 	}
 	
-	override protected canInterpretClass(String fqn) {
+	override canInterpretClass(String fqn) {
 		availableClasses.containsKey(fqn)
 	}
 	
-	override protected getClassUri(String fqn) {
+	override getClassUri(String fqn) {
 		availableClasses.get(fqn)
+	}
+	
+	override getResourceSet() {
+		rs
+	}
+	
+	override configureClassLoading(ClassLoader injectedClassLoader) {
+		injectedClassLoader
 	}
 	
 }

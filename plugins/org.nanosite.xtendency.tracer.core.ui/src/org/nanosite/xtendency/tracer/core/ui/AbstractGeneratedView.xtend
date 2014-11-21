@@ -44,6 +44,9 @@ import org.nanosite.xtendency.tracer.core.IGeneratedView
 import org.nanosite.xtendency.tracer.core.IExtendedEvaluationContext
 import java.io.StringWriter
 import java.io.PrintWriter
+import org.nanosite.xtendency.tracer.core.IClassManager
+import org.nanosite.xtendency.tracer.core.WorkspaceClassManager
+import org.nanosite.xtendency.tracer.core.WorkspaceXtendInterpreterModule
 
 abstract class AbstractGeneratedView extends ViewPart implements IResourceChangeListener, ISelectionListener, IPartListener2, IGeneratedView {
 	protected static final ISchedulingRule SEQUENCE_RULE = SchedulingRuleFactory.INSTANCE.newSequence();
@@ -55,6 +58,9 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 	
 	@Inject
 	protected TracingInterpreter interpreter
+	
+	@Inject 
+	protected WorkspaceClassManager classManager
 
 	@Inject
 	protected IResourceSetProvider rsProvider;
@@ -65,11 +71,12 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 	protected RefreshJob refreshJob = new RefreshJob(SEQUENCE_RULE, this);
 	
 	new() {
-		XtendActivator.getInstance().getInjector(XtendActivator.ORG_ECLIPSE_XTEND_CORE_XTEND).injectMembers(this);
+		val injector = XtendActivator.getInstance().getInjector(XtendActivator.ORG_ECLIPSE_XTEND_CORE_XTEND)
+		injector.createChildInjector(#[new WorkspaceXtendInterpreterModule]).injectMembers(this);
 	}
 	
 	def setInput(XtendTypeDeclaration typeDecl, XExpression inputExpression, IEvaluationContext context, IExtendedEvaluationContext globalContext, IFile file) {
-		interpreter.setCurrentType(typeDecl, file)
+		interpreter.setCurrentType(typeDecl)
 		this.inputExpression = inputExpression
 		this.initialContext = context
 		interpreter.globalScope = globalContext
@@ -78,8 +85,10 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 	def setInput(ExecutionContext ec, IFile tecFile) {
 		workspace.addResourceChangeListener(this);
 		val project = ResourcesPlugin.getWorkspace.root.getProject(ec.projectName)
-		val urlClassLoader = interpreter.addProjectToClasspath(JavaCore.create(project))
-
+		classManager.javaProject = JavaCore.create(project)
+		val urlClassLoader = classManager.configureClassLoading(interpreter.defaultClassLoader)
+		interpreter.classLoader = urlClassLoader
+		
 		val f = ec.getClazz().eContainer() as XtendFile
 		val file = getFileForUri(f.eResource.URI, tecFile.project)
 		val typeDecl = ec.getClazz();
@@ -90,12 +99,12 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 		val IFile entryClassFile = f.eResource.URI.getFileForUri(tecFile.project)
 		switch (ec.scope){
 			case null:
-				interpreter.addClassesInContainer(file.parent, entryClassFile, ec.clazz)
+				classManager.addClassesInContainer(file.parent, entryClassFile, ec.clazz)
 			case "package":
-				interpreter.addClassesInContainer(file.parent, entryClassFile, ec.clazz)
+				classManager.addClassesInContainer(file.parent, entryClassFile, ec.clazz)
 			case "project":{
 				//TODO: get rid of "src" folder assumption
-				interpreter.addClassesInContainer(file.project.getFolder("src"), entryClassFile, ec.clazz)
+				classManager.addClassesInContainer(file.project.getFolder("src"), entryClassFile, ec.clazz)
 			}
 				
 		}
@@ -153,7 +162,7 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 	
 	//TODO: clean up this mess
 	override public void resourceChanged(IResourceChangeEvent event) {
-		val usedFiles = interpreter.usedClasses
+		val usedFiles = classManager.usedClasses
 		val changedInput = event.delta.concernsFile(usedFiles.keySet)
 		if (event.delta != null && changedInput != null) {
 			val rs = rsProvider.get(tecFile.getProject())

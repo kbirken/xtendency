@@ -16,23 +16,28 @@ import com.google.common.collect.HashBiMap
 import java.util.HashMap
 import com.google.common.collect.BiMap
 import java.util.Map
+import org.eclipse.emf.ecore.resource.ResourceSet
 
-class WorkspaceXtendInterpreter extends XtendInterpreter {
+class WorkspaceClassManager implements IClassManager{
 	
 	@Inject
 	protected IResourceSetProvider rsProvider
+	
+	protected ResourceSet rs
 
 	protected IContainer baseDir
+	
+	protected IJavaProject jp
 	
 	protected BiMap<IFile, URI> usedClasses = HashBiMap.create
 	protected Map<String, Pair<IFile, URI>> availableClasses = new HashMap<String, Pair<IFile, URI>>
 
 	@Deprecated
 	def void addClassesInContainerWithPreloading(IContainer container) {
-		this.rs = rsProvider.get(container.project)
+		rs = rsProvider.get(container.project)
 		this.baseDir = container
 		for (f : container.members.filter(IFile).filter[name.endsWith(".xtend")]) {
-			val uri = URI.createURI(f.fullPath.toString, true)
+			val uri = URI.createPlatformResourceURI(f.fullPath.toString, true)
 			try {
 				val r = rs.getResource(uri, true)
 				val file = r.contents.head
@@ -50,7 +55,7 @@ class WorkspaceXtendInterpreter extends XtendInterpreter {
 	}
 	
 	def void addClassesInContainer(IContainer container, IFile entryClassFile, XtendTypeDeclaration entryClass){
-		this.rs = rsProvider.get(container.project)
+		rs = rsProvider.get(container.project)
 		val file = entryClass.eContainer as XtendFile
 		val packages = file.package.split('''\.''')
 		var Iterable<String> curPkg = packages.reverse
@@ -67,7 +72,7 @@ class WorkspaceXtendInterpreter extends XtendInterpreter {
 	
 	def void doAddClasses(IContainer container, String packagePrefix){
 		for (f : container.members.filter(IFile).filter[name.endsWith(".xtend")]) {
-			val uri = URI.createURI(f.fullPath.toString, true)
+			val uri = URI.createPlatformResourceURI(f.fullPath.toString, true)
 			val className = packagePrefix + "." + f.name.substring(0, f.name.length - 6)
 			availableClasses.put(className, f-> uri )
 		}
@@ -77,7 +82,28 @@ class WorkspaceXtendInterpreter extends XtendInterpreter {
 		}
 	}
 	
-	def ClassLoader addProjectToClasspath(IJavaProject jp) {
+	override recordClassUse(String fqn) {
+		val locationInfo = availableClasses.get(fqn)
+		usedClasses.put(locationInfo.key, locationInfo.value)
+	}
+	
+	override canInterpretClass(String fqn) {
+		availableClasses.containsKey(fqn)
+	}
+	
+	override getClassUri(String fqn) {
+		availableClasses.get(fqn).value
+	}
+	
+	def getUsedClasses() {
+		return usedClasses
+	}
+	
+	override getResourceSet() {
+		rs
+	}
+	
+	override configureClassLoading(ClassLoader injectedClassLoader) {
 		if (injectedClassLoader != null) {
 			val classPathEntries = JavaRuntime.computeDefaultRuntimeClassPath(jp)
 			val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
@@ -86,32 +112,13 @@ class WorkspaceXtendInterpreter extends XtendInterpreter {
 			parent = new DelegatorClassLoader(parent, XtendInterpreter, classPathUrls.map[toString])
 
 			val result = new URLClassLoader(classPathUrls, parent)
-			super.classLoader = result
 			return result
 		}
 		null
 	}
 	
-	def setCurrentType(XtendTypeDeclaration thisType, IFile file) {
-		this.currentType = thisType
-		usedClasses.put(file, thisType.eResource.URI)
-	}
-	
-	override protected recordClassUse(String fqn) {
-		val locationInfo = availableClasses.get(fqn)
-		usedClasses.put(locationInfo.key, locationInfo.value)
-	}
-	
-	override protected canInterpretClass(String fqn) {
-		availableClasses.containsKey(fqn)
-	}
-	
-	override protected getClassUri(String fqn) {
-		availableClasses.get(fqn).value
-	}
-	
-	def getUsedClasses() {
-		return usedClasses
+	def setJavaProject(IJavaProject jp){
+		this.jp = jp
 	}
 
 }

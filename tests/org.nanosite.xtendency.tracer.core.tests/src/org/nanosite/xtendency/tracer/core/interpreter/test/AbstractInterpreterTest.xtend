@@ -3,7 +3,6 @@ package org.nanosite.xtendency.tracer.core.interpreter.test
 import com.google.inject.Inject
 import org.eclipse.xtext.junit4.util.ParseHelper
 import org.eclipse.xtend.core.xtend.XtendFile
-import org.nanosite.xtendency.tracer.core.StandaloneXtendInterpreter
 import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
 import java.util.List
 import org.eclipse.xtend.core.xtend.XtendFunction
@@ -17,22 +16,27 @@ import org.eclipse.xtext.resource.XtextResourceSet
 import org.eclipse.xtext.ui.resource.IResourceSetProvider
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl
 import org.eclipse.emf.common.util.URI
+import org.nanosite.xtendency.tracer.core.TracingInterpreter
+import org.nanosite.xtendency.tracer.core.StandaloneClassManager
 
-@InjectWith(RuntimeInjectorProvider)
+@InjectWith(XtendencyInjectorProvider)
 @RunWith(XtextRunner)
 class AbstractInterpreterTest {
 	@Inject
 	protected ParseHelper<XtendFile> parser 
 	
 	@Inject
-	protected StandaloneXtendInterpreter interpreter
+	protected TracingInterpreter interpreter
+	
+	@Inject
+	protected StandaloneClassManager classManager
 	
 	def <T extends Object> runTest(XtendFile file, String className, String methodName, List<T> arguments){
 		runTestWithClasses(file, className, methodName, arguments, #[])
 	}
 	
 	def <T extends Object> runTestWithClasses(XtendFile file, String className, String methodName, List<T> arguments, List<Pair<String, String>> additionalClasses){
-		interpreter.init(file.eResource.resourceSet)
+		classManager.init(file.eResource.resourceSet)
 		val XtendTypeDeclaration type = file.xtendTypes.findFirst[name == className]
 		val XtendFunction func = type.members.filter(XtendFunction).findFirst[name == methodName]
 		
@@ -50,10 +54,10 @@ class AbstractInterpreterTest {
 		//interpreter.addProjectToClasspath(JavaCore.create(classContainer))
 		file.xtendTypes.forEach[clazz |
 			val fqn = file.package + "." + clazz.name
-			interpreter.addAvailableClass(fqn, file)
+			classManager.addAvailableClass(fqn, file)
 		]
 		additionalClasses.forEach[
-			interpreter.addAvailableClass(key, URI.createURI(value))
+			classManager.addAvailableClass(key, URI.createURI(value))
 		]
 		interpreter.currentType = type
 		interpreter.globalScope = globalContext

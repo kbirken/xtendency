@@ -17,7 +17,7 @@ import com.google.inject.Injector;
 /**
  * @author Sebastian Zarnekow - Initial contribution and API
  */
-public class RuntimeInjectorProvider implements IInjectorProvider, IRegistryConfigurator {
+public class XtendencyInjectorProvider implements IInjectorProvider, IRegistryConfigurator {
 	
     protected GlobalStateMemento stateBeforeInjectorCreation;
 	protected GlobalStateMemento stateAfterInjectorCreation;
@@ -38,7 +38,7 @@ public class RuntimeInjectorProvider implements IInjectorProvider, IRegistryConf
 	}
 	
 	protected Injector internalCreateInjector() {
-	    return new RuntimeTestSetup().createInjectorAndDoEMFRegistration();
+	    return new XtendencyTestSetup().createInjectorAndDoEMFRegistration();
 	}
 
 	public void restoreRegistry() {

@@ -226,6 +226,7 @@ class BasicTest extends AbstractInterpreterTest {
 	
 	@Test
 	def void T17_Polymorphism(){
+		println("Starting Polymorphism")
 		val source = '''
 		package org.nanosite.xtendency.tracer.core.interpreter.test.input
 		
@@ -247,6 +248,7 @@ class BasicTest extends AbstractInterpreterTest {
 	
 	@Test
 	def void T18_PublicVariables(){
+		println("starting publicvariables")
 		val source = '''
 		def T18_PublicVariables(){
 			val instance = new org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithPublicMember()

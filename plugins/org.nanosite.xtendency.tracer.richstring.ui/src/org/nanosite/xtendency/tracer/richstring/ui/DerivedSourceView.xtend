@@ -131,7 +131,7 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 		if (workbenchPart instanceof XbaseEditor) {
 			if (workbenchPart.editorInput instanceof FileEditorInput) {
 				val fei = workbenchPart.editorInput as FileEditorInput
-				if (interpreter.usedClasses.keySet.contains(fei.file)) {
+				if (classManager.usedClasses.keySet.contains(fei.file)) {
 					if (justActivated.contains(workbenchPart)){
 						justActivated.remove(workbenchPart)
 						return
@@ -176,9 +176,9 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 							end = Math.max(end, node.offset + node.length)
 						}
 						val length = end - start
+						val fileName = file.name
 
-						val desc = PlatformUI.getWorkbench().
-						        getEditorRegistry().getDefaultEditor(file.getName());
+						val desc = PlatformUI.getWorkbench.editorRegistry.getDefaultEditor(fileName)
 						val editor = PlatformUI.workbench.activeWorkbenchWindow.activePage.openEditor(new FileEditorInput(file), desc.id)
 						lastEditorSelection.safeGet(editor).add(new SelectionEvent(start, length, System.currentTimeMillis))
 						if (editor instanceof XbaseEditor)
@@ -294,7 +294,9 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 			val tempSet = new HashMap<IFile, Set<TraceTreeNode<RichStringOutputLocation>>>
 			if (current.children.map[findRelevantNodesForOutput(tempSet, offset, length)].reduce[p1, p2|p1 && p2] ?:
 				true) {
-				val f = interpreter.usedClasses.inverse.get(current.input.expression.eResource.URI)
+				val f = classManager.usedClasses.inverse.get(current.input.expression.eResource.URI)
+				if (f == null)
+					println("!!!!!!")
 				nodes.safeGet(f).add(current)
 				return true
 			} else {
@@ -304,6 +306,8 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 				return false
 			}
 		}
+		//TODO: else branch??? is this correct?
+		false
 	}
 	
 	def Set<TraceTreeNode<RichStringOutputLocation>> safeGet(Map<IFile, Set<TraceTreeNode<RichStringOutputLocation>>> map, IFile f){
