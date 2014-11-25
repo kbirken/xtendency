@@ -31,6 +31,8 @@ class WorkspaceClassManager implements IClassManager{
 	
 	protected BiMap<IFile, URI> usedClasses = HashBiMap.create
 	protected Map<String, Pair<IFile, URI>> availableClasses = new HashMap<String, Pair<IFile, URI>>
+	
+	protected ClassLoader classLoader
 
 	@Deprecated
 	def void addClassesInContainerWithPreloading(IContainer container) {
@@ -111,8 +113,8 @@ class WorkspaceClassManager implements IClassManager{
 			var ClassLoader parent = injectedClassLoader
 			parent = new DelegatorClassLoader(parent, XtendInterpreter, classPathUrls.map[toString])
 
-			val result = new URLClassLoader(classPathUrls, parent)
-			return result
+			classLoader = new URLClassLoader(classPathUrls, parent)
+			return classLoader
 		}
 		null
 	}
@@ -121,4 +123,7 @@ class WorkspaceClassManager implements IClassManager{
 		this.jp = jp
 	}
 
+	override getConfiguredClassLoader(){
+		classLoader
+	}
 }

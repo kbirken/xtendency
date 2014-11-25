@@ -249,7 +249,7 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 	}
 
 	def protected boolean isValidSelection(IWorkbenchPartSelection workbenchPartSelection) {
-		return this.inputExpression != null && this.initialContext != null
+		return this.executionContext != null
 	}
 
 	def protected String getBackgroundColorKey() {
@@ -263,7 +263,7 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 
 
 	def protected String computeInput(IWorkbenchPartSelection workbenchPartSelection) {
-		val interpResult = SynchronizedInterpreterAccess.evaluate(interpreter, inputExpression, initialContext.fork)
+		val interpResult = SynchronizedInterpreterAccess.evaluate(interpreter, executionContext.function, initialInstance, classManager, arguments)
 		if (interpResult.result != null && interpResult.result instanceof CharSequence) {
 			return interpResult.result.toString
 		} else {

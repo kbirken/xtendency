@@ -12,6 +12,8 @@ class StandaloneClassManager implements IClassManager {
 	
 	protected ResourceSet rs
 
+	protected ClassLoader classLoader
+
 	def void init (ResourceSet rs) {
 		this.rs = rs
 		this.availableClasses.clear
@@ -42,7 +44,12 @@ class StandaloneClassManager implements IClassManager {
 	}
 	
 	override configureClassLoading(ClassLoader injectedClassLoader) {
+		this.classLoader = injectedClassLoader
 		injectedClassLoader
+	}
+	
+	override getConfiguredClassLoader() {
+		classLoader
 	}
 	
 }

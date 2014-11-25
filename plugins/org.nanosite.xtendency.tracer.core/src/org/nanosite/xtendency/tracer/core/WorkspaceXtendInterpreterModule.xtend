@@ -11,10 +11,9 @@ class WorkspaceXtendInterpreterModule extends AbstractGenericModule {
 //	} 
 	
 	def configureSomething(Binder binder){
-//		val instance = new WorkspaceClassManager
-//		binder.bind(IClassManager).toInstance(instance)
-//		binder.bind(WorkspaceClassManager).toInstance(instance)
 		binder.bind(IClassManager).to(WorkspaceClassManager)
 		binder.bind(WorkspaceClassManager).in(Singleton)
+		binder.bind(IObjectRepresentationStrategy).to(JavaObjectRepresentationStrategy)
+		binder.bind(JavaObjectRepresentationStrategy).in(Singleton)
 	}
 }

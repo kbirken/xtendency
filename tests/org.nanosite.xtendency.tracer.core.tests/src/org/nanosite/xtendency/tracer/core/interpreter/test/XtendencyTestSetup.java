@@ -31,6 +31,9 @@ import org.eclipse.xtext.validation.ConfigurableIssueCodesProvider;
 import org.eclipse.xtext.validation.SeverityConverter;
 import org.eclipse.xtext.xbase.validation.IssueCodes;
 import org.nanosite.xtendency.tracer.core.IClassManager;
+import org.nanosite.xtendency.tracer.core.IObjectRepresentationStrategy;
+import org.nanosite.xtendency.tracer.core.JavaObjectRepresentationStrategy;
+import org.nanosite.xtendency.tracer.core.SimulatedObjectRepresentationStrategy;
 import org.nanosite.xtendency.tracer.core.StandaloneClassManager;
 
 import com.google.common.io.CharStreams;
@@ -59,6 +62,9 @@ public class XtendencyTestSetup extends XtendStandaloneSetup {
 //			binder.bind(StandaloneClassManager.class).toInstance(instance);
 			binder.bind(IClassManager.class).to(StandaloneClassManager.class);
 			binder.bind(StandaloneClassManager.class).in(Singleton.class);
+			
+			binder.bind(IObjectRepresentationStrategy.class).to(SimulatedObjectRepresentationStrategy.class);
+			binder.bind(SimulatedObjectRepresentationStrategy.class).in(Singleton.class);
 		}
 		
 		@Override

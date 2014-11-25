@@ -8,6 +8,7 @@ import org.junit.Test
 import static org.junit.Assert.*
 import org.nanosite.xtendency.tracer.core.interpreter.test.input.CreateMethodArgClass
 import org.nanosite.xtendency.tracer.core.interpreter.test.input.BasicCreateMethodClass
+import org.nanosite.xtendency.tracer.core.XtendObject
 
 class BasicTest extends AbstractInterpreterTest {
 	
@@ -16,10 +17,10 @@ class BasicTest extends AbstractInterpreterTest {
 	@Test
 	def void T01_SimpleRichStringTest() {
 		var file = parser.parse('''
-		def T01_SimpleRichString(){ """HelloWorld""" }
+		def static T01_SimpleRichString(){ """HelloWorld""" }
 		'''.toXtendClass("SomeClass01"))
 		
-		val result = file.runTest("SomeClass01", "T01_SimpleRichString", #[])
+		val result = file.runTest("SomeClass01", "T01_SimpleRichString", null, #[])
 		
 		assertEquals("HelloWorld", result.result.toString)
 	}
@@ -32,14 +33,14 @@ class BasicTest extends AbstractInterpreterTest {
 		
 		val file = parser.parse(source)
 		
-		val result = file.runTest("SomeClass02", "T02_RichStringWithArgument", #["Between"])
+		val result = file.runTest("SomeClass02", "T02_RichStringWithArgument", new XtendObject(PACKAGE + ".SomeClass02"), #["Between"])
 		assertEquals("BeforeBetweenAfter", result.result.toString)
 	}
 	
 	@Test
 	def void T031_ForLoop(){
 		val source = '''
-		def T03_ForLoop(int iterations)"""
+		def static T03_ForLoop(int iterations)"""
 		<<FOR i : 0..<iterations>>
 		<<i>>
 		<<ENDFOR>>
@@ -47,7 +48,7 @@ class BasicTest extends AbstractInterpreterTest {
 		'''.toXtendClass("SomeClass03")
 		var file = parser.parse(source)
 		
-		val result = file.runTest("SomeClass03", "T03_ForLoop", #[4])
+		val result = file.runTest("SomeClass03", "T03_ForLoop", null, #[4])
 		
 		assertEquals(
 	 	'''0
@@ -71,7 +72,7 @@ class BasicTest extends AbstractInterpreterTest {
 		'''.toXtendClass("SomeClass04")
 		var file = parser.parse(source)
 		
-		val result = file.runTest("SomeClass04", "T04_NestedForLoop", #[2, 3])
+		val result = file.runTest("SomeClass04", "T04_NestedForLoop", new XtendObject(PACKAGE + ".SomeClass04"), #[2, 3])
 		
 		assertEquals(
 			'''
@@ -87,7 +88,7 @@ class BasicTest extends AbstractInterpreterTest {
 	@Test
 	def void T05_IfThen(){
 		val source = '''
-		def T05_IfThen(int input)"""
+		def static T05_IfThen(int input)"""
 		<<IF input > 3>>
 		input <<input>> is greater than 3
 		<<ENDIF>>"""
@@ -95,8 +96,8 @@ class BasicTest extends AbstractInterpreterTest {
 		
 		val file = parser.parse(source)
 		println("resource is " + file.eResource)
-		val resultTrue = file.runTest("SomeClass05", "T05_IfThen", #[8])
-		val resultFalse = file.runTest("SomeClass05", "T05_IfThen", #[-2])
+		val resultTrue = file.runTest("SomeClass05", "T05_IfThen", null, #[8])
+		val resultFalse = file.runTest("SomeClass05", "T05_IfThen", null, #[-2])
 		assertEquals("input 8 is greater than 3\n", resultTrue.result)
 		assertEquals("", resultFalse.result)
 	}
@@ -113,8 +114,8 @@ class BasicTest extends AbstractInterpreterTest {
 		'''.toXtendClass("SomeClass06")
 		
 		val file = parser.parse(source)
-		val resultTrue = file.runTest("SomeClass06", "T06_IfThenElse", #[17])
-		val resultFalse = file.runTest("SomeClass06", "T06_IfThenElse", #[1])
+		val resultTrue = file.runTest("SomeClass06", "T06_IfThenElse", new XtendObject(PACKAGE + ".SomeClass06"),  #[17])
+		val resultFalse = file.runTest("SomeClass06", "T06_IfThenElse", new XtendObject(PACKAGE + ".SomeClass06"), #[1])
 		assertEquals("input 17 is greater than 3", resultTrue.result)
 		assertEquals("input 1 is not greater than 3", resultFalse.result)
 	}
@@ -133,7 +134,7 @@ class BasicTest extends AbstractInterpreterTest {
 		
 		var file = parser.parse(source)
 		
-		val result = file.runTest("SomeClass11", "T11_SimpleMethodCall", #[])
+		val result = file.runTest("SomeClass11", "T11_SimpleMethodCall", new XtendObject(PACKAGE + ".SomeClass11"), #[])
 		
 		assertEquals("GettingStringFromOtherMethod", result.result)
 	}
@@ -152,7 +153,7 @@ class BasicTest extends AbstractInterpreterTest {
 		
 		val file = parser.parse(source)
 		
-		val result = file.runTest("SomeClass12", "T12_ThisMethodCall", #[])
+		val result = file.runTest("SomeClass12", "T12_ThisMethodCall", new XtendObject(PACKAGE + ".SomeClass12"), #[])
 		
 		assertEquals("GettingStringFromOtherMethod", result.result)
 	}
@@ -160,19 +161,19 @@ class BasicTest extends AbstractInterpreterTest {
 	@Test
 	def void T081_SimpleDispatch(){
 		val source = '''
-		def T08_SimpleDispatchInvoker(Iterable<String> strings){
+		def static T08_SimpleDispatchInvoker(Iterable<String> strings){
 			T08_SimpleDispatch(strings)
 		}
 		
-		def dispatch T08_SimpleDispatch(java.util.List<String> strings){
+		def static dispatch T08_SimpleDispatch(java.util.List<String> strings){
 			"List"
 		}
 	
-		def dispatch T08_SimpleDispatch(java.util.ArrayList<String> strings){
+		def static dispatch T08_SimpleDispatch(java.util.ArrayList<String> strings){
 			"ArrayList"
 		}
 	
-		def dispatch T08_SimpleDispatch(Iterable<String> strings){
+		def static dispatch T08_SimpleDispatch(Iterable<String> strings){
 			"Iterable"
 		}
 		'''.toXtendClass("SomeClass08")
@@ -181,57 +182,56 @@ class BasicTest extends AbstractInterpreterTest {
 		val arrayListArg = new ArrayList<String>
 		val listArg = new LinkedList<String>
 		val iterableArg = new HashSet<String>
-		assertEquals("ArrayList", file.runTest("SomeClass08", "T08_SimpleDispatchInvoker", #[arrayListArg]).result)
-		assertEquals("List", file.runTest("SomeClass08", "T08_SimpleDispatchInvoker", #[listArg]).result)
-		assertEquals("Iterable", file.runTest("SomeClass08", "T08_SimpleDispatchInvoker", #[iterableArg]).result)
+		assertEquals("ArrayList", file.runTest("SomeClass08", "T08_SimpleDispatchInvoker", null, #[arrayListArg]).result)
+		assertEquals("List", file.runTest("SomeClass08", "T08_SimpleDispatchInvoker", null, #[listArg]).result)
+		assertEquals("Iterable", file.runTest("SomeClass08", "T08_SimpleDispatchInvoker", null, #[iterableArg]).result)
 	}
 	
 	@Test
 	def void T15_BasicCreateMethod(){
 		val source = '''
-		def T15_BasicCreateMethodInvoker(String input, org.nanosite.xtendency.tracer.core.interpreter.test.input.BasicCreateMethodClass in){
+		def static T15_BasicCreateMethodInvoker(String input, «PACKAGE».BasicCreateMethodClass in){
 			in.T15_BasicCreateMethod(input)
 		}
 		'''.toXtendClass("SomeClass15")
 		
-		val className = "org.nanosite.xtendency.tracer.core.interpreter.test.input.BasicCreateMethodClass"
+		val className = PACKAGE + ".BasicCreateMethodClass"
 		val object = new BasicCreateMethodClass
 		val file = parser.parse(source)
-		val result1 = file.runTestWithClasses("SomeClass15", "T15_BasicCreateMethodInvoker", #["Input", object], #[className -> uri])
+		val result1 = file.runTestWithClasses("SomeClass15", "T15_BasicCreateMethodInvoker",null,  #["Input", object], #[className -> uri])
 		assertEquals("SomethingAppendedInBody", result1.result.toString)
-		val result2 = file.runTestWithClasses("SomeClass15", "T15_BasicCreateMethodInvoker", #["Input", object], #[className -> uri])
+		val result2 = file.runTestWithClasses("SomeClass15", "T15_BasicCreateMethodInvoker", null, #["Input", object], #[className -> uri])
 		assertTrue(result1.result.identityEquals(result2.result))
-		val result3 = file.runTestWithClasses("SomeClass15", "T15_BasicCreateMethodInvoker", #["OtherInput", object], #[className -> uri])
+		val result3 = file.runTestWithClasses("SomeClass15", "T15_BasicCreateMethodInvoker", null, #["OtherInput", object], #[className -> uri])
 		assertFalse(result1.result.identityEquals(result3.result))
 	}
 	
 	@Test
 	def void T16_CreateMethodArg(){
 		val source = '''
-		def T16_BasicCreateMethodInvoker(String input, org.nanosite.xtendency.tracer.core.interpreter.test.input.CreateMethodArgClass in){
+		def static T16_BasicCreateMethodInvoker(String input, «PACKAGE».CreateMethodArgClass in){
 			in.T16_BasicCreateMethod(input)
 		}
 		'''.toXtendClass("SomeClass16")
 		
-		val className = "org.nanosite.xtendency.tracer.core.interpreter.test.input.CreateMethodArgClass"
+		val className = PACKAGE + ".CreateMethodArgClass"
 		
 		val object = new CreateMethodArgClass
 		
 		val file = parser.parse(source)
-		val result1 = file.runTestWithClasses("SomeClass16", "T16_BasicCreateMethodInvoker", #["Input", object], #[className -> uri])
+		val result1 = file.runTestWithClasses("SomeClass16", "T16_BasicCreateMethodInvoker", null, #["Input", object], #[className -> uri])
 		assertEquals("InputAppendedInBody", result1.result.toString)
-		val result2 = file.runTestWithClasses("SomeClass16", "T16_BasicCreateMethodInvoker", #["Input", object], #[className -> uri])
+		val result2 = file.runTestWithClasses("SomeClass16", "T16_BasicCreateMethodInvoker", null, #["Input", object], #[className -> uri])
 		assertTrue(result1.result.identityEquals(result2.result))
 	}
 	
 	@Test
 	def void T17_Polymorphism(){
-		println("Starting Polymorphism")
 		val source = '''
-		package org.nanosite.xtendency.tracer.core.interpreter.test.input
+		package «PACKAGE»
 		
 		class MainClass17 {
-			def T17_Polymorphism(){
+			def static T17_Polymorphism(){
 				val list = #[new SuperClass(), new SubClass()]
 				var result = ""
 				list.forEach[result += doSomething]
@@ -240,7 +240,7 @@ class BasicTest extends AbstractInterpreterTest {
 		}
 		'''.unescape
 		val file = parser.parse(source)
-		val result = file.runTestWithClasses("MainClass17", "T17_Polymorphism", #[], #["org.nanosite.xtendency.tracer.core.interpreter.test.input.SuperClass" -> uri, "org.nanosite.xtendency.tracer.core.interpreter.test.input.SubClass" -> uri])
+		val result = file.runTestWithClasses("MainClass17", "T17_Polymorphism", null, #[], #[PACKAGE + ".SuperClass" -> uri, PACKAGE + ".SubClass" -> uri])
 		
 		assertEquals("From the SuperClass. From the SubClass and From the SuperClass. ", result.result)
 		
@@ -248,10 +248,9 @@ class BasicTest extends AbstractInterpreterTest {
 	
 	@Test
 	def void T18_PublicVariables(){
-		println("starting publicvariables")
 		val source = '''
 		def T18_PublicVariables(){
-			val instance = new org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithPublicMember()
+			val instance = new «PACKAGE».ClassWithPublicMember()
 			
 			val initial_directGet = instance.someString
 			val initial_methodGet = instance.get
@@ -268,7 +267,7 @@ class BasicTest extends AbstractInterpreterTest {
 		}
 		'''.toXtendClass("SomeClass18")
 		val file = parser.parse(source)
-		val result = file.runTestWithClasses("SomeClass18", "T18_PublicVariables", #[], #["org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithPublicMember" -> uri])
+		val result = file.runTestWithClasses("SomeClass18", "T18_PublicVariables", new XtendObject(PACKAGE + ".SomeClass18"), #[], #[PACKAGE + ".ClassWithPublicMember" -> uri])
 		assertEquals("initialinitialsetDirectlysetDirectlysetMethodsetMethod", result.result)
 	}
 	
@@ -276,25 +275,25 @@ class BasicTest extends AbstractInterpreterTest {
 	def void T19_StaticVariables(){
 		val source = '''
 		def T19_StaticVariables(){
-			val instance = new org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember()
+			val instance = new «PACKAGE».ClassWithStaticMember()
 			
-			val initial_directGet = org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.SOMESTRING
-			val initial_staticGet = org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.getStatic
+			val initial_directGet = «PACKAGE».ClassWithStaticMember.SOMESTRING
+			val initial_staticGet = «PACKAGE».ClassWithStaticMember.getStatic
 			val initial_nonStaticGet = instance.getNonStatic
 			
-			org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.SOMESTRING = "SETDIRECTLY"
-			val setDirectly_directGet = org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.SOMESTRING
-			val setDirectly_staticGet = org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.getStatic
+			«PACKAGE».ClassWithStaticMember.SOMESTRING = "SETDIRECTLY"
+			val setDirectly_directGet = «PACKAGE».ClassWithStaticMember.SOMESTRING
+			val setDirectly_staticGet = «PACKAGE».ClassWithStaticMember.getStatic
 			val setDirectly_nonStaticGet = instance.getNonStatic
 			
-			org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.setStatic("SETSTATIC")
-			val setStatic_directGet = org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.SOMESTRING
-			val setStatic_staticGet = org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.getStatic
+			«PACKAGE».ClassWithStaticMember.setStatic("SETSTATIC")
+			val setStatic_directGet = «PACKAGE».ClassWithStaticMember.SOMESTRING
+			val setStatic_staticGet = «PACKAGE».ClassWithStaticMember.getStatic
 			val setStatic_nonStaticGet = instance.getNonStatic
 			
 			instance.setNonStatic("NONSTATIC")
-			val setNonStatic_directGet = org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.SOMESTRING
-			val setNonStatic_staticGet = org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember.getStatic
+			val setNonStatic_directGet = «PACKAGE».ClassWithStaticMember.SOMESTRING
+			val setNonStatic_staticGet = «PACKAGE».ClassWithStaticMember.getStatic
 			val setNonStatic_nonStaticGet = instance.getNonStatic
 			
 			val other = instance.getStatic
@@ -306,7 +305,7 @@ class BasicTest extends AbstractInterpreterTest {
 		}
 		'''.toXtendClass("SomeClass19")
 		val file = parser.parse(source)
-		val result = file.runTestWithClasses("SomeClass19", "T19_StaticVariables", #[], #["org.nanosite.xtendency.tracer.core.interpreter.test.input.ClassWithStaticMember" -> uri])
+		val result = file.runTestWithClasses("SomeClass19", "T19_StaticVariables", new XtendObject(PACKAGE + ".SomeClass19"), #[], #[PACKAGE + ".ClassWithStaticMember" -> uri])
 
 		
 		assertEquals("INITIALINITIALINITIALSETDIRECTLYSETDIRECTLYSETDIRECTLYSETSTATICSETSTATICSETSTATICNONSTATICNONSTATICNONSTATICNONSTATIC", result.result)

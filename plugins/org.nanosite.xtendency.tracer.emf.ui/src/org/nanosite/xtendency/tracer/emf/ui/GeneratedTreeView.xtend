@@ -52,6 +52,7 @@ import static org.eclipse.ui.editors.text.EditorsUI.*
 import static org.eclipse.xtext.ui.util.DisplayRunHelper.*
 
 import static extension org.nanosite.xtendency.tracer.emf.ui.GeneratedTreeView.*
+import org.nanosite.xtendency.tracer.core.XtendEvaluationResult
 
 class GeneratedTreeView extends AbstractGeneratedView {
 
@@ -292,7 +293,8 @@ class GeneratedTreeView extends AbstractGeneratedView {
 									errorCompositeContainer.layout()
 								} else {
 									setTreeInput(null)
-									errorViewer.input = new Document(input.exception.getStackTraceString)
+									val stackTrace = if (input instanceof XtendEvaluationResult) input.stackTrace else input.exception.stackTraceString
+									errorViewer.input = new Document(stackTrace)
 									(errorCompositeContainer.getLayout as StackLayout).topControl = errorComposite
 									errorCompositeContainer.layout()
 								}
@@ -308,7 +310,7 @@ class GeneratedTreeView extends AbstractGeneratedView {
 
 	def protected computeInput(IWorkbenchPartSelection workbenchPartSelection) {
 		println("recomputing input")
-		val interpResult = SynchronizedInterpreterAccess.evaluate(interpreter, inputExpression, initialContext.fork)
+		val interpResult = SynchronizedInterpreterAccess.evaluate(interpreter, executionContext.function, initialInstance, classManager, arguments)
 		interpResult
 	}
 

@@ -47,17 +47,29 @@ import java.io.PrintWriter
 import org.nanosite.xtendency.tracer.core.IClassManager
 import org.nanosite.xtendency.tracer.core.WorkspaceClassManager
 import org.nanosite.xtendency.tracer.core.WorkspaceXtendInterpreterModule
+import org.eclipse.xtext.xbase.interpreter.impl.XbaseInterpreter
+import java.util.List
+import org.eclipse.xtext.xbase.interpreter.impl.EvaluationException
 
 abstract class AbstractGeneratedView extends ViewPart implements IResourceChangeListener, ISelectionListener, IPartListener2, IGeneratedView {
 	protected static final ISchedulingRule SEQUENCE_RULE = SchedulingRuleFactory.INSTANCE.newSequence();
 	
 	protected IFile tecFile
-	protected XExpression inputExpression
-
-	protected IEvaluationContext initialContext
+	
+	protected ExecutionContext executionContext
+	
+	protected Object initialInstance
+	
+	protected List<Object> arguments
+	
+	@Inject
+	protected ClassLoader injectedClassLoader
 	
 	@Inject
 	protected TracingInterpreter interpreter
+	
+	@Inject
+	protected XbaseInterpreter argumentInterpreter
 	
 	@Inject 
 	protected WorkspaceClassManager classManager
@@ -75,27 +87,21 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 		injector.createChildInjector(#[new WorkspaceXtendInterpreterModule]).injectMembers(this);
 	}
 	
-	def setInput(XtendTypeDeclaration typeDecl, XExpression inputExpression, IEvaluationContext context, IExtendedEvaluationContext globalContext, IFile file) {
-		interpreter.setCurrentType(typeDecl)
-		this.inputExpression = inputExpression
-		this.initialContext = context
-		interpreter.globalScope = globalContext
-	}
+
 
 	def setInput(ExecutionContext ec, IFile tecFile) {
 		workspace.addResourceChangeListener(this);
 		val project = ResourcesPlugin.getWorkspace.root.getProject(ec.projectName)
 		classManager.javaProject = JavaCore.create(project)
-		val urlClassLoader = classManager.configureClassLoading(interpreter.defaultClassLoader)
-		interpreter.classLoader = urlClassLoader
+		val urlClassLoader = classManager.configureClassLoading(injectedClassLoader)
+		
+		this.executionContext = ec
 		
 		val f = ec.getClazz().eContainer() as XtendFile
 		val file = getFileForUri(f.eResource.URI, tecFile.project)
 		val typeDecl = ec.getClazz();
 		val func = ec.getFunction();
 		val inputExpression = func.getExpression();
-		val globalContext = new ChattyEvaluationContext();
-		val context = globalContext.fork
 		val IFile entryClassFile = f.eResource.URI.getFileForUri(tecFile.project)
 		switch (ec.scope){
 			case null:
@@ -109,37 +115,53 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 				
 		}
 
-		val Injector injector = if(ec.injector != null) interpreter.evaluate(ec.injector).result as Injector else null
-		val initContext = new ChattyEvaluationContext()
+		val initContext = new ChattyEvaluationContext
+		val Injector injector = if(ec.injector != null) argumentInterpreter.evaluate(ec.injector).result as Injector else null
 
-		if (injector != null) {
-			for (im : ec.injectedMembers) {
-				val desiredClass = Class.forName(im.type.type.identifier, true, urlClassLoader)
-				initContext.newValue(QualifiedName.create(im.name), injector.getInstance(desiredClass))
-			}
-		}
+		//TODO: I forgot that this was supposed to do ?!?
+//		if (injector != null) {
+//			for (im : ec.injectedMembers) {
+//				val desiredClass = Class.forName(im.type.type.identifier, true, urlClassLoader)
+//				initContext.newValue(QualifiedName.create(im.name), injector.getInstance(desiredClass))
+//			}
+//		}
+	
+		argumentInterpreter.classLoader = urlClassLoader
+		
+		arguments = newArrayOfSize(ec.function.parameters.size)
 
 		for (i : ec.getInits()) {
 			try {
-				val result = interpreter.evaluate(i.getExpr(), initContext.fork, CancelIndicator.NullImpl);
+				val result = argumentInterpreter.evaluate(i.getExpr(), initContext.fork, CancelIndicator.NullImpl);
 				val value = result.getResult();
 				if (result.exception == null) {
-					context.newValue(QualifiedName.create(i.getParam()), value);
-					if (injector != null && i.param == "this") {
-						injector.injectMembers(value)
+					if (i.param == "this"){
+						if (injector != null)
+							injector.injectMembers(value)
+						initialInstance = value
+					}else{
+						arguments.set(i.param.findParameterIndex, value)
 					}
 				} else {
-					println("Interpreter exception during evaluation of initializer '" + i.param + "':")
-					result.exception.printStackTrace
+					throw result.exception
 				}
 			} catch (Exception e) {
 				e.printStackTrace
 			}
 		}
 		
-		setInput(typeDecl, inputExpression, context, globalContext, file)
 		this.tecFile = tecFile
 		refreshJob.reschedule();
+	}
+	
+	def int findParameterIndex(String paramName){
+		val func = executionContext.function
+		
+		for(i : 0..<func.parameters.size){
+			if (func.parameters.get(i).name == paramName)
+				return i
+		}
+		throw new IllegalStateException
 	}
 	
 	def void doCreatePartControl(Composite parent)
@@ -177,7 +199,7 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 		} else if (event.delta != null && tecFile != null && event.delta.concernsFile(tecFile)) {
 			val rs = rsProvider.get(tecFile.getProject())
 			val r = rs.getResource(URI.createURI(tecFile.getFullPath().toString()), true)
-			val classResource = inputExpression.eResource
+			val classResource = executionContext.clazz.eResource
 			classResource.unload
 			r.unload
 			r.load(Collections.EMPTY_MAP)

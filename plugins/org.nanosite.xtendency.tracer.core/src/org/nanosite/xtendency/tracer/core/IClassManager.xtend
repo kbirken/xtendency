@@ -7,6 +7,7 @@ interface IClassManager {
 	def ResourceSet getResourceSet()
 	
 	def ClassLoader configureClassLoading(ClassLoader injectedClassLoader)
+	def ClassLoader getConfiguredClassLoader()
 	
 	def void recordClassUse(String fqn)
 	
