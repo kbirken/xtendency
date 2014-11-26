@@ -17,7 +17,6 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 	protected JavaReflectAccess javaReflectAccess
 	protected XtendInterpreter interpreter
 	
-	@Inject
 	protected IClassManager classManager
 	
 	override getFieldValue(Object object, String fieldName) {
@@ -105,12 +104,9 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 				throw new NoSuchMethodException("Could not find constructor " + constr.getIdentifier());
 			constructor.setAccessible(true);
 			val result = constructor.newInstance(arguments.toArray);
-			return result;
+			return false -> result;
 		} catch (InvocationTargetException targetException) {
 			throw new EvaluationException(targetException.getTargetException());
-		} catch (Exception e) {
-			e.printStackTrace
-			throw new IllegalStateException("Could not invoke constructor: " + constr.getIdentifier(), e);
 		}
 	}
 	
@@ -118,9 +114,10 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 		//do nothing
 	}
 	
-	override init(JavaReflectAccess reflectAccess, XtendInterpreter interpreter) {
+	override init(JavaReflectAccess reflectAccess, IClassManager classManager, XtendInterpreter interpreter) {
 		this.javaReflectAccess = reflectAccess
 		this.interpreter = interpreter
+		this.classManager = classManager
 	}
 	
 	override getQualifiedClassName(Object object) {

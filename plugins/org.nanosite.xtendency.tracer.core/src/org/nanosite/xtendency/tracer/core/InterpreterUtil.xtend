@@ -13,6 +13,10 @@ import org.eclipse.xtext.common.types.JvmDeclaredType
 import org.eclipse.xtend.core.xtend.XtendClass
 import org.eclipse.xtend.core.xtend.XtendFile
 import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
+import org.eclipse.xtend.core.xtend.XtendExecutable
+import org.eclipse.xtext.common.types.JvmExecutable
+import org.eclipse.xtend.core.xtend.XtendConstructor
+import org.eclipse.xtext.common.types.JvmConstructor
 
 class InterpreterUtil {
 	
@@ -87,14 +91,19 @@ class InterpreterUtil {
 		type.members.filter(XtendFunction).exists[operationsEqual(it, op)]
 	}
 
-	def boolean operationsEqual(XtendFunction op1, JvmOperation op2) {
-		if (op1.name != op2.simpleName)
+	def boolean operationsEqual(XtendExecutable op1, JvmExecutable op2) {
+		if (op1 instanceof XtendFunction && !(op2 instanceof JvmOperation)){
 			return false
+		}
+		if (op1 instanceof XtendConstructor && !(op2 instanceof JvmConstructor))
+			return false
+		if (op1 instanceof XtendFunction){
+			if ((op1 as XtendFunction).name != op2.simpleName)
+				return false
+		}
 		if (op1.parameters.size != op2.parameters.size)
 			return false
 
-		//		if (op1.returnType != op2.returnType)
-		//			return false
 		for (i : 0 ..< op1.parameters.size) {
 			val p1 = op1.parameters.get(i)
 			val p2 = op2.parameters.get(i)

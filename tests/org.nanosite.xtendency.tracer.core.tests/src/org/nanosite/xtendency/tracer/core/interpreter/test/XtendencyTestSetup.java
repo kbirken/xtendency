@@ -57,14 +57,9 @@ public class XtendencyTestSetup extends XtendStandaloneSetup {
 	 */
 	public static class XtendRuntimeTestModule extends XtendRuntimeModule {
 		public void configureSomething(Binder binder){
-//			StandaloneClassManager instance = new StandaloneClassManager();
-//			binder.bind(IClassManager.class).toInstance(instance);
-//			binder.bind(StandaloneClassManager.class).toInstance(instance);
 			binder.bind(IClassManager.class).to(StandaloneClassManager.class);
-			binder.bind(StandaloneClassManager.class).in(Singleton.class);
 			
 			binder.bind(IObjectRepresentationStrategy.class).to(SimulatedObjectRepresentationStrategy.class);
-			binder.bind(SimulatedObjectRepresentationStrategy.class).in(Singleton.class);
 		}
 		
 		@Override

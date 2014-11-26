@@ -44,6 +44,8 @@ import org.eclipse.xtext.xbase.interpreter.impl.InterpreterCanceledException
 import org.eclipse.emf.ecore.EObject
 import org.eclipse.xtext.common.types.JvmExecutable
 import org.eclipse.xtext.xbase.XMemberFeatureCall
+import org.eclipse.xtend.core.xtend.XtendConstructor
+import org.eclipse.xtext.common.types.JvmConstructor
 
 abstract class XtendInterpreter extends XbaseInterpreter {
 
@@ -54,44 +56,47 @@ abstract class XtendInterpreter extends XbaseInterpreter {
 	protected RichStringProcessor richStringProcessor
 
 	@Inject
-	protected Provider<DefaultIndentationHandler> indentationHandler	
+	protected Provider<DefaultIndentationHandler> indentationHandler
 
 	protected XtendTypeDeclaration currentType
 
 	protected ClassLoader injectedClassLoader
-	
+
 	protected ClassLoader usedClassLoader
-		
-	@Inject
+
 	protected IClassManager classManager
-	
+
 	@Inject
 	protected IObjectRepresentationStrategy objectRep
-	
+
 	protected Stack<XAbstractFeatureCall> currentStackTrace = new Stack<XAbstractFeatureCall>
-	
+
 	protected extension InterpreterUtil util
-	
+
 	protected boolean calledCorrectly = false
 
 	override void setClassLoader(ClassLoader cl) {
-		if (cl instanceof EquinoxClassLoader){}
-			this.injectedClassLoader = cl
+		if (cl instanceof EquinoxClassLoader) {
+		}
+		this.injectedClassLoader = cl
 		super.classLoader = cl
 		this.usedClassLoader = cl
 	}
-	
+
 	override protected internalEvaluate(XExpression expression, IEvaluationContext context, CancelIndicator indicator) throws EvaluationException {
+
 		//overridden to make method accessible for other classes in this package
 		super.internalEvaluate(expression, context, indicator)
 	}
-	
+
 	override evaluate(XExpression expression, IEvaluationContext context, CancelIndicator indicator) {
 		if (!calledCorrectly)
-			println("Please use XtendInterpreter.evaluateMethod(..) to invoke a method. Using evaluate(..) directly may lead to errors or other unintended behaviour.")
-		
+			println(
+				"Please use XtendInterpreter.evaluateMethod(..) to invoke a method. Using evaluate(..) directly may lead to errors or other unintended behaviour.")
+
 		try {
-			val result = internalEvaluate(expression, context, if (indicator!=null) indicator else CancelIndicator.NullImpl);
+			val result = internalEvaluate(expression, context,
+				if(indicator != null) indicator else CancelIndicator.NullImpl);
 			return new DefaultEvaluationResult(result, null);
 		} catch (EvaluationException e) {
 			val nl = System.getProperty("line.separator", "\n")
@@ -99,79 +104,79 @@ abstract class XtendInterpreter extends XbaseInterpreter {
 			val sw = new StringWriter()
 			val pw = new PrintWriter(sw)
 			e.cause.printStackTrace(pw)
-			
+
 			val br = new BufferedReader(new StringReader(sw.toString))
 			var continueReading = true
-			while (continueReading){
+			while (continueReading) {
 				val current = br.readLine
-				if (current == null 
-					|| current.contains("sun.reflect.NativeMethodAccessor") 
-					|| current.contains("sun.reflect.GeneratedMethodAccessor")
-					|| current.contains("org.nanosite.xtendency.tracer.core.")
-					|| current.contains("org.eclipse.xtext.xbase.interpreter.impl.XbaseInterpreter"))
+				if (current == null || current.contains("sun.reflect.NativeMethodAccessor") ||
+					current.contains("sun.reflect.GeneratedMethodAccessor") ||
+					current.contains("org.nanosite.xtendency.tracer.core.") ||
+					current.contains("org.eclipse.xtext.xbase.interpreter.impl.XbaseInterpreter"))
 					continueReading = false
-				else 
+				else
 					result.append(current).append(nl)
 			}
-			
+
 			val stackInOrder = currentStackTrace.reverse
-			for (call : stackInOrder){
+			for (call : stackInOrder) {
 				val op = call.getParent(XtendFunction)
 				val clazz = op?.getParent(XtendClass)
 				val file = clazz?.getParent(XtendFile)
-				if (file != null){
-					val opName =  clazz.qualifiedName + "." + op.name
+				if (file != null) {
+					val opName = clazz.qualifiedName + "." + op.name
 					val filename = call.eResource.URI.lastSegment
 					val node = NodeModelUtils.findActualNodeFor(call)
-					result.append("\tat " + opName+ "(" + filename + ":" + node.startLine + ")").append(nl)
+					result.append("\tat " + opName + "(" + filename + ":" + node.startLine + ")").append(nl)
 				}
 			}
 			return new XtendEvaluationResult(null, e.getCause(), result.toString);
 		} catch (InterpreterCanceledException e) {
 			return null;
-		}catch (Exception e){
-			if (e.class.simpleName == "ReturnValue"){
+		} catch (Exception e) {
+			if (e.class.simpleName == "ReturnValue") {
 				val rvField = e.class.getDeclaredField("returnValue")
 				rvField.accessible = true
 				return new DefaultEvaluationResult(rvField.get(e), null)
-			}else{
+			} else {
 				throw e
 			}
-				
+
 		}
 	}
-	
-	def evaluateMethod(XtendFunction method, Object currentInstance, IClassManager classMgr, List<? extends Object> arguments){
+
+	def evaluateMethod(XtendFunction method, Object currentInstance, IClassManager classMgr,
+		List<? extends Object> arguments) {
 		if (method.static && currentInstance != null)
 			throw new IllegalArgumentException
 		if (!method.static && currentInstance == null)
 			throw new IllegalArgumentException
 		if (method.parameters.size != arguments.size)
 			throw new IllegalArgumentException
-			
+
 		this.classManager = classMgr
 		if (classMgr.configuredClassLoader == null)
 			super.classLoader = classMgr.configureClassLoading(injectedClassLoader)
 		else
 			super.classLoader = classMgr.configuredClassLoader
 		util = new InterpreterUtil(classFinder)
-		
+
 		val clazz = method.declaringType as XtendClass
 		this.currentType = clazz
 		classManager.recordClassUse(clazz.qualifiedName)
-		
+
 		currentStackTrace.clear
-		
-		objectRep.init(javaReflectAccess, this)
+
+		objectRep.init(javaReflectAccess, classMgr, this)
 		objectRep.initializeClass(clazz)
-		
+
 		val context = new ChattyEvaluationContext
 		if (currentInstance != null)
 			context.newValue(QualifiedName.create("this"), currentInstance)
-		for (i : 0..<method.parameters.size){
+		for (i : 0 ..< method.parameters.size) {
 			context.newValue(QualifiedName.create(method.parameters.get(i).name), arguments.get(i))
 		}
-		
+
 		calledCorrectly = true
 		val result = evaluate(method.expression, context, CancelIndicator.NullImpl)
 		calledCorrectly = false
@@ -197,12 +202,61 @@ abstract class XtendInterpreter extends XbaseInterpreter {
 			super.doEvaluate(expression, context, indicator)
 		}
 	}
-	
-	override protected _doEvaluate(XConstructorCall constructorCall, IEvaluationContext context, CancelIndicator indicator) {
+
+	override protected _doEvaluate(XConstructorCall constructorCall, IEvaluationContext context,
+		CancelIndicator indicator) {
 		val jvmConstructor = constructorCall.getConstructor
 		val arguments = evaluateArgumentExpressions(jvmConstructor, constructorCall.getArguments(), context, indicator)
-		
-		objectRep.executeConstructorCall(jvmConstructor, arguments)
+
+		var XtendClass clazz = null
+		if (classManager.canInterpretClass(jvmConstructor.declaringType.qualifiedName)) {
+			clazz = classManager.getClassForName(jvmConstructor.declaringType.qualifiedName) as XtendClass
+			objectRep.initializeClass(clazz)
+			
+			var parent = clazz.extends?.qualifiedName
+			while (parent != null){
+				val newClazz = classManager.getClassForName(parent) as XtendClass
+				objectRep.initializeClass(newClazz)
+				parent = newClazz.extends?.qualifiedName
+			}
+		}
+
+		val uninitializedResult = objectRep.executeConstructorCall(jvmConstructor, arguments)
+
+		if (uninitializedResult.key) {
+
+			// constructor still needs to be run
+			if (clazz == null)
+				throw new IllegalStateException
+			val XtendConstructor constructor = clazz.getConstructor(jvmConstructor)
+
+			if (constructor != null) {
+				val constructorContext = new ChattyEvaluationContext
+				constructorContext.newValue(QualifiedName.create("this"), uninitializedResult.value)
+
+				for (i : 0 ..< constructor.parameters.size) {
+					val value = doEvaluate(constructorCall.arguments.get(i), context, indicator)
+					constructorContext.newValue(QualifiedName.create(constructor.parameters.get(i).name), value)
+				}
+				evaluateConstructor(constructor, constructorContext, indicator)
+			}
+			return uninitializedResult.value
+		} else {
+
+			// result is already initialized
+			return uninitializedResult.value
+		}
+	}
+
+	protected def XtendConstructor getConstructor(XtendClass clazz, JvmConstructor constr) {
+		val result = clazz.members.filter(XtendConstructor).findFirst[c|operationsEqual(c, constr)]
+		if (result != null)
+			return result
+		if (clazz.extends != null) {
+			val parentClazz = classManager.getClassForName(clazz.extends.qualifiedName) as XtendClass
+			return getConstructor(parentClazz, constr)
+		}
+		null
 	}
 
 	protected override Object invokeOperation(JvmOperation operation, Object receiver, List<Object> argumentValues,
@@ -214,7 +268,8 @@ abstract class XtendInterpreter extends XbaseInterpreter {
 		var String calledTypeFqn = null
 		var String calledTypeSimpleNonFinal = null
 		if (receiver != null) {
-			val calledType = findCalledMethodType(operation, objectRep.getQualifiedClassName(receiver), objectRep.getSimpleClassName(receiver))
+			val calledType = findCalledMethodType(operation, objectRep.getQualifiedClassName(receiver),
+				objectRep.getSimpleClassName(receiver))
 
 			//calledtype may be null if the class is not available in xtend
 			if (calledType == null)
@@ -239,32 +294,32 @@ abstract class XtendInterpreter extends XbaseInterpreter {
 			}
 		}
 		if (classManager.canInterpretClass(calledTypeFqn)) {
-			val locationInfo = classManager.getClassUri(calledTypeFqn)
-			val resource = classManager.resourceSet.getResource(locationInfo, true)
-			val type = (resource.contents.head as XtendFile).xtendTypes.findFirst[name == calledTypeSimple]
+			val type = classManager.getClassForName(calledTypeFqn)
 			val calledFunc = getCalledFunction(type, op, argumentValues.size, argumentValues)
 
 			classManager.recordClassUse(calledTypeFqn)
+			objectRep.initializeClass(type as XtendClass)
 			val newContext = new ChattyEvaluationContext
 			newContext.newValue(QualifiedName.create("this"), receiver)
 			return evaluateOperation(calledFunc, argumentValues, type, newContext, indicator)
 		}
-		super.invokeOperation(operation, receiver, argumentValues.map[objectRep.translateToJavaObject(it)], context, indicator)
+		super.invokeOperation(operation, receiver, argumentValues.map[objectRep.translateToJavaObject(it)], context,
+			indicator)
 	}
 
 	// given an operation and the actual runtime type of an object, returns the FQN of the class which first implements it
 	protected def Pair<String, String> findCalledMethodType(JvmOperation operation, String actualTypeName,
 		String actualTypeSimpleName) {
 		if (classManager.canInterpretClass(actualTypeName)) {
-			val locationInfo = classManager.getClassUri(actualTypeName)
-			val resource = classManager.resourceSet.getResource(locationInfo, true)
-			val type = (resource.contents.head as XtendFile).xtendTypes.filter(XtendClass).findFirst[
-				name == actualTypeSimpleName]
+
+			val type = classManager.getClassForName(actualTypeName) as XtendClass
 			if (type.hasMethod(operation)) {
 				return actualTypeName -> actualTypeSimpleName
 			} else {
-				if (type.extends.type instanceof JvmDeclaredType) {
+				if (type.extends?.type instanceof JvmDeclaredType) {
 					return findCalledMethodType(operation, type.extends.type as JvmDeclaredType)
+				}else{
+					return null
 				}
 			}
 		} else {
@@ -316,6 +371,12 @@ abstract class XtendInterpreter extends XbaseInterpreter {
 		}
 	}
 
+	def protected evaluateConstructor(XtendConstructor constr, IEvaluationContext context, CancelIndicator indicator) {
+		val currentTypeBefore = currentType
+		val result = doEvaluate(constr.expression, context, indicator)
+		currentType = currentTypeBefore
+	}
+
 	def protected evaluateOperation(XtendFunction func, List<Object> argumentValues, XtendTypeDeclaration type,
 		IEvaluationContext context, CancelIndicator indicator) {
 		val receiver = context.getValue(QualifiedName.create("this"))
@@ -325,6 +386,7 @@ abstract class XtendInterpreter extends XbaseInterpreter {
 			context.newValue(qname, argumentValues.get(i))
 		}
 		if (func.createExtensionInfo != null) {
+
 			//val functionCache = receiver.getCreateCache(func) 
 			if (objectRep.hasCreateMethodResult(receiver, func, argumentValues)) {
 				return objectRep.getCreateMethodResult(receiver, func, argumentValues)
@@ -375,9 +437,10 @@ abstract class XtendInterpreter extends XbaseInterpreter {
 				}
 			}
 		}
-		
+
 		return objectRep.getFieldValue(receiver, jvmField.simpleName)
-		//super._invokeFeature(jvmField, featureCall, receiver, context, indicator)
+
+	//super._invokeFeature(jvmField, featureCall, receiver, context, indicator)
 	}
 
 	protected override _assigneValueTo(JvmField jvmField, XAbstractFeatureCall assignment, Object value,
@@ -388,19 +451,43 @@ abstract class XtendInterpreter extends XbaseInterpreter {
 			return value
 		}
 
-		val calledType = jvmField.declaringType.qualifiedName
-		if (currentType != null) {
-			val currentTypeName = currentType.qualifiedName
-			if (currentTypeName == calledType) {
-				val currentInstance = context.getValue(QualifiedName.create("this"))
-				val fieldName = assignment.feature.simpleName
-				if (currentInstance != null) {
-					objectRep.setFieldValue(currentInstance, fieldName, value)
-					return value
+		val receiver = getReceiver(assignment, context, indicator)
+
+		if (receiver != null) {
+			objectRep.setFieldValue(receiver, jvmField.simpleName, value)
+			return value
+		} else {
+			val calledType = jvmField.declaringType.qualifiedName
+			if (currentType != null) {
+				val currentTypeName = currentType.qualifiedName
+				if (currentTypeName == calledType) {
+					val currentInstance = context.getValue(QualifiedName.create("this"))
+					val fieldName = assignment.feature.simpleName
+					if (currentInstance != null) {
+						objectRep.setFieldValue(currentInstance, fieldName, value)
+						return value
+					}
 				}
 			}
 		}
-		super._assigneValueTo(jvmField, assignment, value, context, indicator)
+
+		//TODO: this is bad, which is the instance and which is the actual value? 
+		// it also doesnt check if we assign something to a different instance of the same class
+		// and of course the call at the end shouldn't be there any more probably.
+//		val calledType = jvmField.declaringType.qualifiedName
+//		if (currentType != null) {
+//			val currentTypeName = currentType.qualifiedName
+//			if (currentTypeName == calledType) {
+//				val currentInstance = context.getValue(QualifiedName.create("this"))
+//				val fieldName = assignment.feature.simpleName
+//				if (currentInstance != null) {
+//					objectRep.setFieldValue(currentInstance, fieldName, value)
+//					return value
+//				}
+//			}
+//		}
+
+	//		super._assigneValueTo(jvmField, assignment, value, context, indicator)
 	}
 
 	override protected Object _invokeFeature(JvmIdentifiableElement identifiable, XAbstractFeatureCall featureCall,
@@ -438,33 +525,34 @@ abstract class XtendInterpreter extends XbaseInterpreter {
 		val proxy = Proxy.newProxyInstance(usedClassLoader, #[functionIntf], invocationHandler);
 		return proxy;
 	}
-	
-	override protected _doEvaluate(XAbstractFeatureCall featureCall, IEvaluationContext context, CancelIndicator indicator) {
+
+	override protected _doEvaluate(XAbstractFeatureCall featureCall, IEvaluationContext context,
+		CancelIndicator indicator) {
 		var Object before = null
-		if (featureCall.feature instanceof JvmExecutable){
+		if (featureCall.feature instanceof JvmExecutable) {
 			if (!currentStackTrace.empty())
 				before = currentStackTrace.peek
 			currentStackTrace.push(featureCall)
 		}
 		val result = super._doEvaluate(featureCall, context, indicator)
-		if (featureCall.feature instanceof JvmExecutable){
+		if (featureCall.feature instanceof JvmExecutable) {
 			currentStackTrace.pop
-			
+
 			// maybe something bad happened in the meantime? like a thrown and caught exception?
 			// in which case there may be other stuff on the stack now? and we should remove it
-			while (!currentStackTrace.empty() && before != null && currentStackTrace.peek != before){
+			while (!currentStackTrace.empty() && before != null && currentStackTrace.peek != before) {
 				currentStackTrace.pop
 			}
 		}
 		return result
 	}
-	
+
 	override protected _doEvaluate(XMemberFeatureCall featureCall, IEvaluationContext context, CancelIndicator indicator) {
-		if (featureCall.feature instanceof JvmExecutable){
+		if (featureCall.feature instanceof JvmExecutable) {
 			currentStackTrace.push(featureCall)
 		}
 		val result = super._doEvaluate(featureCall, context, indicator)
-		if (featureCall.feature instanceof JvmExecutable){
+		if (featureCall.feature instanceof JvmExecutable) {
 			currentStackTrace.pop
 		}
 		return result

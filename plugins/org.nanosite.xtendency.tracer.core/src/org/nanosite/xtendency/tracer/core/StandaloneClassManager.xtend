@@ -52,4 +52,11 @@ class StandaloneClassManager implements IClassManager {
 		classLoader
 	}
 	
+	override getClassForName(String fqn) {
+		val uri = getClassUri(fqn)
+		val r = rs.getResource(uri, true)
+		val file = r.contents.head as XtendFile
+		file.xtendTypes.findFirst[c | file.package + "." + c.name == fqn]
+	}
+	
 }

@@ -26,7 +26,23 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 	}
 	
 	override executeConstructorCall(JvmConstructor constr, List<?> arguments) {
-		super.executeConstructorCall(constr, arguments)
+		if (classManager.canInterpretClass(constr.declaringType.qualifiedName)){
+			try{
+				return super.executeConstructorCall(constr, arguments)
+			}catch(NoSuchMethodException e){
+				val result = new XtendObject(constr.declaringType.qualifiedName)
+			
+				val clazz = classManager.getClassForName(constr.declaringType.qualifiedName)
+				
+				for (f : clazz.members.filter(XtendField).filter[!static && initialValue != null]){
+					val value = interpreter.internalEvaluate(f.initialValue, new ChattyEvaluationContext, CancelIndicator.NullImpl)
+					result.setFieldValue(f.name, value)
+				}
+				return true -> result
+			}
+		}else{
+			super.executeConstructorCall(constr, arguments)
+		}
 	}
 	
 	override getFieldValue(Object object, String fieldName) {
@@ -74,6 +90,10 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 	override initializeClass(XtendClass clazz) {
 		val fqnPrefix = (clazz.eContainer as XtendFile).package + "." + clazz.name + "."
 		for (f : clazz.members.filter(XtendField)){
+			if (staticVariables.containsKey(fqnPrefix + f.name)){
+				// has already been initialized
+				return
+			}
 			var Object value = null
 			if (f.initialValue != null){
 				value = interpreter.internalEvaluate(f.initialValue, new ChattyEvaluationContext, CancelIndicator.NullImpl)
@@ -82,8 +102,8 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 		}
 	}
 	
-	override init(JavaReflectAccess reflectAccess, XtendInterpreter interpreter) {
-		super.init(reflectAccess, interpreter)
+	override init(JavaReflectAccess reflectAccess, IClassManager classManager, XtendInterpreter interpreter) {
+		super.init(reflectAccess, classManager, interpreter)
 		createCaches.clear
 		staticVariables.clear
 	}

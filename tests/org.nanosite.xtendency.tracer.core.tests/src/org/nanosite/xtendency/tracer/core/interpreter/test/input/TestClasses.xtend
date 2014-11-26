@@ -56,3 +56,39 @@ class ClassWithStaticMember {
 		SOMESTRING
 	}
 }
+
+class InstanceAndFields21 {
+
+	private String aString = "initialValue"
+
+	def getString() {
+		aString
+	}
+
+	def setString(String string) {
+		aString = string
+	}
+
+	def testInstanceAndFields() {
+		val other = new InstanceAndFields21
+		var result = aString
+		result += other.string
+
+		other.string = "changedOther"
+		result += string
+		result += other.string
+
+		string = "changedThis"
+		result += string
+		result += other.string
+
+		result += this.equals(other)
+		result += this.equals(this)
+		result += other.equals(other)
+
+		result += this.toString.contains("InstanceAndFields")
+		result += other.toString.contains("InstanceAndFields")
+		result += this.toString.equals(other.toString)
+		result -> this
+	}
+}

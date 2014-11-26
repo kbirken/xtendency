@@ -9,6 +9,7 @@ import static org.junit.Assert.*
 import org.nanosite.xtendency.tracer.core.interpreter.test.input.CreateMethodArgClass
 import org.nanosite.xtendency.tracer.core.interpreter.test.input.BasicCreateMethodClass
 import org.nanosite.xtendency.tracer.core.XtendObject
+import org.nanosite.xtendency.tracer.core.interpreter.test.input.InstanceAndFields21
 
 class BasicTest extends AbstractInterpreterTest {
 	
@@ -311,5 +312,68 @@ class BasicTest extends AbstractInterpreterTest {
 		assertEquals("INITIALINITIALINITIALSETDIRECTLYSETDIRECTLYSETDIRECTLYSETSTATICSETSTATICSETSTATICNONSTATICNONSTATICNONSTATICNONSTATIC", result.result)
 	}
 	
+	@Test
+	def void T20_InstanceAndFieldsSimulated(){
+		val source = '''
+		package «PACKAGE»
+		
+		class InstanceAndFields20 {
+			
+			private String aString = "initialValue"
+			
+			def getString(){
+				aString
+			}
+			
+			def setString(String string){
+				aString = string
+			}
+			
+			def static invokeTestInstanceAndFields20(){
+				new InstanceAndFields20().testInstanceAndFields
+			}
+			
+			def testInstanceAndFields(){
+				val other = new InstanceAndFields20
+				var result = aString
+				result += other.string
+				
+				other.string = "changedOther"
+				result += string
+				result += other.string
+				
+				string = "changedThis"
+				result += string
+				result += other.string
+				
+				result += this.equals(other)
+				result += this.equals(this)
+				result += other.equals(other)
+				
+				result += this.toString.contains("InstanceAndFields")
+				result += other.toString.contains("InstanceAndFields")
+				result += this.toString.equals(other.toString)
+				result
+			}
+		}
+		
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTest("InstanceAndFields20", "invokeTestInstanceAndFields20", null, #[])
+		assertEquals("initialValueinitialValueinitialValuechangedOtherchangedThischangedOtherfalsetruetruetruetruefalse", result.result)
+	}
 	
+	def void T21_InstanceAndFieldsNative(){
+		val source = '''
+		def static invokeTestInstanceAndFields21(){
+			new «PACKAGE».InstanceAndFields21().testInstanceAndFields
+		}
+		'''.toXtendClass("SomeClass21")
+		val file = parser.parse(source)
+		val result = file.runTestWithClasses("SomeClass21", "invokeTestInstanceAndFields21", null, #[], #[PACKAGE + ".InstanceAndFields21" -> uri])
+		val resultPair = result.result as Pair<String, Object>
+		assertEquals("initialValueinitialValueinitialValuechangedOtherchangedThischangedOtherfalsetruetruetruetruefalse", resultPair.key)
+		assertTrue(resultPair.value instanceof InstanceAndFields21)
+	}
 }

@@ -6,11 +6,11 @@ import java.util.Map
 class XtendObject {
 	private Map<String, Object> fields = new HashMap<String, Object>
 	private String className
-	private long id
+	private String id
 	
 	new(String classFqn){
 		this.className = classFqn
-		this.id = System.currentTimeMillis
+		this.id = super.toString.split("@").last
 	}
 	
 	def get(String fieldName){
@@ -28,4 +28,9 @@ class XtendObject {
 	def getSimpleClassName(){
 		className.split("\\.").last
 	}
+	
+	override toString() {
+		className + "@" + id
+	}
+	
 }

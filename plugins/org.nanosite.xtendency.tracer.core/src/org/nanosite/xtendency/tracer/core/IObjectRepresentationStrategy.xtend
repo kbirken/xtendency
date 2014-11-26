@@ -11,7 +11,7 @@ import org.eclipse.xtext.common.types.util.JavaReflectAccess
 
 interface IObjectRepresentationStrategy {
 	
-	def void init(JavaReflectAccess reflectAccess, XtendInterpreter interpreter)
+	def void init(JavaReflectAccess reflectAccess, IClassManager classManager, XtendInterpreter interpreter)
 	
 	def Object getFieldValue(Object object, String fieldName)
 	def void setFieldValue(Object object, String fieldName, Object value)
@@ -23,7 +23,10 @@ interface IObjectRepresentationStrategy {
 	def boolean hasCreateMethodResult(Object object, XtendFunction method, List<?> arguments)
 	def Object getCreateMethodResult(Object object, XtendFunction method, List<?> arguments)
 	
-	def Object executeConstructorCall(JvmConstructor constr, List<?> arguments)
+	/*
+	 * Boolean true means that the actual constructor still needs to be interpreted on the new instance
+	 */
+	def Pair<Boolean, Object> executeConstructorCall(JvmConstructor constr, List<?> arguments)
 	
 	def Object translateToJavaObject(Object inputObject)
 	def String getQualifiedClassName(Object object)

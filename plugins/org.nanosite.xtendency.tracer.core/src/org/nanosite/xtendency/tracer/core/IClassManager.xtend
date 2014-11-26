@@ -2,6 +2,7 @@ package org.nanosite.xtendency.tracer.core
 
 import org.eclipse.emf.ecore.resource.ResourceSet
 import org.eclipse.emf.common.util.URI
+import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
 
 interface IClassManager {
 	def ResourceSet getResourceSet()
@@ -14,4 +15,6 @@ interface IClassManager {
 	def boolean canInterpretClass(String fqn)
 	
 	def URI getClassUri(String fqn)
+	
+	def XtendTypeDeclaration getClassForName(String fqn)
 }
