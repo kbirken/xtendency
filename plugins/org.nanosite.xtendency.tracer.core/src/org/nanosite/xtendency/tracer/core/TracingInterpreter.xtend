@@ -23,6 +23,8 @@ import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
 import org.eclipse.xtext.xbase.interpreter.impl.DefaultEvaluationResult
 import org.eclipse.xtext.xbase.interpreter.impl.EvaluationException
 import org.eclipse.xtext.xbase.interpreter.impl.InterpreterCanceledException
+import org.nanosite.xtendency.interpreter.IRichStringExecutor
+import org.nanosite.xtendency.interpreter.XtendInterpreter
 
 /*
  * Just added the tracing for rich strings for now, should be fused with the existing tracing mechanism.

@@ -52,7 +52,7 @@ import static org.eclipse.ui.editors.text.EditorsUI.*
 import static org.eclipse.xtext.ui.util.DisplayRunHelper.*
 
 import static extension org.nanosite.xtendency.tracer.emf.ui.GeneratedTreeView.*
-import org.nanosite.xtendency.tracer.core.XtendEvaluationResult
+import org.nanosite.xtendency.interpreter.XtendEvaluationResult
 
 class GeneratedTreeView extends AbstractGeneratedView {
 

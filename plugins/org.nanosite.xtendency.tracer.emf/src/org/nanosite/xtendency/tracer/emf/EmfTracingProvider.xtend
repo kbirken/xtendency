@@ -1,30 +1,26 @@
 package org.nanosite.xtendency.tracer.emf
 
-import org.nanosite.xtendency.tracer.core.AbstractTracingProvider
-import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
-import org.eclipse.xtext.xbase.XExpression
+import java.util.ArrayList
 import java.util.HashMap
-import java.util.Map
 import java.util.List
+import java.util.Map
+import java.util.Set
+import java.util.Stack
+import org.eclipse.emf.ecore.EClass
 import org.eclipse.emf.ecore.EObject
 import org.eclipse.emf.ecore.EStructuralFeature
-import org.nanosite.xtendency.tracer.core.ITracingProvider
-import org.nanosite.xtendency.tracer.core.TraceTreeNode
 import org.eclipse.xtend.core.xtend.XtendClass
-import org.eclipse.xtext.xbase.XFeatureCall
-import org.eclipse.xtext.xbase.XMemberFeatureCall
-import java.util.Stack
 import org.eclipse.xtend.core.xtend.XtendFunction
 import org.eclipse.xtext.common.types.JvmOperation
-import java.util.HashSet
-import java.util.ArrayList
 import org.eclipse.xtext.xbase.XAssignment
-import java.util.Set
-import org.eclipse.emf.ecore.EClass
-import org.eclipse.xtext.xbase.XbasePackage
 import org.eclipse.xtext.xbase.XBinaryOperation
-import org.eclipse.emf.common.util.EList
-import org.nanosite.xtendency.tracer.core.ChattyEvaluationContext
+import org.eclipse.xtext.xbase.XExpression
+import org.eclipse.xtext.xbase.XMemberFeatureCall
+import org.eclipse.xtext.xbase.XbasePackage
+import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
+import org.nanosite.xtendency.interpreter.ChattyEvaluationContext
+import org.nanosite.xtendency.tracer.core.ITracingProvider
+import org.nanosite.xtendency.tracer.core.TraceTreeNode
 
 class EmfTracingProvider implements ITracingProvider<Map<Pair<EObject, EStructuralFeature>, List<Pair<XExpression, Map<String, Object>>>>> {
 	public static final String EMF_TRACING_PROVIDER_ID = "org.nanosite.xtendency.tracer.emf"

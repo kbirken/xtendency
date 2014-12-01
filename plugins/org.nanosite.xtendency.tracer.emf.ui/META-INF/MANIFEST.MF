@@ -21,7 +21,8 @@ Require-Bundle: org.eclipse.ui,
  org.nanosite.xtendency.tracer.emf;bundle-version="1.0.0",
  org.eclipse.xtext.xbase.ui,
  org.eclipse.ui.ide;bundle-version="3.10.0",
- org.nanosite.xtendency.tracer.core.ui;bundle-version="1.0.0"
+ org.nanosite.xtendency.tracer.core.ui;bundle-version="1.0.0",
+ org.nanosite.xtendency.interpreter;bundle-version="1.0.0"
 Bundle-RequiredExecutionEnvironment: JavaSE-1.7
 Bundle-ActivationPolicy: lazy
 

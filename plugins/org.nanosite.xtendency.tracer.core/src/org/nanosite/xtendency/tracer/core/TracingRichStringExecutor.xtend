@@ -8,6 +8,7 @@ import org.eclipse.xtext.xbase.XExpression
 import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
 import org.eclipse.xtext.xbase.interpreter.IExpressionInterpreter
 import org.eclipse.xtext.xbase.interpreter.impl.DefaultEvaluationResult
+import org.nanosite.xtendency.interpreter.DefaultRichStringExecutor
 
 class TracingRichStringExecutor extends DefaultRichStringExecutor {
 

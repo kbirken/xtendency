@@ -1,0 +1,18 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Interpreter
+Bundle-SymbolicName: org.nanosite.xtendency.interpreter
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: org.nanosite.xtendency.interpreter.internal.Activator
+Require-Bundle: org.eclipse.core.runtime,
+ com.google.guava,
+ org.eclipse.xtend.lib,
+ org.eclipse.xtext.xbase.lib,
+ com.google.inject;bundle-version="3.0.0",
+ org.eclipse.xtend.core;bundle-version="2.6.2",
+ org.eclipse.xtend.standalone;bundle-version="2.6.2",
+ org.eclipse.jdt.launching;bundle-version="3.7.100"
+Bundle-RequiredExecutionEnvironment: JavaSE-1.7
+Bundle-ActivationPolicy: lazy
+Export-Package: org.nanosite.xtendency.interpreter
+

@@ -36,20 +36,18 @@ import org.eclipse.core.resources.IResourceChangeEvent
 import java.util.Collections
 import org.eclipse.emf.ecore.util.EcoreUtil
 import org.eclipse.core.resources.IProject
-import org.nanosite.xtendency.tracer.core.ChattyEvaluationContext
 import org.eclipse.ui.IPartListener2
 import org.eclipse.ui.IWorkbenchPartReference
 import org.eclipse.swt.widgets.Composite
 import org.nanosite.xtendency.tracer.core.IGeneratedView
-import org.nanosite.xtendency.tracer.core.IExtendedEvaluationContext
 import java.io.StringWriter
 import java.io.PrintWriter
-import org.nanosite.xtendency.tracer.core.IClassManager
-import org.nanosite.xtendency.tracer.core.WorkspaceClassManager
-import org.nanosite.xtendency.tracer.core.WorkspaceXtendInterpreterModule
 import org.eclipse.xtext.xbase.interpreter.impl.XbaseInterpreter
 import java.util.List
 import org.eclipse.xtext.xbase.interpreter.impl.EvaluationException
+import org.nanosite.xtendency.interpreter.ChattyEvaluationContext
+import org.nanosite.xtendency.interpreter.WorkspaceClassManager
+import org.nanosite.xtendency.interpreter.WorkspaceXtendInterpreterModule
 
 abstract class AbstractGeneratedView extends ViewPart implements IResourceChangeListener, ISelectionListener, IPartListener2, IGeneratedView {
 	protected static final ISchedulingRule SEQUENCE_RULE = SchedulingRuleFactory.INSTANCE.newSequence();

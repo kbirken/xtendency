@@ -6,6 +6,7 @@ import org.eclipse.xtend.core.xtend.XtendFunction;
 import org.eclipse.xtext.xbase.XExpression;
 import org.eclipse.xtext.xbase.interpreter.IEvaluationContext;
 import org.eclipse.xtext.xbase.interpreter.IEvaluationResult;
+import org.nanosite.xtendency.interpreter.IClassManager;
 import org.nanosite.xtendency.tracer.core.TracingInterpreter;
 
 public class SynchronizedInterpreterAccess {
