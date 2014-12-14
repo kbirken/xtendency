@@ -339,7 +339,9 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 					sourceViewer.revealRange(textRegion.getOffset(), textRegion.getLength());
 
 					//getSourceViewer.setSelection(new TextSelection(textRegion.offset, textRegion.length), true)
+					println("number of nodes is " + nodes.length)
 					sourceViewer.setTextColor(COLOR_DEFAULT, 0, (sourceViewer.input as IDocument).length, true)
+				
 					for (n : nodes) {
 						try {
 							sourceViewer.setTextColor(COLOR_SELECTED, n.output.offset, n.output.length, true)

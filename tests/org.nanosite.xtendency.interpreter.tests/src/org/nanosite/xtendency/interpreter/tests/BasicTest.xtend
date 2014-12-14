@@ -6,14 +6,33 @@ import java.util.LinkedList
 import org.junit.Test
 
 import static org.junit.Assert.*
-import org.nanosite.xtendency.interpreter.XtendObject
 import org.nanosite.xtendency.interpreter.tests.input.BasicCreateMethodClass
 import org.nanosite.xtendency.interpreter.tests.input.CreateMethodArgClass
 import org.nanosite.xtendency.interpreter.tests.input.InstanceAndFields21
+import org.nanosite.xtendency.interpreter.IXtendObject
 
 class BasicTest extends AbstractInterpreterTest {
 	
 	private final String uri = "platform:/plugin/org.nanosite.xtendency.interpreter.tests/src/org/nanosite/xtendency/interpreter/tests/input/TestClasses.xtend"
+
+	def IXtendObject newXtendObject(String name){
+		val finalName = name
+		val result = new IXtendObject(){
+			
+			override _getQualifiedClassName() {
+				finalName
+			}
+			
+			// this really is just for testing purposes, these should never be created except
+			// by the interpreter
+			// thank god the contents of this method are ignored anyway
+			override _toString() {
+				""
+			}
+			
+		}
+		result
+	}
 
 	@Test
 	def void T01_SimpleRichStringTest() {
@@ -34,7 +53,7 @@ class BasicTest extends AbstractInterpreterTest {
 		
 		val file = parser.parse(source)
 		
-		val result = file.runTest("SomeClass02", "T02_RichStringWithArgument", new XtendObject(PACKAGE + ".SomeClass02"), #["Between"])
+		val result = file.runTest("SomeClass02", "T02_RichStringWithArgument", newXtendObject(PACKAGE + ".SomeClass02"), #["Between"])
 		assertEquals("BeforeBetweenAfter", result.result.toString)
 	}
 	
@@ -73,7 +92,7 @@ class BasicTest extends AbstractInterpreterTest {
 		'''.toXtendClass("SomeClass04")
 		var file = parser.parse(source)
 		
-		val result = file.runTest("SomeClass04", "T04_NestedForLoop", new XtendObject(PACKAGE + ".SomeClass04"), #[2, 3])
+		val result = file.runTest("SomeClass04", "T04_NestedForLoop", newXtendObject(PACKAGE + ".SomeClass04"), #[2, 3])
 		
 		assertEquals(
 			'''
@@ -115,8 +134,8 @@ class BasicTest extends AbstractInterpreterTest {
 		'''.toXtendClass("SomeClass06")
 		
 		val file = parser.parse(source)
-		val resultTrue = file.runTest("SomeClass06", "T06_IfThenElse", new XtendObject(PACKAGE + ".SomeClass06"),  #[17])
-		val resultFalse = file.runTest("SomeClass06", "T06_IfThenElse", new XtendObject(PACKAGE + ".SomeClass06"), #[1])
+		val resultTrue = file.runTest("SomeClass06", "T06_IfThenElse", newXtendObject(PACKAGE + ".SomeClass06"),  #[17])
+		val resultFalse = file.runTest("SomeClass06", "T06_IfThenElse", newXtendObject(PACKAGE + ".SomeClass06"), #[1])
 		assertEquals("input 17 is greater than 3", resultTrue.result)
 		assertEquals("input 1 is not greater than 3", resultFalse.result)
 	}
@@ -135,7 +154,7 @@ class BasicTest extends AbstractInterpreterTest {
 		
 		var file = parser.parse(source)
 		
-		val result = file.runTest("SomeClass11", "T11_SimpleMethodCall", new XtendObject(PACKAGE + ".SomeClass11"), #[])
+		val result = file.runTest("SomeClass11", "T11_SimpleMethodCall", newXtendObject(PACKAGE + ".SomeClass11"), #[])
 		
 		assertEquals("GettingStringFromOtherMethod", result.result)
 	}
@@ -154,7 +173,7 @@ class BasicTest extends AbstractInterpreterTest {
 		
 		val file = parser.parse(source)
 		
-		val result = file.runTest("SomeClass12", "T12_ThisMethodCall", new XtendObject(PACKAGE + ".SomeClass12"), #[])
+		val result = file.runTest("SomeClass12", "T12_ThisMethodCall", newXtendObject(PACKAGE + ".SomeClass12"), #[])
 		
 		assertEquals("GettingStringFromOtherMethod", result.result)
 	}
@@ -268,7 +287,7 @@ class BasicTest extends AbstractInterpreterTest {
 		}
 		'''.toXtendClass("SomeClass18")
 		val file = parser.parse(source)
-		val result = file.runTestWithClasses("SomeClass18", "T18_PublicVariables", new XtendObject(PACKAGE + ".SomeClass18"), #[], #[PACKAGE + ".ClassWithPublicMember" -> uri])
+		val result = file.runTestWithClasses("SomeClass18", "T18_PublicVariables", newXtendObject(PACKAGE + ".SomeClass18"), #[], #[PACKAGE + ".ClassWithPublicMember" -> uri])
 		assertEquals("initialinitialsetDirectlysetDirectlysetMethodsetMethod", result.result)
 	}
 	
@@ -306,7 +325,7 @@ class BasicTest extends AbstractInterpreterTest {
 		}
 		'''.toXtendClass("SomeClass19")
 		val file = parser.parse(source)
-		val result = file.runTestWithClasses("SomeClass19", "T19_StaticVariables", new XtendObject(PACKAGE + ".SomeClass19"), #[], #[PACKAGE + ".ClassWithStaticMember" -> uri])
+		val result = file.runTestWithClasses("SomeClass19", "T19_StaticVariables", newXtendObject(PACKAGE + ".SomeClass19"), #[], #[PACKAGE + ".ClassWithStaticMember" -> uri])
 
 		
 		assertEquals("INITIALINITIALINITIALSETDIRECTLYSETDIRECTLYSETDIRECTLYSETSTATICSETSTATICSETSTATICNONSTATICNONSTATICNONSTATICNONSTATIC", result.result)
@@ -375,5 +394,65 @@ class BasicTest extends AbstractInterpreterTest {
 		val resultPair = result.result as Pair<String, Object>
 		assertEquals("initialValueinitialValueinitialValuechangedOtherchangedThischangedOtherfalsetruetruetruetruefalse", resultPair.key)
 		assertTrue(resultPair.value instanceof InstanceAndFields21)
+	}
+	
+	@Test
+	def void T22_XtendImplementsJava(){
+		val source = '''
+		package «PACKAGE»
+		
+		class MyRunnable22 implements Runnable {
+			public static String state = "INITIAL"
+			
+			static def String test22(){
+				val r = new MyRunnable22
+				val t = new Thread(r)
+				t.start
+				t.join
+				return state
+			}
+			
+			override run(){
+				state = "CHANGED"
+			}
+		}
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTest("MyRunnable22", "test22", null, #[])
+		assertEquals("CHANGED", result.result)
+	}
+	
+	
+	@Test
+	def void T23_XtendExtendsJava(){
+		val source = '''
+		package «PACKAGE»
+		
+		class XtendClass23 extends XtendSuperClass23 {
+			new(int number) {
+				this("Input" + number)
+				state += "byMain"
+			}
+			
+			new(String in){
+				super(in + "BYXTEND")
+				state += "bythis"
+			}
+			
+			def String getInternalState(){
+				state
+			}
+			
+			def static String construct(){
+				val obj = new XtendClass23(2)
+				obj.internalState
+			}
+		}
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTestWithClasses("XtendClass23", "construct", null, #[], #[PACKAGE + ".XtendSuperClass23" -> uri])
+		assertEquals("initialInput2BYXTENDbyXtendByXtendbythisbyMain", result.result)
 	}
 }

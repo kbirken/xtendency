@@ -92,3 +92,31 @@ class InstanceAndFields21 {
 		result -> this
 	}
 }
+
+class JavaSuperClass23 {
+	protected String state = "initial"
+	
+	new(String in){
+		state += in
+	}
+	
+	def getOtherString(){
+		"otherString"
+	}
+}
+
+class XtendSuperClass23 extends JavaSuperClass23 {
+
+	new(String in) {
+		super(in + "byXtend")
+		state += "ByXtend"
+	}
+	
+}
+
+class JavaSuperClassAcceptor23{
+	
+	def getSuperClassString(JavaSuperClass23 obj){
+		return obj.otherString + "ByAcceptor"
+	}
+}

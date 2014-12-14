@@ -17,6 +17,7 @@ import org.eclipse.xtend.core.xtend.XtendExecutable
 import org.eclipse.xtext.common.types.JvmExecutable
 import org.eclipse.xtend.core.xtend.XtendConstructor
 import org.eclipse.xtext.common.types.JvmConstructor
+import java.lang.reflect.Method
 
 class InterpreterUtil {
 	
@@ -80,7 +81,7 @@ class InterpreterUtil {
 		type.members.filter(XtendFunction).exists[operationsEqual(it, op)]
 	}
 
-	def boolean operationsEqual(XtendExecutable op1, JvmExecutable op2) {
+	def static boolean operationsEqual(XtendExecutable op1, JvmExecutable op2) {
 		if (op1 instanceof XtendFunction && !(op2 instanceof JvmOperation)){
 			return false
 		}
@@ -118,8 +119,33 @@ class InterpreterUtil {
 		return true
 	}
 	
+	def boolean operationsEqual(JvmOperation op1, Method op2){
+		if (op1.simpleName != op2.name)
+			return false
+		if (op1.parameters.size != op2.parameterTypes.size)
+			return false
+		if (op1.returnType.qualifiedName != op2.returnType.canonicalName)
+			return false
+		for (i : 0 ..< op1.parameters.size) {
+			val p1 = op1.parameters.get(i)
+			val p2 = op2.parameterTypes.get(i)
+			if (p1.parameterType.qualifiedName != p2.canonicalName)
+				return false
+		}
+		return true
+	}
+	
 	def getQualifiedName(XtendTypeDeclaration clazz){
 		val file = clazz.eContainer as XtendFile
 		return file.package + "." + clazz.name
+	}
+	
+	def boolean isSubtypeOf(JvmDeclaredType t1, JvmDeclaredType t2){
+		if (t1 == t2)
+			return true
+		val superTypes = t1.superTypes.map[type]
+		if (superTypes.contains(t2))
+			return true
+		return superTypes.exists[(it as JvmDeclaredType).isSubtypeOf(t2)]
 	}
 }

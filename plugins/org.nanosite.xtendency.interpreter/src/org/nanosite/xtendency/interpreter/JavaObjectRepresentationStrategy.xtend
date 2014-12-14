@@ -12,23 +12,26 @@ import org.eclipse.xtext.common.types.JvmField
 import org.eclipse.xtext.common.types.util.JavaReflectAccess
 import org.eclipse.xtext.xbase.interpreter.impl.EvaluationException
 import org.eclipse.xtext.common.types.access.impl.ClassFinder
+import org.eclipse.xtext.common.types.util.TypeReferences
+import org.eclipse.xtext.xbase.XConstructorCall
 
 class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy {
 	protected ClassFinder classFinder
 	protected JavaReflectAccess javaReflectAccess
 	protected XtendInterpreter interpreter
+	protected TypeReferences jvmTypes
 	
 	protected IClassManager classManager
 	
-	override getFieldValue(Object object, String fieldName) {
-		val field = object.class.getDeclaredField(fieldName)
+	override getFieldValue(Object object, JvmField jvmField) {
+		val field = javaReflectAccess.getField(jvmField)
 		field.accessible = true
 		
 		field.get(object)
 	}
 	
-	override setFieldValue(Object object, String fieldName, Object value) {
-		val field = object.class.getDeclaredField(fieldName)
+	override setFieldValue(Object object, JvmField jvmField, Object value) {
+		val field = javaReflectAccess.getField(jvmField)
 		field.accessible = true
 
 		field.set(object, value)
@@ -98,14 +101,14 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 			return result
 	}
 	
-	override executeConstructorCall(JvmConstructor constr, List<?> arguments) {
+	override executeConstructorCall(XConstructorCall call, JvmConstructor constr, List<?> arguments) {
 		val constructor = javaReflectAccess.getConstructor(constr);
 		try {
 			if (constructor == null)
 				throw new NoSuchMethodException("Could not find constructor " + constr.getIdentifier());
 			constructor.setAccessible(true);
 			val result = constructor.newInstance(arguments.toArray);
-			return false -> result;
+			return result;
 		} catch (InvocationTargetException targetException) {
 			throw new EvaluationException(targetException.getTargetException());
 		}
@@ -115,12 +118,13 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 		//do nothing
 	}
 	
-	override init(JavaReflectAccess reflectAccess, ClassFinder classFinder, IClassManager classManager, XtendInterpreter interpreter) {
+	override init(JavaReflectAccess reflectAccess, ClassFinder classFinder, IClassManager classManager, TypeReferences jvmTypes, XtendInterpreter interpreter) {
 		this.javaReflectAccess = reflectAccess
 		this.classFinder = classFinder
 		this.interpreter = interpreter
 		this.classManager = classManager
-	}
+		this.jvmTypes = jvmTypes
+	} 
 	
 	override getQualifiedClassName(Object object) {
 		object.class.canonicalName

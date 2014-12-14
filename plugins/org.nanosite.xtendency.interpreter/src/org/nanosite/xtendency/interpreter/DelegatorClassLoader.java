@@ -19,6 +19,7 @@ public class DelegatorClassLoader extends SecureClassLoader {
 
 	private DelegatorClassLoader(ClassLoader parent, BundleContext context, List<String> classPathUrls) {
 		super(parent);
+		
 		this.parent = parent;
 		for (String url : classPathUrls){
 			Bundle b = context.getBundle("reference:" + url);
@@ -29,23 +30,17 @@ public class DelegatorClassLoader extends SecureClassLoader {
 			}
 		}
 	}
-/*
-	@Override
-	protected synchronized Class<?> loadClass(String name, boolean resolve)
-			throws ClassNotFoundException {
-		Class<?> result = null;
-		if (delegate != null) {
-			try {
-				delegate.loadClass(name);
-			} catch (ClassNotFoundException e) {
-				System.out.println("not found in delegate");
+	
+	public DelegatorClassLoader(ClassLoader parent){
+		super(parent);
+		Bundle[] bundles = FrameworkUtil.getBundle(getClass()).getBundleContext().getBundles();
+		for (Bundle b : bundles){
+			ClassLoader cl = b.adapt(BundleWiring.class).getClassLoader();
+			if (cl != null){
+				delegates.add(cl);
 			}
 		}
-		if (result == null) {
-			parent.loadClass(name);
-		}
-		return result;
-	}*/
+	}
 	
 	@Override
 	protected Class<?> findClass(String name) throws ClassNotFoundException {

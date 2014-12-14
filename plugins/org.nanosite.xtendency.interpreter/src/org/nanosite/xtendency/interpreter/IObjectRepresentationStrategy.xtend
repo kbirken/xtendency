@@ -9,13 +9,14 @@ import org.eclipse.xtext.xbase.XConstructorCall
 import org.eclipse.xtend.core.xtend.XtendClass
 import org.eclipse.xtext.common.types.util.JavaReflectAccess
 import org.eclipse.xtext.common.types.access.impl.ClassFinder
+import org.eclipse.xtext.common.types.util.TypeReferences
 
 interface IObjectRepresentationStrategy {
 	
-	def void init(JavaReflectAccess reflectAccess, ClassFinder classFinder, IClassManager classManager, XtendInterpreter interpreter)
-	
-	def Object getFieldValue(Object object, String fieldName)
-	def void setFieldValue(Object object, String fieldName, Object value)
+	def void init(JavaReflectAccess reflectAccess, ClassFinder classFinder, IClassManager classManager, TypeReferences jvmTypes, XtendInterpreter interpreter)
+	 
+	def Object getFieldValue(Object object, JvmField field)
+	def void setFieldValue(Object object, JvmField field, Object value)
 	
 	def void setStaticFieldValue(JvmField field, Object value)
 	def Object getStaticFieldValue(JvmField field)
@@ -24,11 +25,8 @@ interface IObjectRepresentationStrategy {
 	def boolean hasCreateMethodResult(Object object, XtendFunction method, List<?> arguments)
 	def Object getCreateMethodResult(Object object, XtendFunction method, List<?> arguments)
 	
-	/*
-	 * Boolean true means that the actual constructor still needs to be interpreted on the new instance
-	 */
-	def Pair<Boolean, Object> executeConstructorCall(JvmConstructor constr, List<?> arguments)
-	
+	def Object executeConstructorCall(XConstructorCall call, JvmConstructor constr, List<?> arguments)
+	 
 	def Object translateToJavaObject(Object inputObject)
 	def String getQualifiedClassName(Object object)
 	def String getSimpleClassName(Object object)

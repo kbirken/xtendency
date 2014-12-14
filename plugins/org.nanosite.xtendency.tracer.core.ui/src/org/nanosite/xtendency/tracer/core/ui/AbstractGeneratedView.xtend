@@ -237,7 +237,7 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 	}
 	
 	def URI getUriForFile(IFile file){
-		throw new UnsupportedOperationException
+		URI.createPlatformResourceURI(file.project.name + "/" + file.projectRelativePath.toString, true)
 	}
 	
 	override partClosed(IWorkbenchPartReference partRef) {
