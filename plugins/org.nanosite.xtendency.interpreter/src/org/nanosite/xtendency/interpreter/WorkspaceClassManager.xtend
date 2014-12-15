@@ -17,6 +17,7 @@ import java.util.HashMap
 import com.google.common.collect.BiMap
 import java.util.Map
 import org.eclipse.emf.ecore.resource.ResourceSet
+import org.eclipse.xtend.core.xtend.AnonymousClass
 
 class WorkspaceClassManager implements IClassManager{
 	
@@ -31,7 +32,8 @@ class WorkspaceClassManager implements IClassManager{
 	
 	protected BiMap<IFile, URI> usedClasses = HashBiMap.create
 	protected Map<String, Pair<IFile, URI>> availableClasses = new HashMap<String, Pair<IFile, URI>>
-	
+	protected Map<String, AnonymousClass> anonymousClasses = new HashMap
+
 	protected ClassLoader classLoader
 
 	@Deprecated
@@ -90,7 +92,7 @@ class WorkspaceClassManager implements IClassManager{
 	}
 	
 	override canInterpretClass(String fqn) {
-		availableClasses.containsKey(fqn)
+		availableClasses.containsKey(fqn) || anonymousClasses.containsKey(fqn)
 	}
 	
 	override getClassUri(String fqn) {
@@ -128,9 +130,16 @@ class WorkspaceClassManager implements IClassManager{
 	}
 	
 	override getClassForName(String fqn) {
+		if (anonymousClasses.containsKey(fqn))
+			return anonymousClasses.get(fqn)
 		val uri = getClassUri(fqn)
 		val r = rs.getResource(uri, true)
 		val file = r.contents.head as XtendFile
 		file.xtendTypes.findFirst[c | file.package + "." + c.name == fqn]
 	}
+	
+	override addAnonymousClass(String name, AnonymousClass classDef) {
+		anonymousClasses.put(name, classDef)
+	}
+	
 }

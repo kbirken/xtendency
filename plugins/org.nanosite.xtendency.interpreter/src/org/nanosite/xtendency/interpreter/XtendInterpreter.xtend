@@ -49,6 +49,7 @@ import org.eclipse.xtext.common.types.JvmConstructor
 import java.lang.reflect.Method
 import org.eclipse.xtext.common.types.util.TypeReferences
 import org.eclipse.emf.common.notify.Notifier
+import org.eclipse.xtend.core.xtend.AnonymousClass
 
 class XtendInterpreter extends XbaseInterpreter {
 
@@ -204,9 +205,15 @@ class XtendInterpreter extends XbaseInterpreter {
 	protected override Object doEvaluate(XExpression expression, IEvaluationContext context, CancelIndicator indicator) {
 		if (expression instanceof RichString) {
 			_doEvaluate(expression as RichString, context, indicator)
+		}else if (expression instanceof AnonymousClass) {
+			_doEvaluate(expression, context, indicator)
 		} else {
 			super.doEvaluate(expression, context, indicator)
 		}
+	}
+	
+	def Object _doEvaluate(AnonymousClass expression, IEvaluationContext context, CancelIndicator indicator){
+		objectRep.executeAnonymousClassConstructor(expression, evaluateArgumentExpressions(expression.constructorCall.constructor, expression.constructorCall.arguments, context, indicator), context)
 	}
 	
 	protected def getCurrentType(){
@@ -270,6 +277,8 @@ class XtendInterpreter extends XbaseInterpreter {
 		// then iterate through types
 		var String calledTypeFqn = null
 		var String calledTypeSimpleNonFinal = null
+		if (receiver instanceof javassist.util.proxy.Proxy)
+			println("!!!")
 		if (receiver !== null) {
 			val calledType = findCalledMethodType(operation, objectRep.getQualifiedClassName(receiver), polymorphicInvoke)
 
@@ -292,7 +301,10 @@ class XtendInterpreter extends XbaseInterpreter {
 		if (currentType != null) {
 			val currentTypeName = currentType.qualifiedName
 			val calledJvmType = jvmTypes.findDeclaredType(calledTypeFqn, currentType) as JvmDeclaredType
-			val currentJvmType = jvmTypes.findDeclaredType(currentTypeName, currentType) as JvmDeclaredType
+			val currentJvmType = if (currentType instanceof AnonymousClass)
+				currentType.constructorCall.constructor.declaringType.superTypes.head.type as JvmDeclaredType
+			else
+				jvmTypes.findDeclaredType(currentTypeName, currentType) as JvmDeclaredType
 			
 			if (receiver === null && currentJvmType.isSubtypeOf(calledJvmType)) {
 				val calledFunc = getCalledFunction(currentType, op, argumentValues.size, argumentValues)
@@ -307,7 +319,7 @@ class XtendInterpreter extends XbaseInterpreter {
 			val calledFunc = getCalledFunction(type, op, argumentValues.size, argumentValues)
 
 			classManager.recordClassUse(calledTypeFqn)
-			objectRep.initializeClass(type as XtendClass)
+			objectRep.initializeClass(type)
 			val newContext = new ChattyEvaluationContext
 			newContext.newValue(QualifiedName.create("this"), receiver)
 			return evaluateOperation(calledFunc, argumentValues, type, newContext, indicator)
@@ -328,18 +340,29 @@ class XtendInterpreter extends XbaseInterpreter {
 		boolean polymorphic) {
 		val relevantClassFqn = if (polymorphic) actualTypeName else operation.declaringType.qualifiedName
 		if (classManager.canInterpretClass(relevantClassFqn)) {
-			val type = classManager.getClassForName(actualTypeName) as XtendClass
+			val type = classManager.getClassForName(actualTypeName)
 			if (type.hasMethod(operation)) {
 				return relevantClassFqn -> type.name
 			} else {
-				if (type.extends?.type instanceof JvmDeclaredType) {
-					return findCalledMethodType(operation, type.extends.type as JvmDeclaredType)
+				if (type.extendedClass != null) {
+					return findCalledMethodType(operation, type.extendedClass)
 				} else {
 					return null
 				}
 			}
 		} else {
 			return null
+		}
+	}
+	
+	protected def JvmDeclaredType getExtendedClass(XtendTypeDeclaration type){
+		if (type instanceof XtendClass){
+			type.extends?.type as JvmDeclaredType ?: jvmTypes.findDeclaredType(Object, type) as JvmDeclaredType
+		}else if (type instanceof AnonymousClass){
+			val supertype = type.constructorCall?.constructor?.declaringType
+			return supertype ?: jvmTypes.findDeclaredType(Object, type) as JvmDeclaredType
+		}else {
+			jvmTypes.findDeclaredType(Object, type) as JvmDeclaredType
 		}
 	}
 
@@ -480,7 +503,10 @@ class XtendInterpreter extends XbaseInterpreter {
 				val currentTypeName = currentType.qualifiedName
 				
 				val calledJvmType = jvmTypes.findDeclaredType(calledTypeFqn, currentType) as JvmDeclaredType
-				val currentJvmType = jvmTypes.findDeclaredType(currentTypeName, currentType) as JvmDeclaredType
+				val currentJvmType = if (currentType instanceof AnonymousClass)
+					currentType.constructorCall.constructor.declaringType.superTypes.head.type as JvmDeclaredType
+				else
+					jvmTypes.findDeclaredType(currentTypeName, currentType) as JvmDeclaredType
 				if (currentJvmType.isSubtypeOf(calledJvmType)) {
 					val currentInstance = context.getValue(QualifiedName.create("this"))
 					val fieldName = assignment.feature.simpleName
@@ -582,15 +608,6 @@ class XtendInterpreter extends XbaseInterpreter {
 			}
 		}
 		return result
-	}
-	
-	override protected getActualReceiver(XAbstractFeatureCall featureCall) {
-		val result = super.getActualReceiver(featureCall)
-		if (result != null)
-			return result
-		else {
-			null
-		}
 	}
 
 	override protected _doEvaluate(XMemberFeatureCall featureCall, IEvaluationContext context, CancelIndicator indicator) {

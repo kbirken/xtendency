@@ -10,6 +10,10 @@ import org.eclipse.xtend.core.xtend.XtendClass
 import org.eclipse.xtext.common.types.util.JavaReflectAccess
 import org.eclipse.xtext.common.types.access.impl.ClassFinder
 import org.eclipse.xtext.common.types.util.TypeReferences
+import org.eclipse.xtend.core.xtend.AnonymousClass
+import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
+import org.eclipse.xtext.common.types.JvmOperation
+import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
 
 interface IObjectRepresentationStrategy {
 	
@@ -27,11 +31,13 @@ interface IObjectRepresentationStrategy {
 	
 	def Object executeConstructorCall(XConstructorCall call, JvmConstructor constr, List<?> arguments)
 	 
-	def Object translateToJavaObject(Object inputObject)
 	def String getQualifiedClassName(Object object)
 	def String getSimpleClassName(Object object)
 	
-	def void initializeClass(XtendClass clazz)
+	def void initializeClass(XtendTypeDeclaration clazz)
 	
 	def boolean isInstanceOf(Object obj, String fqn)
+	
+	def Object executeAnonymousClassConstructor(AnonymousClass clazz, List<?> arguments, IEvaluationContext context)
+	def IEvaluationContext fillAnonymousClassMethodContext(IEvaluationContext context, JvmOperation op, Object object)
 }

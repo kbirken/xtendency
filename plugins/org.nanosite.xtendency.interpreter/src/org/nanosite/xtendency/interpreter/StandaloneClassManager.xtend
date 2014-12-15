@@ -5,10 +5,12 @@ import java.util.Map
 import org.eclipse.emf.common.util.URI
 import org.eclipse.emf.ecore.resource.ResourceSet
 import org.eclipse.xtend.core.xtend.XtendFile
+import org.eclipse.xtend.core.xtend.AnonymousClass
 
 class StandaloneClassManager implements IClassManager {
 	
 	protected Map<String, URI> availableClasses = new HashMap<String, URI>
+	protected Map<String, AnonymousClass> anonymousClasses = new HashMap
 	
 	protected ResourceSet rs
 
@@ -32,7 +34,7 @@ class StandaloneClassManager implements IClassManager {
 	}
 	
 	override canInterpretClass(String fqn) {
-		availableClasses.containsKey(fqn)
+		availableClasses.containsKey(fqn) || anonymousClasses.containsKey(fqn)
 	}
 	
 	override getClassUri(String fqn) {
@@ -53,6 +55,8 @@ class StandaloneClassManager implements IClassManager {
 	}
 	
 	override getClassForName(String fqn) {
+		if (anonymousClasses.containsKey(fqn))
+			return anonymousClasses.get(fqn)
 		val uri = getClassUri(fqn)
 		val r = rs.getResource(uri, true)
 		val file = r.contents.head as XtendFile
@@ -60,6 +64,10 @@ class StandaloneClassManager implements IClassManager {
 		if (result == null)
 			println("!!!!")
 		result
+	}
+	
+	override addAnonymousClass(String name, AnonymousClass classDef) {
+		anonymousClasses.put(name, classDef)
 	}
 	
 }

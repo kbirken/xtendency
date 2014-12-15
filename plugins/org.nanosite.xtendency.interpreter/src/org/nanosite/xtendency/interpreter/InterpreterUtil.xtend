@@ -18,6 +18,7 @@ import org.eclipse.xtext.common.types.JvmExecutable
 import org.eclipse.xtend.core.xtend.XtendConstructor
 import org.eclipse.xtext.common.types.JvmConstructor
 import java.lang.reflect.Method
+import org.eclipse.xtend.core.xtend.AnonymousClass
 
 class InterpreterUtil {
 	
@@ -77,7 +78,7 @@ class InterpreterUtil {
 		type.declaredOperations.exists[operationsEqual(it, op)]
 	}
 	
-	def boolean hasMethod(XtendClass type, JvmOperation op) {
+	def boolean hasMethod(XtendTypeDeclaration type, JvmOperation op) {
 		type.members.filter(XtendFunction).exists[operationsEqual(it, op)]
 	}
 
@@ -136,8 +137,12 @@ class InterpreterUtil {
 	}
 	
 	def getQualifiedName(XtendTypeDeclaration clazz){
-		val file = clazz.eContainer as XtendFile
-		return file.package + "." + clazz.name
+		if (clazz instanceof AnonymousClass){
+			clazz.eResource.URI.toString + clazz.eResource.getURIFragment(clazz)
+		}else{
+			val file = clazz.eContainer as XtendFile
+			return file.package + "." + clazz.name
+		}
 	}
 	
 	def boolean isSubtypeOf(JvmDeclaredType t1, JvmDeclaredType t2){
