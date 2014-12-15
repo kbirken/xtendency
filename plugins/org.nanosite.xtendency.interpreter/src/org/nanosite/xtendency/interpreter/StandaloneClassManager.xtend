@@ -61,8 +61,7 @@ class StandaloneClassManager implements IClassManager {
 		val r = rs.getResource(uri, true)
 		val file = r.contents.head as XtendFile
 		val result = file.xtendTypes.findFirst[c | file.package + "." + c.name == fqn]
-		if (result == null)
-			println("!!!!")
+
 		result
 	}
 	

@@ -136,7 +136,7 @@ class InterpreterUtil {
 		return true
 	}
 	
-	def getQualifiedName(XtendTypeDeclaration clazz){
+	def static getQualifiedName(XtendTypeDeclaration clazz){
 		if (clazz instanceof AnonymousClass){
 			clazz.eResource.URI.toString + clazz.eResource.getURIFragment(clazz)
 		}else{

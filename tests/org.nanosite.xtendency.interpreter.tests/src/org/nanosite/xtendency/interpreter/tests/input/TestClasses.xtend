@@ -114,9 +114,14 @@ class XtendSuperClass23 extends JavaSuperClass23 {
 	
 }
 
-class JavaSuperClassAcceptor23{
-	
-	def getSuperClassString(JavaSuperClass23 obj){
-		return obj.otherString + "ByAcceptor"
+class JavaA {
+	def a(){
+		"a in A"
+	}
+}
+
+class JavaB extends JavaA {
+	def b(){
+		a() + super.a()
 	}
 }

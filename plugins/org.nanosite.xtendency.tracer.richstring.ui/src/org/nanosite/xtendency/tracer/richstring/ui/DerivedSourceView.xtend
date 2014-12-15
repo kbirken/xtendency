@@ -254,8 +254,7 @@ public class DerivedSourceView extends AbstractGeneratedView implements IPartLis
 			if (current.children.map[findRelevantNodesForOutput(tempSet, offset, length)].reduce[p1, p2|p1 && p2] ?:
 				true) {
 				val f = classManager.usedClasses.inverse.get(current.input.expression.eResource.URI)
-				if (f == null)
-					println("!!!!!!")
+
 				nodes.safeGet(f).add(current)
 				return true
 			} else {

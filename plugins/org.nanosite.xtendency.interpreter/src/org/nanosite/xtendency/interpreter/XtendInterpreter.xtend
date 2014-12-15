@@ -51,6 +51,8 @@ import org.eclipse.xtext.common.types.util.TypeReferences
 import org.eclipse.emf.common.notify.Notifier
 import org.eclipse.xtend.core.xtend.AnonymousClass
 
+import static extension org.nanosite.xtendency.interpreter.InterpreterUtil.*
+
 class XtendInterpreter extends XbaseInterpreter {
 
 	@Inject
@@ -277,8 +279,7 @@ class XtendInterpreter extends XbaseInterpreter {
 		// then iterate through types
 		var String calledTypeFqn = null
 		var String calledTypeSimpleNonFinal = null
-		if (receiver instanceof javassist.util.proxy.Proxy)
-			println("!!!")
+
 		if (receiver !== null) {
 			val calledType = findCalledMethodType(operation, objectRep.getQualifiedClassName(receiver), polymorphicInvoke)
 
@@ -309,8 +310,11 @@ class XtendInterpreter extends XbaseInterpreter {
 			if (receiver === null && currentJvmType.isSubtypeOf(calledJvmType)) {
 				val calledFunc = getCalledFunction(currentType, op, argumentValues.size, argumentValues)
 
-				val newContext = new ChattyEvaluationContext
+				var IEvaluationContext newContext = new ChattyEvaluationContext
 				newContext.newValue(QualifiedName.create("this"), context.getValue(QualifiedName.create("this")))
+				
+				if (currentType instanceof AnonymousClass)
+					newContext = objectRep.fillAnonymousClassMethodContext(newContext, operation, context.getValue(QualifiedName.create("this")))
 				return evaluateOperation(calledFunc, argumentValues, null, newContext, indicator)
 			}
 		}
@@ -320,8 +324,11 @@ class XtendInterpreter extends XbaseInterpreter {
 
 			classManager.recordClassUse(calledTypeFqn)
 			objectRep.initializeClass(type)
-			val newContext = new ChattyEvaluationContext
+			var IEvaluationContext newContext = new ChattyEvaluationContext
 			newContext.newValue(QualifiedName.create("this"), receiver)
+			
+			if (type instanceof AnonymousClass)
+				newContext = objectRep.fillAnonymousClassMethodContext(newContext, operation, receiver)
 			return evaluateOperation(calledFunc, argumentValues, type, newContext, indicator)
 		}
 		if (javaOperation != null){
@@ -465,6 +472,10 @@ class XtendInterpreter extends XbaseInterpreter {
 		val calledType = jvmField.declaringType.qualifiedName
 		if (jvmField.static)
 			return objectRep.getStaticFieldValue(jvmField)
+
+			
+		//TODO: should do subtype comparison
+		//TODO: is this the place to look for this_0, this_1 features etc?
 		if (currentType != null) {
 			val currentTypeName = currentType.qualifiedName
 			if (currentTypeName == calledType && receiver == null) {
@@ -559,6 +570,17 @@ class XtendInterpreter extends XbaseInterpreter {
 			val result = context.getValue(QualifiedName.create("this"))
 			if (result != null)
 				return result
+		}
+		var counter = 0
+		while (context.getValue(QualifiedName.create("this_" + counter)) !== null){
+			val referencedObject = context.getValue(QualifiedName.create("this_" + counter))
+			val type = objectRep.getQualifiedClassName(referencedObject)
+			val typeDecl = classManager.getClassForName(type)
+			if (typeDecl instanceof XtendClass && identifiable instanceof JvmGenericType && (typeDecl as XtendClass).isSubtypeOf(identifiable as JvmGenericType)){
+				return referencedObject
+			}else{
+				counter++
+			}
 		}
 		super._invokeFeature(identifiable, featureCall, receiver, context, indicator)
 	}

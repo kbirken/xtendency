@@ -121,7 +121,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 	}
 
 	override setStaticFieldValue(JvmField jvmField, Object value) {
-		val fqn = jvmField.qualifiedName
+		val fqn = jvmField.qualifiedName		
 		if (staticVariables.containsKey(fqn)) {
 			staticVariables.put(fqn, value)
 		} else {
@@ -130,7 +130,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 	}
 
 	override initializeClass(XtendTypeDeclaration clazz) {
-		val fqnPrefix = clazz.qualifiedClassName + "."
+		val fqnPrefix = InterpreterUtil.getQualifiedName(clazz) + "."
 		for (f : clazz.members.filter(XtendField).filter[static]) {
 			if (staticVariables.containsKey(fqnPrefix + f.name)) {
 

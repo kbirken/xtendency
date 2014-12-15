@@ -10,6 +10,7 @@ import org.nanosite.xtendency.interpreter.tests.input.BasicCreateMethodClass
 import org.nanosite.xtendency.interpreter.tests.input.CreateMethodArgClass
 import org.nanosite.xtendency.interpreter.tests.input.InstanceAndFields21
 import org.nanosite.xtendency.interpreter.IXtendObject
+import java.util.AbstractList
 
 class BasicTest extends AbstractInterpreterTest {
 	
@@ -405,10 +406,10 @@ class BasicTest extends AbstractInterpreterTest {
 			public static String state = "INITIAL"
 			
 			static def String test22(){
-				val r = new MyRunnable22
+				val r = new MyRunnable22()
+				// we just check if Thread accepts the object
 				val t = new Thread(r)
-				t.start
-				t.join
+				r.run
 				return state
 			}
 			
@@ -454,5 +455,82 @@ class BasicTest extends AbstractInterpreterTest {
 		val file = parser.parse(source)
 		val result = file.runTestWithClasses("XtendClass23", "construct", null, #[], #[PACKAGE + ".XtendSuperClass23" -> uri])
 		assertEquals("initialInput2BYXTENDbyXtendByXtendbythisbyMain", result.result)
+	}
+	
+	@Test
+	def void T24_Anonymous(){
+		val source = '''
+		package «PACKAGE»
+		import java.util.ArrayList
+		
+		class Anonymous24 {
+			
+			private String outsideState = "initial"
+			
+			def static String invoke(){
+				new Anonymous24().invoke2()
+			}
+			
+			def String invoke2(){
+				val localVar = "localString"
+				val lst = new ArrayList(10){
+					override get(int index) {
+						"from" + localVar
+					}
+					
+				}
+				lst.add("test")
+				val obj = new Runnable(){
+					override run(){
+						outsideState = "changed"
+					}
+				}
+				
+				val listContent = lst.get(0) ?: "null"
+							
+				obj.run
+				return listContent + outsideState
+			}
+		}
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTestWithClasses("Anonymous24", "invoke", null, #[], #[])
+		assertEquals("fromlocalStringchanged", result.result)
+	}
+	
+	@Test
+	def void T25_superCall(){
+		val source = '''
+		package «PACKAGE»
+		
+		class XtendC extends JavaB {
+			override a(){
+				"a in C"
+			}
+		}
+		
+		class XtendXtendB extends JavaA {
+			def b(){
+				a() + super.a()
+			}
+		}
+		
+		class XtendXtendC extends XtendXtendB {
+			override a(){
+				"a in C"
+			}
+		}
+		
+		class Invoker {
+			static def String invoke(){
+				new XtendXtendC().b() + new XtendC().b()
+			}
+		}
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTestWithClasses("Invoker", "invoke", null, #[], #[PACKAGE + ".JavaA" -> uri, PACKAGE + ".JavaB" -> uri])
+		assertEquals("a in Ca in Aa in Ca in A", result.result)
 	}
 }

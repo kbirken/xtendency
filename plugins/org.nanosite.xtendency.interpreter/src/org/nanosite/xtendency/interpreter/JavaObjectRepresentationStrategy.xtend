@@ -34,6 +34,7 @@ import java.util.HashSet
 import org.eclipse.xtext.common.types.JvmGenericType
 import java.lang.reflect.Constructor
 import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
+import java.util.IdentityHashMap
 
 class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy {
 	protected ClassFinder classFinder
@@ -42,7 +43,7 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 	protected TypeReferences jvmTypes
 	
 	protected IClassManager classManager
-	protected Map<Object, IEvaluationContext> anonymousClassContexts = new HashMap
+	protected Map<Object, IEvaluationContext> anonymousClassContexts = new IdentityHashMap
 	
 	
 	protected Map<IXtendObject, Map<String, Object>> memberStates = new HashMap
@@ -225,10 +226,16 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 		val result = context.fork
 		val callerContext = (anonymousClassContexts.get(object) as ChattyEvaluationContext).contents
 		val existingValues = (context as ChattyEvaluationContext).contents.keySet
-		for (name : callerContext.keySet){
+		for (name : callerContext.keySet.filter[it != "this"]){
 			if (!existingValues.contains(name)){
 				result.newValue(QualifiedName.create(name), callerContext.get(name))
 			}
+		}
+		if (callerContext.containsKey("this")){
+			var counter = 0
+			while (existingValues.contains("this_" + counter))
+				counter++
+			result.newValue(QualifiedName.create("this_" + counter), callerContext.get("this"))
 		}
 		result
 	}
@@ -294,8 +301,7 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 					if (newClass == null)
 						newClass = jvmTypes.findDeclaredType(Object, clazz) as JvmDeclaredType
 					val constr = newClass.declaredConstructors.findFirst[parameters.empty]
-					if (constr == null)
-						println("!!!!")
+
 					object = executeConstructorCall(constr, #[], allInterfaces) as IXtendObject
 				}
 
