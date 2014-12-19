@@ -54,7 +54,8 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 	override getFieldValue(Object object, JvmField jvmField) {
 		val field = javaReflectAccess.getField(jvmField)
 		field.accessible = true
-		
+		if (field == null || object == null)
+			println("!!")
 		field.get(object)
 	}
 	
@@ -63,7 +64,7 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 		field.accessible = true
 
 		field.set(object, value)
-	}
+	} 
 	
 	override setCreateMethodResult(Object object, XtendFunction method, List<?> arguments, Object result) {
 		getCreateCache(object, method).put(arguments, result)
@@ -188,12 +189,8 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 			constructor = calledType.getDeclaredConstructors.findFirst[parameters.size == dummyConstructor.parameters.size && (0..<parameters.size).forall[i | parameters.get(i).parameterType.qualifiedName == dummyConstructor.parameters.get(i).parameterType.qualifiedName]]
 		}
 		
-		
-		val object = executeConstructorCall(constructor, arguments, interfaces)
-		
-		val officialType = clazz.eResource.URI.toString + clazz.eResource.getURIFragment(clazz)
-		
-		val methodHandler = new MethodHandler() {
+		val officialType = clazz.constructorCall.constructor.declaringType.identifier
+		val methodHandlerMethod  = [Proxy p| new MethodHandler() {
 			
 			override invoke(Object slf, Method thisMethod, Method proceed, Object[] args) throws Throwable {
 				val callingClassName = Thread.currentThread.stackTrace.head.className
@@ -215,10 +212,13 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 				}
 			}
 			
-		}
+		}]
+		
+		val object = executeConstructorCall(constructor, arguments, interfaces, methodHandlerMethod)
+		
 		classManager.addAnonymousClass(officialType, clazz)
 		anonymousClassContexts.put(object, context)
-		(object as Proxy).handler = methodHandler
+		
 		object
 	}
 	
@@ -245,7 +245,7 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 	}
 	
 	def protected executeConstructorCall(JvmConstructor jvmConstr, List<?> arguments,
-		Set<Class<? extends Object>> interfaces) {
+		Set<Class<? extends Object>> interfaces, (Proxy)=>MethodHandler handler) {
 
 		//TODO: do initialize class and initialize object on the way
 		//possibly also make a record of fields belonging to classes and stuff
@@ -268,7 +268,10 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 				jvmConstr.parameters.map[classFinder.forName(parameterType.qualifiedName)])
 
 			val result = constr.newInstance(arguments.toArray)
-
+			val methodHandler = handler.apply(result as Proxy)
+			(result as Proxy).handler = methodHandler
+			if (result.toString.contains("XtendSuperClass23"))
+				println("!!!!!!!!!!!!")
 			return result
 		} catch (ClassNotFoundException e) {
 			if (classManager.canInterpretClass(type)) {
@@ -295,14 +298,14 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 					val newCall = constructorExpression.expressions.head as XFeatureCall
 					object = executeConstructorCall(newCall.feature as JvmConstructor,
 						interpreter.evaluateArgumentExpressions(newCall.feature as JvmConstructor,
-							newCall.actualArguments, context, CancelIndicator.NullImpl), allInterfaces) as IXtendObject
+							newCall.actualArguments, context, CancelIndicator.NullImpl), allInterfaces, handler) as IXtendObject
 				} else {
 					var newClass = clazz.extends?.type as JvmDeclaredType
 					if (newClass == null)
 						newClass = jvmTypes.findDeclaredType(Object, clazz) as JvmDeclaredType
 					val constr = newClass.declaredConstructors.findFirst[parameters.empty]
 
-					object = executeConstructorCall(constr, #[], allInterfaces) as IXtendObject
+					object = executeConstructorCall(constr, #[], allInterfaces, handler) as IXtendObject
 				}
 
 				val state = object.objectState

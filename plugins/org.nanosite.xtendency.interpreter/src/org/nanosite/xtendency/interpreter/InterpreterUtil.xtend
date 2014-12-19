@@ -138,7 +138,8 @@ class InterpreterUtil {
 	
 	def static getQualifiedName(XtendTypeDeclaration clazz){
 		if (clazz instanceof AnonymousClass){
-			clazz.eResource.URI.toString + clazz.eResource.getURIFragment(clazz)
+			clazz.constructorCall.constructor.declaringType.identifier
+			//clazz.eResource.URI.toString + clazz.eResource.getURIFragment(clazz)
 		}else{
 			val file = clazz.eContainer as XtendFile
 			return file.package + "." + clazz.name
@@ -146,7 +147,7 @@ class InterpreterUtil {
 	}
 	
 	def boolean isSubtypeOf(JvmDeclaredType t1, JvmDeclaredType t2){
-		if (t1 == t2)
+		if (t1.qualifiedName == t2.qualifiedName)
 			return true
 		val superTypes = t1.superTypes.map[type]
 		if (superTypes.contains(t2))

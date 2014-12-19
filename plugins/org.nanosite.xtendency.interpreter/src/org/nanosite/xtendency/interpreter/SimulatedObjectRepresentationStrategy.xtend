@@ -52,14 +52,14 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 			return super.executeConstructorCall(call, constr, arguments)
 		} catch (NoSuchMethodException e) {
 			val newType = classManager.getClassForName(call.constructor.declaringType.qualifiedName)
-			val oldType = interpreter.getCurrentType
-			interpreter.setCurrentType = newType
+//			val oldType = interpreter.getCurrentType
+//			interpreter.setCurrentType = newType
 			val Set<Class<?>> interfaces = new HashSet<Class<?>>
 			interfaces += IXtendObject
-			val result = executeConstructorCall(constr, arguments, interfaces)
-			if (result instanceof Proxy) {
+			
+			val methodHandlerFunction = [Proxy p | 
 				val officialType = call.constructor.declaringType.qualifiedName
-				val objectId = result.toString.split("@").tail
+				val objectId = p.toString.split("@").last
 
 				val methodHandler = new MethodHandler() {
 
@@ -87,10 +87,11 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 						}
 					}
 				}
-				result.handler = methodHandler
-			}
+				methodHandler
+			]
+			val result = executeConstructorCall(constr, arguments, interfaces, methodHandlerFunction)
 
-			interpreter.currentType = oldType
+//			interpreter.currentType = oldType
 			result
 		}
 	}
