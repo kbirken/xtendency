@@ -16,6 +16,10 @@
       [Enter License Description here.]
    </license>
 
+   <requires>
+      <import feature="org.nanosite.xtendendy.interpreter.feature" version="1.0.0.qualifier"/>
+   </requires>
+
    <plugin
          id="org.nanosite.xtendency.tracer.core"
          download-size="0"
