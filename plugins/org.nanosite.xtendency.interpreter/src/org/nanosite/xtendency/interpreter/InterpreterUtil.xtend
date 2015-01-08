@@ -19,6 +19,7 @@ import org.eclipse.xtend.core.xtend.XtendConstructor
 import org.eclipse.xtext.common.types.JvmConstructor
 import java.lang.reflect.Method
 import org.eclipse.xtend.core.xtend.AnonymousClass
+import java.lang.reflect.Constructor
 
 class InterpreterUtil {
 	
@@ -136,6 +137,18 @@ class InterpreterUtil {
 		return true
 	}
 	
+	def static boolean constructorsEqual(JvmConstructor c1, Constructor<?> c2){
+		if (c1.parameters.size != c2.parameterTypes.size)
+			return false
+		for (i : 0..<c1.parameters.size){
+			val p1 = c1.parameters.get(i).parameterType.qualifiedName
+			val p2 = c2.parameterTypes.get(i).canonicalName
+			if (p1 != p2)
+				return false
+		}
+		return true
+	}
+	
 	def static getQualifiedName(XtendTypeDeclaration clazz){
 		if (clazz instanceof AnonymousClass){
 			clazz.constructorCall.constructor.declaringType.identifier
@@ -153,5 +166,21 @@ class InterpreterUtil {
 		if (superTypes.contains(t2))
 			return true
 		return superTypes.exists[(it as JvmDeclaredType).isSubtypeOf(t2)]
+	}
+	
+	protected static def String getCustomIdentifier(JvmOperation op){
+		val result = new StringBuilder(op.simpleName)
+		for (p : op.parameters){
+			result.append(p.parameterType.simpleName)
+		}
+		result.toString
+	}
+	
+	protected static def String getCustomIdentifier(XtendFunction f){
+		val result = new StringBuilder(f.name)
+		for (p : f.parameters){
+			result.append(p.parameterType.simpleName)
+		}
+		result.toString
 	}
 }

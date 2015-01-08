@@ -14,6 +14,8 @@ import org.eclipse.xtend.core.xtend.AnonymousClass
 import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
 import org.eclipse.xtext.common.types.JvmOperation
 import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
+import org.eclipse.xtext.common.types.JvmType
+import java.lang.reflect.Method
 
 interface IObjectRepresentationStrategy {
 	
@@ -40,4 +42,9 @@ interface IObjectRepresentationStrategy {
 	
 	def Object executeAnonymousClassConstructor(AnonymousClass clazz, List<?> arguments, IEvaluationContext context)
 	def IEvaluationContext fillAnonymousClassMethodContext(IEvaluationContext context, JvmOperation op, Object object)
+	
+	def Class<?> getClass(JvmType type, int arrayDimensions)
+	
+	
+	def Method getJavaOnlyMethod(Object instance, JvmOperation method)
 }

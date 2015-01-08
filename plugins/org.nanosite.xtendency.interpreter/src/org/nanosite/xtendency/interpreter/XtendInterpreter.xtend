@@ -52,6 +52,7 @@ import org.eclipse.emf.common.notify.Notifier
 import org.eclipse.xtend.core.xtend.AnonymousClass
 
 import static extension org.nanosite.xtendency.interpreter.InterpreterUtil.*
+import org.eclipse.xtext.xbase.XTypeLiteral
 
 class XtendInterpreter extends XbaseInterpreter {
 
@@ -219,13 +220,6 @@ class XtendInterpreter extends XbaseInterpreter {
 				context, indicator), context)
 	}
 
-	//	protected def getCurrentType(){
-	//		currentType
-	//	}
-	//	
-	//	protected def setCurrentType(XtendTypeDeclaration type){
-	//		this.currentType = type
-	//	}
 	override protected evaluateArgumentExpressions(JvmExecutable executable, List<XExpression> expressions,
 		IEvaluationContext context, CancelIndicator indicator) {
 		super.evaluateArgumentExpressions(executable, expressions, context, indicator)
@@ -250,17 +244,16 @@ class XtendInterpreter extends XbaseInterpreter {
 		null
 	}
 
-	protected def Object invokeOperation(Notifier notifier, Method operation, Object receiver, Object[] argumentValues,
-		Method javaOperation) {
-		val jvmType = jvmTypes.findDeclaredType(operation.declaringClass, notifier) as JvmDeclaredType
-		val jvmOperation = jvmType.declaredOperations.findFirst[it.operationsEqual(operation)]
-		return invokeOperation(jvmOperation, receiver, argumentValues, new ChattyEvaluationContext,
-			CancelIndicator.NullImpl, javaOperation, true)
-	}
-
+	//	protected def Object invokeOperation(Notifier notifier, Method operation, Object receiver, Object[] argumentValues,
+	//		Method javaOperation) {
+	//		val jvmType = jvmTypes.findDeclaredType(operation.declaringClass, notifier) as JvmDeclaredType
+	//		val jvmOperation = jvmType.declaredOperations.findFirst[it.operationsEqual(operation)]
+	//		return invokeOperation(jvmOperation, receiver, argumentValues, new ChattyEvaluationContext,
+	//			CancelIndicator.NullImpl, javaOperation, true)
+	//	}
 	protected override Object invokeOperation(JvmOperation operation, Object receiver, List<Object> argumentValues,
 		IEvaluationContext context, CancelIndicator indicator) {
-		invokeOperation(operation, receiver, argumentValues, context, indicator, null, true)
+		invokeOperation(operation, receiver, argumentValues, context, indicator, true)
 	}
 
 	override protected _invokeFeature(JvmOperation operation, XAbstractFeatureCall featureCall, Object receiver,
@@ -268,11 +261,20 @@ class XtendInterpreter extends XbaseInterpreter {
 		val operationArguments = getActualArguments(featureCall);
 		val argumentValues = evaluateArgumentExpressions(operation, operationArguments, context, indicator);
 		val polymorphic = if(featureCall.actualReceiver?.toString == "super") false else true
-		return invokeOperation(operation, receiver, argumentValues, context, indicator, null, polymorphic);
+		if (polymorphic == false && operation.simpleName == "a") {
+			println("!!!")
+			for (m : receiver.class.methods) {
+				println(m.toString)
+			}
+			for (m : this.class.methods) {
+				println(m.toString)
+			}
+		}
+		return invokeOperation(operation, receiver, argumentValues, context, indicator, polymorphic);
 	}
 
 	protected def Object invokeOperation(JvmOperation operation, Object receiver, List<Object> argumentValues,
-		IEvaluationContext context, CancelIndicator indicator, Method javaOperation, boolean polymorphicInvoke) {
+		IEvaluationContext context, CancelIndicator indicator, boolean polymorphicInvoke) {
 
 		// to do polymorphism properly
 		// find out which class the object actually has
@@ -286,8 +288,10 @@ class XtendInterpreter extends XbaseInterpreter {
 
 			//calledtype may be null if the class is not available in xtend
 			if (calledType == null) {
-				if (javaOperation != null) {
-					return javaOperation.invoke(receiver, argumentValues.toArray)
+				if (!polymorphicInvoke) {
+					val method = objectRep.getJavaOnlyMethod(receiver, operation)
+					method.accessible = true
+					return method.invoke(receiver, argumentValues.toArray)
 				} else {
 					return super.invokeOperation(operation, receiver, argumentValues, context, indicator)
 				}
@@ -301,26 +305,9 @@ class XtendInterpreter extends XbaseInterpreter {
 		}
 		val op = operation.simpleName
 
-		//		if (currentType != null) {
-		//			val currentTypeName = currentType.qualifiedName
-		//			val calledJvmType = jvmTypes.findDeclaredType(calledTypeFqn, currentType) as JvmDeclaredType
-		//			val currentJvmType = if (currentType instanceof AnonymousClass)
-		//				currentType.constructorCall.constructor.declaringType.superTypes.head.type as JvmDeclaredType
-		//			else
-		//				jvmTypes.findDeclaredType(currentTypeName, currentType) as JvmDeclaredType
-		//			
-		//			if (receiver === null && currentJvmType.isSubtypeOf(calledJvmType)) {
-		//				val calledFunc = getCalledFunction(currentType, op, argumentValues.size, argumentValues)
-		//
-		//				var IEvaluationContext newContext = new ChattyEvaluationContext
-		//				newContext.newValue(QualifiedName.create("this"), context.getValue(QualifiedName.create("this")))
-		//				
-		//				if (currentType instanceof AnonymousClass)
-		//					newContext = objectRep.fillAnonymousClassMethodContext(newContext, operation, context.getValue(QualifiedName.create("this")))
-		//				return evaluateOperation(calledFunc, argumentValues, null, newContext, indicator)
-		//			}
-		//		}
 		if (classManager.canInterpretClass(calledTypeFqn)) {
+			if (calledTypeFqn == "org.nanosite.xtendency.interpreter.tests.input.XtendXtendB")
+				println("!!!")
 			val type = classManager.getClassForName(calledTypeFqn)
 			val calledFunc = getCalledFunction(type, op, argumentValues.size, argumentValues)
 
@@ -333,10 +320,12 @@ class XtendInterpreter extends XbaseInterpreter {
 				newContext = objectRep.fillAnonymousClassMethodContext(newContext, operation, receiver)
 			return evaluateOperation(calledFunc, argumentValues, type, newContext, indicator)
 		}
-		if (javaOperation != null) {
-			javaOperation.invoke(receiver, argumentValues.toArray)
+		if (!polymorphicInvoke) {
+			val method = objectRep.getJavaOnlyMethod(receiver, operation)
+			method.accessible = true
+			return method.invoke(receiver, argumentValues)
 		} else {
-			super.invokeOperation(operation, receiver, argumentValues, context, indicator)
+			return super.invokeOperation(operation, receiver, argumentValues, context, indicator)
 		}
 
 	}
@@ -348,7 +337,7 @@ class XtendInterpreter extends XbaseInterpreter {
 		boolean polymorphic) {
 		val relevantClassFqn = if(polymorphic) actualTypeName else operation.declaringType.qualifiedName
 		if (classManager.canInterpretClass(relevantClassFqn)) {
-			val type = classManager.getClassForName(actualTypeName)
+			val type = classManager.getClassForName(relevantClassFqn)
 			if (type.hasMethod(operation)) {
 				return relevantClassFqn -> type.name
 			} else {
@@ -417,10 +406,8 @@ class XtendInterpreter extends XbaseInterpreter {
 
 	def protected evaluateConstructor(XtendConstructor constr, IEvaluationContext context, CancelIndicator indicator) {
 
-		//		val currentTypeBefore = currentType
+		//TODO: do we need this method
 		val result = doEvaluate(constr.expression, context, indicator)
-
-	//		currentType = currentTypeBefore
 	}
 
 	def protected evaluateOperation(XtendFunction func, List<Object> argumentValues, XtendTypeDeclaration type,
@@ -444,16 +431,9 @@ class XtendInterpreter extends XbaseInterpreter {
 			}
 		}
 		try {
-
-			//			val currentTypeBefore = currentType
-			//			if (type != null)
-			//				currentType = type
 			var result = doEvaluate(func.expression, context, indicator)
 			if (func.createExtensionInfo != null)
 				result = objectRep.getCreateMethodResult(receiver, func, argumentValues)
-
-			//			if (type != null)
-			//				currentType = currentTypeBefore
 			return result
 		} catch (RuntimeException r) {
 			if (r.class.simpleName == "ReturnValue") {
@@ -474,9 +454,6 @@ class XtendInterpreter extends XbaseInterpreter {
 		if (jvmField.static)
 			return objectRep.getStaticFieldValue(jvmField)
 
-		//TODO: should do subtype comparison
-		//TODO: is this the place to look for this_0, this_1 features etc?
-		// no.
 		val instance = context.getValue(QualifiedName.create("this"))
 
 		if (instance !== null) {
@@ -489,15 +466,8 @@ class XtendInterpreter extends XbaseInterpreter {
 			}
 		}
 
-		val contents = (context as ChattyEvaluationContext).contents
-		println("Contents now")
-		for (k : contents.keySet) {
-			println(k.toString + " -> " + contents.get(k))
-		}
-
 		return objectRep.getFieldValue(receiver, jvmField)
 
-	//super._invokeFeature(jvmField, featureCall, receiver, context, indicator)
 	}
 
 	protected override _assigneValueTo(JvmField jvmField, XAbstractFeatureCall assignment, Object value,
@@ -522,44 +492,7 @@ class XtendInterpreter extends XbaseInterpreter {
 			} else {
 				throw new NullPointerException
 			}
-
-		//TODO: this should check if this is the type we're looking for
-		//			if (currentType != null) {
-		//				val calledTypeFqn = jvmField.declaringType.qualifiedName
-		//				val currentTypeName = currentType.qualifiedName
-		//				
-		//				val calledJvmType = jvmTypes.findDeclaredType(calledTypeFqn, currentType) as JvmDeclaredType
-		//				val currentJvmType = if (currentType instanceof AnonymousClass)
-		//					currentType.constructorCall.constructor.declaringType.superTypes.head.type as JvmDeclaredType
-		//				else
-		//					jvmTypes.findDeclaredType(currentTypeName, currentType) as JvmDeclaredType
-		//				if (currentJvmType.isSubtypeOf(calledJvmType)) {
-		//					val currentInstance = context.getValue(QualifiedName.create("this"))
-		//					val fieldName = assignment.feature.simpleName
-		//					if (currentInstance != null) {
-		//						objectRep.setFieldValue(currentInstance, jvmField, value)
-		//						return value
-		//					}
-		//				}
-		//			}
 		}
-
-	//TODO: this is bad, which is the instance and which is the actual value? 
-	// it also doesnt check if we assign something to a different instance of the same class
-	// and of course the call at the end shouldn't be there any more probably.
-	//		val calledType = jvmField.declaringType.qualifiedName
-	//		if (currentType != null) {
-	//			val currentTypeName = currentType.qualifiedName
-	//			if (currentTypeName == calledType) {
-	//				val currentInstance = context.getValue(QualifiedName.create("this"))
-	//				val fieldName = assignment.feature.simpleName
-	//				if (currentInstance != null) {
-	//					objectRep.setFieldValue(currentInstance, fieldName, value)
-	//					return value
-	//				}
-	//			}
-	//		}
-	//		super._assigneValueTo(jvmField, assignment, value, context, indicator)
 	}
 
 	//TODO: this only cares about extended classes, not interfaces; is that okay?
@@ -580,13 +513,6 @@ class XtendInterpreter extends XbaseInterpreter {
 	override protected Object _invokeFeature(JvmIdentifiableElement identifiable, XAbstractFeatureCall featureCall,
 		Object receiver, IEvaluationContext context, CancelIndicator indicator) {
 
-		//		if (featureCall.toString == "this" && currentType != null && identifiable instanceof JvmGenericType &&
-		//			identifiable.simpleName == currentType.name) {
-		//		if (currentType != null && currentType instanceof XtendClass && identifiable instanceof JvmGenericType && (currentType as XtendClass).isSubtypeOf(identifiable as JvmGenericType)){
-		//			val result = context.getValue(QualifiedName.create("this"))
-		//			if (result != null)
-		//				return result
-		//		}
 		if (identifiable instanceof JvmDeclaredType) {
 			val instance = context.getValue(QualifiedName.create("this"))
 
@@ -679,4 +605,9 @@ class XtendInterpreter extends XbaseInterpreter {
 		}
 		return result
 	}
+
+	override protected _doEvaluate(XTypeLiteral literal, IEvaluationContext context, CancelIndicator indicator) {
+		objectRep.getClass(literal.type, literal.arrayDimensions.size)
+	}
+
 }
