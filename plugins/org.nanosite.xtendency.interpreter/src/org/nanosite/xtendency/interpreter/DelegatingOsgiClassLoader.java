@@ -9,15 +9,15 @@ import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.wiring.BundleWiring;
 
-public class DelegatorClassLoader extends SecureClassLoader {
+public class DelegatingOsgiClassLoader extends SecureClassLoader {
 	private ClassLoader parent;
 	private List<ClassLoader> delegates = new ArrayList<ClassLoader>();
 	
-	public DelegatorClassLoader(ClassLoader parent, Class<?> classInBundle, List<String> classPathUrls){
+	public DelegatingOsgiClassLoader(ClassLoader parent, Class<?> classInBundle, List<String> classPathUrls){
 		this(parent, FrameworkUtil.getBundle(classInBundle).getBundleContext(), classPathUrls);
 	}
 
-	private DelegatorClassLoader(ClassLoader parent, BundleContext context, List<String> classPathUrls) {
+	private DelegatingOsgiClassLoader(ClassLoader parent, BundleContext context, List<String> classPathUrls) {
 		super(parent);
 		
 		this.parent = parent;
@@ -31,7 +31,7 @@ public class DelegatorClassLoader extends SecureClassLoader {
 		}
 	}
 	
-	public DelegatorClassLoader(ClassLoader parent){
+	public DelegatingOsgiClassLoader(ClassLoader parent){
 		super(parent);
 		Bundle[] bundles = FrameworkUtil.getBundle(getClass()).getBundleContext().getBundles();
 		for (Bundle b : bundles){

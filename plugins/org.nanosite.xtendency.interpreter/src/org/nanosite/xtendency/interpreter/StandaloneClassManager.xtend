@@ -46,8 +46,10 @@ class StandaloneClassManager implements IClassManager {
 	}
 	
 	override configureClassLoading(ClassLoader injectedClassLoader) {
-		this.classLoader = injectedClassLoader
-		injectedClassLoader
+		val delegating = new DelegatingOsgiClassLoader(injectedClassLoader)
+		
+		this.classLoader = new DelegatingClassLoader(Thread.currentThread.contextClassLoader, delegating)
+		classLoader
 	}
 	
 	override getConfiguredClassLoader() {
@@ -67,6 +69,10 @@ class StandaloneClassManager implements IClassManager {
 	
 	override addAnonymousClass(String name, AnonymousClass classDef) {
 		anonymousClasses.put(name, classDef)
+	}
+	
+	override getAvailableClasses() {
+		availableClasses.keySet
 	}
 	
 }

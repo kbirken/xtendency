@@ -48,8 +48,6 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 	override getFieldValue(Object object, JvmField jvmField) {
 		val field = javaReflectAccess.getField(jvmField)
 		field.accessible = true
-		if (field == null || object == null)
-			println("!!")
 		field.get(object)
 	}
 

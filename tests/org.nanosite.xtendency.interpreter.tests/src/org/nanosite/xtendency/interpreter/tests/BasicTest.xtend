@@ -543,7 +543,7 @@ class BasicTest extends AbstractInterpreterTest {
 		'''.unescape
 		
 		val file = parser.parse(source)
-		val result = file.runTestWithClasses("Invoker", "invoke", null, #[], #[PACKAGE + ".JavaB" -> uri])
+		val result = file.runTestWithClasses("Invoker", "invoke", null, #[], #[PACKAGE + ".JavaA" -> uri, PACKAGE + ".JavaB" -> uri])
 		assertEquals("a in Ca in Aa in Ca in A", result.result)
 	}
 	
@@ -552,7 +552,127 @@ class BasicTest extends AbstractInterpreterTest {
 		val source = '''
 		package «PACKAGE»
 		
+		class SomeClass26 extends JavaA{
+			
+		}
 		
-		'''
+		class OtherClass26 extends SomeClass26{
+			static def String doReflectiveThings(){
+				var result = ""
+				val c1 = JavaA
+				val c2 = SomeClass26
+				val c3 = typeof(OtherClass26)
+				
+				val c32 = OtherClass26
+				result += c1.simpleName
+				result += c2.simpleName 
+				result += c3.simpleName
+				
+				result += c3 === c32 // true
+				result += c3.isAssignableFrom(c2) // false
+				result += c2.isAssignableFrom(c1) // false
+				result += c2.isAssignableFrom(c3) // true
+				result += c1.isAssignableFrom(c2) // true
+				
+				val ocInstance = c3.newInstance
+				val c33 = ocInstance.class
+				result += c33 === c3
+				val amethod = c3.getMethod("a")
+				result += amethod.invoke(ocInstance)
+				result
+			}
+			
+			override a(){
+				"a in OC26" + super.a
+			}	
+		}
+		
+		
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTest("OtherClass26", "doReflectiveThings", null, #[])
+		assertEquals("JavaASomeClass26OtherClass26truefalsefalsetruetruetruea in OC26a in A", result.result)
+	}
+	
+	@Test
+	def void T27_InterpreterExecution(){
+		val source = '''
+		package «PACKAGE»
+		
+		class XtendClass27 {
+			
+			static def String invoke(){
+				val result = ""
+				val xc1 = new XtendClass27()
+				result += xc1.doExecutionCheck
+				val m1 = xc1.class.getDeclaredMethod("doExecutionCheck")
+				result += m1.invoke(xc1)
+				
+				val xc2 = XtendClass27.newInstance as XtendClass27
+				result += xc2.doExecutionCheck
+				val m2 = xc2.class.getDeclaredMethod("doExecutionCheck")
+				result += m2.invoke(xc2)
+				
+				val xec1 = new XtendExecutionCheckClass()
+				result += xec1.doExecutionCheck
+				val me1 = xec1.class.getDeclaredMethod("doExecutionCheck")
+				result += me1.invoke(xec1)
+				
+				val xec2 = XtendExecutionCheckClass.newInstance as XtendExecutionCheckClass
+				result += xec2.doExecutionCheck
+				val me2 = xec2.class.getDeclaredMethod("doExecutionCheck")
+				result += me2.invoke(xec2)
+				
+				result += new JavaExecutionCheckClass().doExecutionCheck()
+				
+				return result
+			}
+			
+			def boolean doExecutionCheck(){
+				return org.nanosite.xtendency.interpreter.tests.BasicTest.checkInterpreterExecution()
+			}
+		}
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTestWithClasses("XtendClass27", "invoke", null, #[], #[PACKAGE + ".XtendExecutionCheckClass" -> uri])
+		assertEquals("truetruetruetruetruetruetruetruefalse", result.result)
+	}
+	
+	@Test
+	def void T28_OverriddenPrivateMethod(){
+		val source = '''
+		package «PACKAGE»
+		
+		class Super28 {
+			def private String privateMethod(){
+				"superResult"
+			}
+			
+			def accessMethod(){
+				privateMethod
+			}
+			
+			def static String invoke(){
+				new Sub28().accessMethod()
+			}
+		}
+		
+		class Sub28 extends Super28 {
+			def private privateMethod(){
+				"subResult"
+			}
+		}
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTest("Super28", "invoke", null, #[])
+		assertEquals("superResult", result.result)
+	}
+	
+	static def boolean checkInterpreterExecution(){
+		val st = Thread.currentThread.stackTrace
+		st.get(2).methodName != "doExecutionCheck"
 	}
 }

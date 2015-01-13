@@ -113,7 +113,7 @@ class WorkspaceClassManager implements IClassManager{
 			val classPathUrls = classPathEntries.map[new Path(it).toFile().toURI().toURL()]
 
 			var ClassLoader parent = injectedClassLoader
-			parent = new DelegatorClassLoader(parent, XtendInterpreter, classPathUrls.map[toString])
+			parent = new DelegatingOsgiClassLoader(parent, XtendInterpreter, classPathUrls.map[toString])
 
 			classLoader = new URLClassLoader(classPathUrls, parent)
 			return classLoader
@@ -140,6 +140,10 @@ class WorkspaceClassManager implements IClassManager{
 	
 	override addAnonymousClass(String name, AnonymousClass classDef) {
 		anonymousClasses.put(name, classDef)
+	}
+	
+	override getAvailableClasses() {
+		availableClasses.keySet
 	}
 	
 }

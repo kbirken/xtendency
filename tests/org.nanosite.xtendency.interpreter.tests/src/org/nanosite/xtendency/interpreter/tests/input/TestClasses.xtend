@@ -125,3 +125,15 @@ class JavaB extends JavaA {
 		a() + super.a()
 	}
 }
+
+class JavaExecutionCheckClass {
+	def boolean doExecutionCheck(){
+		return org.nanosite.xtendency.interpreter.tests.BasicTest::checkInterpreterExecution()
+	}
+}
+
+class XtendExecutionCheckClass {
+	def boolean doExecutionCheck(){
+		return org.nanosite.xtendency.interpreter.tests.BasicTest::checkInterpreterExecution()
+	}
+}

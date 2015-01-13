@@ -4,6 +4,7 @@ import org.eclipse.emf.ecore.resource.ResourceSet
 import org.eclipse.emf.common.util.URI
 import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
 import org.eclipse.xtend.core.xtend.AnonymousClass
+import java.util.Set
 
 interface IClassManager {
 	def ResourceSet getResourceSet()
@@ -20,4 +21,6 @@ interface IClassManager {
 	def XtendTypeDeclaration getClassForName(String fqn)
 	
 	def void addAnonymousClass(String name, AnonymousClass classDef)
+	
+	def Set<String> getAvailableClasses()
 }

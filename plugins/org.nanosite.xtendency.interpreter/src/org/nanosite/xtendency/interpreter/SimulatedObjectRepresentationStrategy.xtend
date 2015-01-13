@@ -53,6 +53,9 @@ import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Array
 import org.eclipse.xtext.common.types.JvmVoid
 import javassist.bytecode.DuplicateMemberException
+import org.eclipse.xtend.core.jvmmodel.IXtendJvmAssociations
+import com.google.inject.Inject
+import org.eclipse.xtext.common.types.JvmTypeReference
 
 @Data class MethodSignature {
 	String fqn
@@ -69,18 +72,23 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 	protected static final String DELEGATE_METHOD_MARKER = "__delegate_"
 
 	protected Map<Pair<Object, XtendFunction>, Map<List<?>, Object>> createCaches = new HashMap
-	protected Map<String, Object> staticVariables = new HashMap
 
 	protected Map<Object, IEvaluationContext> anonymousClassContexts = new IdentityHashMap
 
-	protected Set<String> nonCompiledClasses = new HashSet
-
-	protected Map<XtendClass, CtClass> createdClasses = new HashMap
+	protected Map<XtendTypeDeclaration, CtClass> createdClasses = new HashMap
 	protected Map<CtClass, Class<?>> compiledClasses = new HashMap
 
 	protected ClassPool pool = ClassPool.getDefault
+	
+	protected Set<XtendTypeDeclaration> initializedClasses = new HashSet
+	
+	protected HidingClassLoader hidingLoader
+	protected ClassLoader definingLoader
 
 	public static Map<String, SimulatedObjectRepresentationStrategy> instances = new HashMap<String, SimulatedObjectRepresentationStrategy>
+
+	@Inject
+	IXtendJvmAssociations jvmAssociations
 
 	override protected getCreateCache(Object receiver, XtendFunction func) {
 		if (receiver instanceof IXtendObjectMarker) {
@@ -91,84 +99,88 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 	}
 
 	override executeConstructorCall(XConstructorCall call, JvmConstructor constr, List<?> arguments) {
-		try {
+		if (!classManager.canInterpretClass(constr.declaringType.qualifiedName)) {
 			return super.executeConstructorCall(call, constr, arguments)
-		} catch (NoSuchMethodException e) {
+		} else {
 			val clazz = constr.declaringType.qualifiedName.createdClass
 			val constructor = clazz.constructors.findFirst[constructorsEqual(constr, it)]
 			if (constructor == null)
 				throw new NoSuchMethodException("Could not find constructor " + constr.getIdentifier());
 			constructor.setAccessible(true);
-			try {
-				val result = constructor.newInstance(arguments.toArray);
-				return result;
-			} catch (InvocationTargetException ex) {
-				ex.printStackTrace
-				null
-			}
-
+			val result = constructor.newInstance(arguments.toArray);
+			return result;
 		}
 	}
 
 	override getFieldValue(Object object, JvmField jvmField) {
-		try {
+		if (!classManager.canInterpretClass(jvmField.declaringType.qualifiedName)) {
 			super.getFieldValue(object, jvmField)
-		} catch (Exception e) {
+		} else {
 			object.getFieldForSimulatedClass(jvmField.declaringType.qualifiedName, jvmField.simpleName)
 		}
 	}
 
 	override getStaticFieldValue(JvmField jvmField) {
-		val fqn = jvmField.qualifiedName
-		if (staticVariables.containsKey(fqn)) {
-			return staticVariables.get(fqn)
-		} else {
+		val fqn = jvmField.declaringType.qualifiedName
+		if (!classManager.canInterpretClass(fqn)){
 			super.getStaticFieldValue(jvmField)
+		}else{
+			val f = fqn.createdClass.getDeclaredField(jvmField.simpleName)
+			f.accessible = true
+			f.get(null)
 		}
 	}
 
 	override setFieldValue(Object object, JvmField jvmField, Object value) {
-		try {
+		if (!classManager.canInterpretClass(jvmField.declaringType.qualifiedName)) {
 			super.setFieldValue(object, jvmField, value)
-		} catch (Exception e) {
+		} else {
 			setFieldForSimulatedClass(object, jvmField.declaringType.qualifiedName, jvmField.simpleName, value)
 		}
 	}
 
 	override setStaticFieldValue(JvmField jvmField, Object value) {
-		val fqn = jvmField.qualifiedName
-		if (staticVariables.containsKey(fqn)) {
-			staticVariables.put(fqn, value)
-		} else {
+		val fqn = jvmField.declaringType.qualifiedName
+		if (!classManager.canInterpretClass(fqn)){
 			super.setStaticFieldValue(jvmField, value)
+		}else{
+			val f = fqn.createdClass.getDeclaredField(jvmField.simpleName)
+			f.accessible = true
+			f.set(null, value)
 		}
 	}
 
 	override initializeClass(XtendTypeDeclaration clazz) {
-		val fqnPrefix = InterpreterUtil.getQualifiedName(clazz) + "."
-		for (f : clazz.members.filter(XtendField).filter[static]) {
-			if (staticVariables.containsKey(fqnPrefix + f.name)) {
+		if (initializedClasses.contains(clazz))
+			return;
+		initializedClasses.add(clazz)
+		val javaClass = clazz.qualifiedName.createdClass
 
-				// has already been initialized
-				return
-			}
+		for (f : clazz.members.filter(XtendField).filter[static]) {
 			var Object value = null
 			if (f.initialValue != null) {
 				value = interpreter.internalEvaluate(f.initialValue, new ChattyEvaluationContext,
 					CancelIndicator.NullImpl)
 			}
-			staticVariables.put(fqnPrefix + f.name, value)
+			val javaF = javaClass.getDeclaredField(f.name)
+			javaF.accessible = true
+			try{
+			javaF.set(null, value)
+			}catch(NullPointerException e){
+				throw e
+			}
 		}
-
 	}
 
 	override init(JavaReflectAccess reflectAccess, ClassFinder classFinder, IClassManager classManager,
 		TypeReferences jvmTypes, XtendInterpreter interpreter) {
 		super.init(reflectAccess, classFinder, classManager, jvmTypes, interpreter)
 		createCaches.clear
-		staticVariables.clear
 		instances.put(this.toString, this)
-		pool.appendClassPath(new LoaderClassPath(classManager.configuredClassLoader))
+		pool.appendClassPath(new DelegatingLoaderClassPath(classManager.configuredClassLoader))
+		hidingLoader = new HidingClassLoader(classManager.configuredClassLoader)
+		hidingLoader.hideClasses(classManager.availableClasses)
+		definingLoader = new NullClassLoader(hidingLoader)
 	}
 
 	override getQualifiedClassName(Object object) {
@@ -187,9 +199,9 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 
 	override isInstanceOf(Object obj, String typeFQN) {
 		var Class<?> clazz = null
-		try {
+		if (!classManager.canInterpretClass(typeFQN)) {
 			clazz = classFinder.forName(typeFQN)
-		} catch (ClassNotFoundException e) {
+		} else {
 			clazz = getCreatedClass(typeFQN)
 		}
 
@@ -197,137 +209,42 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 	}
 
 	override executeAnonymousClassConstructor(AnonymousClass clazz, List<?> arguments, IEvaluationContext context) {
-		val calledType = clazz.constructorCall.constructor.declaringType.superTypes.head.type as JvmGenericType
+		var Class<?> javaClass = null
+		if (createdClasses.containsKey(clazz)) {
+			if (compiledClasses.containsKey(createdClasses.get(clazz)))
+				javaClass = compiledClasses.get(createdClasses.get(clazz))
+			else {
+				val created = createdClasses.get(clazz)
+				val compiled = created.compile
+				javaClass = compiled
+			}
+		} else {
+			val ct = clazz.createCtClass
+			val result = ct.compile
+			javaClass = result
+		}
 
-		val interfaces = new HashSet<Class<?>>
+		val officialType = clazz.constructorCall.constructor.declaringType.identifier
+		val calledType = clazz.constructorCall.constructor.declaringType.superTypes.head.type as JvmGenericType
 
 		val dummyConstructor = clazz.constructorCall.constructor
 
 		var JvmConstructor constructor = null
+		val javaConstr = javaClass.declaredConstructors.head
 
-		//find actual constructor
-		//which is the called constructor of the superclass
-		//or Object() if the supertype is an interface
-		if (calledType.interface) {
-			constructor = (jvmTypes.findDeclaredType(Object, clazz) as JvmDeclaredType).declaredConstructors.findFirst[
-				parameters.empty]
-			interfaces += classFinder.forName(calledType.qualifiedName)
-		} else {
-			constructor = calledType.getDeclaredConstructors.findFirst[
-				parameters.size == dummyConstructor.parameters.size && (0 ..< parameters.size).forall[i|
-					parameters.get(i).parameterType.qualifiedName ==
-						dummyConstructor.parameters.get(i).parameterType.qualifiedName]]
-		}
-
-		val officialType = clazz.constructorCall.constructor.declaringType.identifier
-		val object = null
+		var Object object = if (arguments.empty)
+				javaConstr.newInstance
+			else
+				javaConstr.newInstance(
+					interpreter.evaluateArgumentExpressions(clazz.constructorCall.constructor,
+						clazz.constructorCall.arguments, context, CancelIndicator.NullImpl).toArray)
 
 		classManager.addAnonymousClass(officialType, clazz)
 		anonymousClassContexts.put(object, context)
 
 		object
 	}
-
-	//no longer needed
-	//	def protected executeConstructorCall(JvmConstructor jvmConstr, List<?> arguments,
-	//		Set<Class<? extends Object>> interfaces, (Proxy)=>MethodHandler handler, String classFqn) {
-	//
-	//		//TODO: do initialize class and initialize object on the way
-	//		//possibly also make a record of fields belonging to classes and stuff
-	//		val type = jvmConstr.declaringType.qualifiedName
-	//		val context = new ChattyEvaluationContext
-	//		if (jvmConstr.parameters.size != arguments.size)
-	//			throw new IllegalArgumentException
-	//		for (i : 0 ..< arguments.size)
-	//			context.newValue(QualifiedName.create(jvmConstr.parameters.get(i).name), arguments.get(i))
-	//		try {
-	//			val clazz = classFinder.forName(type)
-	//			val factory = new AllClassesProxyFactory(classFqn)
-	//			factory.superclass = clazz
-	//
-	//			factory.interfaces = interfaces
-	//
-	//			val newClass = factory.createClass
-	//
-	//			val constr = newClass.getDeclaredConstructor(
-	//				jvmConstr.parameters.map[classFinder.forName(parameterType.qualifiedName)])
-	//
-	//			val result = constr.newInstance(arguments.toArray)
-	//			val methodHandler = handler.apply(result as Proxy)
-	//			(result as Proxy).handler = methodHandler
-	//
-	//			return result
-	//		} catch (ClassNotFoundException e) {
-	//			if (classManager.canInterpretClass(type)) {
-	//				nonCompiledClasses += type
-	//				val clazz = classManager.getClassForName(type) as XtendClass
-	//				clazz.initializeClass
-	//				val newInterfaces = clazz.implements.map[classFinder.forName(qualifiedName)]
-	//				val allInterfaces = new HashSet(interfaces)
-	//				allInterfaces += newInterfaces
-	//
-	//				// find and execute super or this constructor call
-	//				val xtendConstr = clazz.members.filter(XtendConstructor).findFirst[
-	//					InterpreterUtil.operationsEqual(it, jvmConstr)]
-	//				if (xtendConstr == null && jvmConstr.parameters.size != 0)
-	//					throw new IllegalArgumentException
-	//
-	//				// get actual object
-	//				var IXtendObjectMarker object = null
-	//				var XBlockExpression constructorExpression = if(xtendConstr != null &&
-	//						xtendConstr.expression instanceof XBlockExpression) xtendConstr.expression as XBlockExpression else null
-	//				if (constructorExpression != null && clazz.extends != null &&
-	//					constructorExpression.expressions.head instanceof XFeatureCall &&
-	//					(constructorExpression.expressions.head as XFeatureCall).feature instanceof JvmConstructor) {
-	//					val newCall = constructorExpression.expressions.head as XFeatureCall
-	//					object = executeConstructorCall(newCall.feature as JvmConstructor,
-	//						interpreter.evaluateArgumentExpressions(newCall.feature as JvmConstructor,
-	//							newCall.actualArguments, context, CancelIndicator.NullImpl), allInterfaces, handler, classFqn) as IXtendObjectMarker
-	//				} else {
-	//					var newClass = clazz.extends?.type as JvmDeclaredType
-	//					if (newClass == null)
-	//						newClass = jvmTypes.findDeclaredType(Object, clazz) as JvmDeclaredType
-	//					val constr = newClass.declaredConstructors.findFirst[parameters.empty]
-	//
-	//					object = executeConstructorCall(constr, #[], allInterfaces, handler, classFqn) as IXtendObjectMarker
-	//				}
-	//
-	//				val state = object.objectState
-	//
-	//				//initialize member variables
-	//				//TODO: should this be done before calling the super constructor?
-	//				//probably not? it can't?
-	//				for (f : clazz.members.filter(XtendField).filter[!static]) {
-	//					val fieldFqn = type + "." + f.name
-	//					if (f.initialValue != null) {
-	//						val value = interpreter.internalEvaluate(f.initialValue, new ChattyEvaluationContext,
-	//							CancelIndicator.NullImpl)
-	//						state.put(fieldFqn, value)
-	//					} else {
-	//						state.put(fieldFqn, null)
-	//					}
-	//				}
-	//
-	//				// execute rest of constructor
-	//				if (constructorExpression != null) {
-	//					context.newValue(QualifiedName.create("this"), object)
-	//					val first = constructorExpression.expressions.head
-	//					var Iterable<XExpression> todo = null
-	//					if (first instanceof XFeatureCall && (first as XFeatureCall).feature instanceof JvmConstructor)
-	//						todo = constructorExpression.expressions.tail
-	//					else
-	//						todo = constructorExpression.expressions
-	//					for (expr : todo) {
-	//						interpreter.internalEvaluate(expr, context, CancelIndicator.NullImpl)
-	//					}
-	//				}
-	//
-	//				return object
-	//			} else {
-	//				throw new IllegalStateException
-	//			}
-	//		}
-	//	}
+	
 	override fillAnonymousClassMethodContext(IEvaluationContext context, JvmOperation op, Object object) {
 		val result = context.fork
 		val callerContext = (anonymousClassContexts.get(object) as ChattyEvaluationContext).contents
@@ -347,9 +264,9 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 	}
 
 	override getClass(JvmType type, int arrayDims) {
-		try {
+		if (!classManager.canInterpretClass(type.qualifiedName)) {
 			super.getClass(type, arrayDims)
-		} catch (ClassNotFoundException e) {
+		} else {
 			val basicClass = type.qualifiedName.createdClass
 			if (arrayDims < 1)
 				return basicClass
@@ -366,7 +283,6 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 	}
 
 	def protected Class<?> getCreatedClass(String fqn) {
-
 		//		try {
 		//			classFinder.forName(fqn)
 		//			throw new IllegalArgumentException
@@ -395,8 +311,8 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 
 	def protected Class<?> compile(CtClass ct) {
 		try {
-			val result = ct.toClass(classManager.configuredClassLoader)
-			compiledClasses.put(ct, result)
+			val result = pool.toClass(ct, definingLoader) 
+			compiledClasses.put(ct, result) 
 			return result
 		} catch (CannotCompileException e) {
 			if (e.cause instanceof NoClassDefFoundError) {
@@ -435,18 +351,13 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 			restConstr = constructorExpression.expressions
 		}
 
-		return '''{
+		val result =  '''{
 		«IF superCall != null»
 			«IF (superCall.feature as JvmConstructor).declaringType.qualifiedName == constr.declaringType.qualifiedName»this(«ELSE»super(«ENDIF»
 			«FOR p : (superCall.feature as JvmConstructor).parameters SEPARATOR ", "»
 				(«p.parameterType.qualifiedName»)org.nanosite.xtendency.interpreter.SimulatedObjectRepresentationStrategy.getConstructorArgument("«this.
 			toString»", «(superCall.feature as JvmConstructor).parameters.indexOf(p)», «constructorIndex», "«constr.
-			declaringType.qualifiedName»", 
-				new java.lang.Object[]{
-					«FOR i : 0 ..< constr.parameters.size SEPARATOR ", "»
-						«IF constr.parameters.get(i).parameterType.type instanceof JvmPrimitiveType»new «constr.parameters.get(i).
-			parameterType.type.boxedName»($«i + 1»)«ELSE»$«i + 1»«ENDIF»
-					«ENDFOR»})
+			declaringType.qualifiedName»", $args)
 			«ENDFOR»
 			);
 		«ELSE»
@@ -454,28 +365,10 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 		«ENDIF»
 		
 			org.nanosite.xtendency.interpreter.SimulatedObjectRepresentationStrategy.executeConstructor("«this.toString»", $0, "«constr.
-			declaringType.qualifiedName»", «constructorIndex», 
-			new java.lang.Object[]{
-				«FOR i : 0 ..< constr.parameters.size SEPARATOR ", "»
-					«IF constr.parameters.get(i).parameterType.type instanceof JvmPrimitiveType»new «constr.parameters.get(i).
-			parameterType.type.boxedName»($«i + 1»)«ELSE»$«i + 1»«ENDIF»
-				«ENDFOR»
-			});
+			declaringType.qualifiedName»", «constructorIndex», $args);
 		
 		}'''
-	}
-
-	def protected String getBoxedName(JvmType t) {
-		val type = t as JvmPrimitiveType
-		return switch (type.simpleName) {
-			case 'double': "Double"
-			case 'int': "Integer"
-			case 'long': "Long"
-			case 'float': "Float"
-			case 'boolean': 'Boolean'
-			case 'short': "Short"
-			case 'char': "Character"
-		}
+		result
 	}
 
 	def static void executeConstructor(String sorsId, Object instance, String className, int constructorIndex,
@@ -546,15 +439,12 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 	def protected CtClass getCtClass(String fqn) {
 		if (fqn === null)
 			return CtClass.voidType
-		try {
+		if (!classManager.canInterpretClass(fqn)) {
+			classManager.configuredClassLoader.loadClass("org.nanosite.xtendency.interpreter.tests.input.JavaA")
 			return pool.get(fqn)
-		} catch (NotFoundException e) {
-			if (classManager.canInterpretClass(fqn)) {
-				val clazz = classManager.getClassForName(fqn)
-				return createCtClass(clazz as XtendClass, fqn)
-			} else {
-				throw new IllegalArgumentException
-			}
+		} else {
+			val clazz = classManager.getClassForName(fqn)
+			return createCtClass(clazz as XtendClass)
 		}
 	}
 
@@ -572,22 +462,63 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 		field.get(instance)
 	}
 
-	def protected create newClass : pool.makeClass(superType + clazz.hashCode) createCtClass(AnonymousClass clazz,
-		String superType) {
-	}
-
-	def protected create newClass : pool.makeClass(fqn) createCtClass(XtendClass clazz, String fqn) {
+	def protected dispatch create newClass : pool.makeClass(clazz.qualifiedName) createCtClass(XtendClass clazz) {
 		createdClasses.put(clazz, newClass)
 		val superClassName = clazz.extends?.qualifiedName ?: "java.lang.Object"
-		newClass.superclass = superClassName.getCtClass
+		val interfaceNames = clazz.implements.map[qualifiedName]
+		clazz.createCtClass(newClass, superClassName, interfaceNames)
+	}
 
-		for (i : clazz.implements) {
-			newClass.addInterface(i.qualifiedName.getCtClass)
+	def protected dispatch create newClass : pool.makeClass(clazz.constructorCall.constructor.declaringType.identifier) createCtClass(
+		AnonymousClass clazz) {
+		createdClasses.put(clazz, newClass)
+		val calledType = clazz.constructorCall.constructor.declaringType.superTypes.head.type as JvmGenericType
+
+		val interfaceNames = new ArrayList<String>
+		var String superClassName = null
+
+		val dummyConstructor = clazz.constructorCall.constructor
+
+		var JvmConstructor constructor = null
+
+		//find actual constructor
+		//which is the called constructor of the superclass
+		//or Object() if the supertype is an interface
+		if (calledType.interface) {
+			constructor = (jvmTypes.findDeclaredType(Object, clazz) as JvmDeclaredType).declaredConstructors.findFirst[
+				parameters.empty]
+			interfaceNames += calledType.qualifiedName
+			superClassName = "java.lang.Object"
+		} else {
+			constructor = calledType.getDeclaredConstructors.findFirst[
+				parameters.size == dummyConstructor.parameters.size && (0 ..< parameters.size).forall[i|
+					parameters.get(i).parameterType.qualifiedName ==
+						dummyConstructor.parameters.get(i).parameterType.qualifiedName]]
+			superClassName = calledType.qualifiedName
 		}
 
-		try {
+		clazz.createCtClass(newClass, superClassName, interfaceNames)
 
-			// if superclass is available in java
+		// add called constructor
+		if (calledType.interface) {
+			newClass.addConstructor(CtNewConstructor.defaultConstructor(newClass))
+		} else {
+			val newConstructor = CtNewConstructor.make(constructor.parameters.map[parameterType.qualifiedName.ctClass],
+				constructor.exceptions.map[type.qualifiedName.ctClass], "{super($$);}", newClass)
+			newClass.addConstructor(newConstructor)
+		}
+	}
+
+	def protected createCtClass(XtendTypeDeclaration clazz, CtClass newClass, String superClassName,
+		List<String> interfaceNames) {
+
+		newClass.superclass = superClassName.getCtClass
+
+		for (i : interfaceNames) {
+			newClass.addInterface(i.getCtClass)
+		}
+
+		if (!classManager.canInterpretClass(superClassName)) {
 			val javaSuperClass = classFinder.forName(superClassName)
 
 			// create aliases for java-only methods so we can call them if we must, even if they're overridden
@@ -596,56 +527,51 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 			// first get all relevant methods (no duplicates, just the highest version)
 			for (var c = javaSuperClass; c != null; c = c.superclass) {
 				for (m : c.declaredMethods.filter[
-					!Modifier.isFinal(modifiers) && (Modifier.isPublic(modifiers) || Modifier.isProtected(modifiers))]) {
-					if (!accessibleMethods.containsKey(m.toString))
-						accessibleMethods.put(m.toString, m)
+					!Modifier.isFinal(modifiers) && !Modifier.isStatic(modifiers) && (Modifier.isPublic(modifiers) || Modifier.isProtected(modifiers))]) {
+					if (!accessibleMethods.containsKey(m.customIdentifier))
+						accessibleMethods.put(m.customIdentifier, m)
 				}
 			}
 
 			// then add an accessor method for each of them
 			for (m : accessibleMethods.values) {
 				val newName = m.customIdentifier
-				val body = '''{«IF m.returnType != Void.TYPE»return («m.returnType.canonicalName»)«ENDIF»super.«m.name»(«FOR i : 0 ..<
-					m.parameterTypes.size SEPARATOR ", "»$«i + 1»«ENDFOR»);}'''
-				val newMethod = CtNewMethod.make(m.returnType.canonicalName.ctClass, newName,
+				val body = '''{«IF m.returnType != Void.TYPE»return («m.returnType.canonicalName»)«ENDIF»super.«m.name»($$);}'''
+				val newMethod = CtNewMethod.make(m.returnType.canonicalName.ctClass, DELEGATE_METHOD_MARKER + newName,
 					m.parameterTypes.map[canonicalName.ctClass], m.exceptionTypes.map[canonicalName.ctClass], body,
 					newClass)
 				newClass.addMethod(newMethod)
 			}
-		} catch (ClassNotFoundException e) {
-			//empty else branch
 		}
 
 		// we take the jvmType because the XtendClass does not contain correct return types
-		val jvmType = jvmTypes.findDeclaredType(clazz.qualifiedName, clazz) as JvmDeclaredType
+		val jvmType = jvmAssociations.getInferredType(clazz) //jvmTypes.findDeclaredType(clazz.qualifiedName, clazz) as JvmDeclaredType
 		for (m : jvmType.declaredOperations) {
-			val body = '''{«IF !(m.returnType.type instanceof JvmVoid)»return («m.returnType.qualifiedName»)«ENDIF»org.nanosite.xtendency.interpreter.SimulatedObjectRepresentationStrategy.executeMethod("«this.
-				toString»", "«clazz.qualifiedName»", "«m.customIdentifier»", $0, «IF m.parameters.empty»new java.lang.Object[0]«ELSE»
-				new java.lang.Object[]{
-					«FOR i : 0 ..< m.parameters.size SEPARATOR ", "»
-					«IF m.parameters.get(i).parameterType.type instanceof JvmPrimitiveType»new «m.parameters.get(i).parameterType.type.
-				boxedName»($«i + 1»)«ELSE»$«i + 1»«ENDIF»
-					«ENDFOR»
-				}«ENDIF»); }'''
-			val newMethod = CtNewMethod.make(
-				if(m.returnType.type instanceof JvmVoid) CtClass.voidType else m.returnType.qualifiedName.ctClass,
-				m.simpleName, m.parameters.map[parameterType.qualifiedName.ctClass],
-				m.exceptions.map[qualifiedName.ctClass], body, newClass)
-			try {
-				newClass.addMethod(newMethod)
+			val body = '''{
+				«IF !(m.returnType.type instanceof JvmVoid)»return «IF m.returnType.primitive»(«ENDIF»(«m.returnType.wrapperTypeName»)«ENDIF»
+				org.nanosite.xtendency.interpreter.SimulatedObjectRepresentationStrategy.executeMethod("«this.
+				toString»", "«clazz.qualifiedName»", "«m.customIdentifier»", «IF m.static»null«ELSE»$0«ENDIF», $args)
+				«IF m.returnType.primitive»).«m.returnType.qualifiedName»Value()«ENDIF»
+				; 
+				}'''
+			val newMethod = new CtMethod(if(m.returnType.type instanceof JvmVoid) CtClass.voidType else m.returnType.qualifiedName.ctClass, m.simpleName, m.parameters.map[parameterType.type.qualifiedName.ctClass], newClass)
+			if (m.static)
+				newMethod.modifiers = newMethod.modifiers.bitwiseOr(Modifier.STATIC)
+			newMethod.exceptionTypes = m.exceptions.map[qualifiedName.ctClass]
+			newMethod.body = body
+			newClass.addMethod(newMethod)
 
-			} catch (DuplicateMemberException e) {
-				throw e
-			}
 		}
 
 		for (f : clazz.members.filter(XtendField)) {
 			val newField = new CtField(f.type.qualifiedName.ctClass, f.name, newClass)
+			if (f.static)
+				newField.modifiers = newField.modifiers.bitwiseOr(Modifier.STATIC)
 			newClass.addField(newField)
 		}
 
 		val constructors = clazz.members.filter(XtendConstructor).toList
-		if (constructors.empty) {
+		if (constructors.empty && !(clazz instanceof AnonymousClass)) {
 			val body = getDefaultConstructorCallString(clazz.qualifiedName)
 			val newConstructor = CtNewConstructor.make(#[], #[], body, newClass)
 			newClass.addConstructor(newConstructor)
@@ -673,23 +599,20 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 	}
 
 	protected static def String getCustomIdentifier(Method m) {
-		val result = new StringBuilder(DELEGATE_METHOD_MARKER)
-		result.append(m.name)
+		val result = new StringBuilder(m.name)
 		for (p : m.parameterTypes) {
 
-			//TODO: is the simple name enough?
-			result.append(p.simpleName)
+			result.append(p.simpleName.replaceAll("\\[\\]", "Array"))
 		}
 		result.toString
 	}
 
 	protected static def String getCustomIdentifier(JvmOperation m) {
-		val result = new StringBuilder(DELEGATE_METHOD_MARKER)
-		result.append(m.simpleName)
+		val result = new StringBuilder(m.simpleName)
 		for (p : m.parameters) {
 
 			//TODO: is the simple name enough?
-			result.append(p.parameterType.simpleName)
+			result.append(p.parameterType.simpleName.replaceAll("\\[\\]", "Array"))
 		}
 		result.toString
 	}
@@ -710,8 +633,28 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 	}
 
 	override getJavaOnlyMethod(Object instance, JvmOperation method) {
-		instance.class.getMethod(method.customIdentifier,
+		instance.class.getMethod(DELEGATE_METHOD_MARKER + method.customIdentifier,
 			method.parameters.map[classFinder.forName(parameterType.qualifiedName)])
+	}
+	
+	def protected boolean isPrimitive(JvmTypeReference t){
+		t.type instanceof JvmPrimitiveType
+	}
+	
+	def protected String getWrapperTypeName(JvmTypeReference t){
+		if (t.primitive){
+			switch (t.qualifiedName){
+				case 'boolean' : 'Boolean'
+				case 'int' : 'Integer'
+				case 'char' : 'Character'
+				case 'long' : 'Long'
+				case 'double' : 'Double'
+				case 'float' : 'Float'
+				case 'byte' : 'Byte'
+			}
+		}else {
+			t.qualifiedName
+		}
 	}
 
 }

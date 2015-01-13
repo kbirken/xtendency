@@ -2,57 +2,50 @@ package org.nanosite.xtendency.interpreter
 
 import com.google.inject.Inject
 import com.google.inject.Provider
-import java.util.HashMap
+import java.io.BufferedReader
+import java.io.PrintWriter
+import java.io.StringReader
+import java.io.StringWriter
+import java.lang.reflect.Proxy
 import java.util.List
-import java.util.Map
-import org.eclipse.emf.common.util.URI
-import org.eclipse.emf.ecore.resource.ResourceSet
+import java.util.Stack
 import org.eclipse.osgi.internal.loader.EquinoxClassLoader
 import org.eclipse.xtend.core.richstring.DefaultIndentationHandler
 import org.eclipse.xtend.core.richstring.RichStringProcessor
+import org.eclipse.xtend.core.xtend.AnonymousClass
 import org.eclipse.xtend.core.xtend.RichString
 import org.eclipse.xtend.core.xtend.XtendClass
-import org.eclipse.xtend.core.xtend.XtendField
+import org.eclipse.xtend.core.xtend.XtendConstructor
 import org.eclipse.xtend.core.xtend.XtendFile
 import org.eclipse.xtend.core.xtend.XtendFunction
 import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
+import org.eclipse.xtext.common.types.JvmConstructor
 import org.eclipse.xtext.common.types.JvmDeclaredType
+import org.eclipse.xtext.common.types.JvmExecutable
 import org.eclipse.xtext.common.types.JvmField
 import org.eclipse.xtext.common.types.JvmGenericType
 import org.eclipse.xtext.common.types.JvmIdentifiableElement
 import org.eclipse.xtext.common.types.JvmOperation
-import org.eclipse.xtext.common.types.JvmTypeReference
+import org.eclipse.xtext.common.types.JvmType
+import org.eclipse.xtext.common.types.JvmVisibility
+import org.eclipse.xtext.common.types.util.TypeReferences
 import org.eclipse.xtext.naming.QualifiedName
+import org.eclipse.xtext.nodemodel.util.NodeModelUtils
 import org.eclipse.xtext.util.CancelIndicator
 import org.eclipse.xtext.xbase.XAbstractFeatureCall
+import org.eclipse.xtext.xbase.XClosure
+import org.eclipse.xtext.xbase.XConstructorCall
 import org.eclipse.xtext.xbase.XExpression
+import org.eclipse.xtext.xbase.XMemberFeatureCall
+import org.eclipse.xtext.xbase.XTypeLiteral
 import org.eclipse.xtext.xbase.interpreter.IEvaluationContext
+import org.eclipse.xtext.xbase.interpreter.impl.DefaultEvaluationResult
 import org.eclipse.xtext.xbase.interpreter.impl.EvaluationException
+import org.eclipse.xtext.xbase.interpreter.impl.InterpreterCanceledException
 import org.eclipse.xtext.xbase.interpreter.impl.XbaseInterpreter
 import org.eclipse.xtext.xbase.typesystem.IBatchTypeResolver
-import org.eclipse.xtext.xbase.XClosure
-import java.lang.reflect.Proxy
-import org.eclipse.xtext.xbase.XConstructorCall
-import java.util.Stack
-import org.eclipse.xtext.xbase.interpreter.impl.DefaultEvaluationResult
-import java.io.PrintWriter
-import java.io.StringWriter
-import java.io.BufferedReader
-import java.io.StringReader
-import org.eclipse.xtext.nodemodel.util.NodeModelUtils
-import org.eclipse.xtext.xbase.interpreter.impl.InterpreterCanceledException
-import org.eclipse.emf.ecore.EObject
-import org.eclipse.xtext.common.types.JvmExecutable
-import org.eclipse.xtext.xbase.XMemberFeatureCall
-import org.eclipse.xtend.core.xtend.XtendConstructor
-import org.eclipse.xtext.common.types.JvmConstructor
-import java.lang.reflect.Method
-import org.eclipse.xtext.common.types.util.TypeReferences
-import org.eclipse.emf.common.notify.Notifier
-import org.eclipse.xtend.core.xtend.AnonymousClass
 
 import static extension org.nanosite.xtendency.interpreter.InterpreterUtil.*
-import org.eclipse.xtext.xbase.XTypeLiteral
 
 class XtendInterpreter extends XbaseInterpreter {
 
@@ -213,6 +206,10 @@ class XtendInterpreter extends XbaseInterpreter {
 			super.doEvaluate(expression, context, indicator)
 		}
 	}
+	
+	override protected translateJvmTypeToResult(JvmType type, int arrayDims) {
+		objectRep.getClass(type, arrayDims)
+	}
 
 	def Object _doEvaluate(AnonymousClass expression, IEvaluationContext context, CancelIndicator indicator) {
 		objectRep.executeAnonymousClassConstructor(expression,
@@ -244,33 +241,21 @@ class XtendInterpreter extends XbaseInterpreter {
 		null
 	}
 
-	//	protected def Object invokeOperation(Notifier notifier, Method operation, Object receiver, Object[] argumentValues,
-	//		Method javaOperation) {
-	//		val jvmType = jvmTypes.findDeclaredType(operation.declaringClass, notifier) as JvmDeclaredType
-	//		val jvmOperation = jvmType.declaredOperations.findFirst[it.operationsEqual(operation)]
-	//		return invokeOperation(jvmOperation, receiver, argumentValues, new ChattyEvaluationContext,
-	//			CancelIndicator.NullImpl, javaOperation, true)
-	//	}
 	protected override Object invokeOperation(JvmOperation operation, Object receiver, List<Object> argumentValues,
 		IEvaluationContext context, CancelIndicator indicator) {
-		invokeOperation(operation, receiver, argumentValues, context, indicator, true)
+		invokeOperation(operation, receiver, argumentValues, context, indicator,if (operation.visibility == JvmVisibility.PRIVATE) false else true)
 	}
 
 	override protected _invokeFeature(JvmOperation operation, XAbstractFeatureCall featureCall, Object receiver,
 		IEvaluationContext context, CancelIndicator indicator) {
 		val operationArguments = getActualArguments(featureCall);
 		val argumentValues = evaluateArgumentExpressions(operation, operationArguments, context, indicator);
-		val polymorphic = if(featureCall.actualReceiver?.toString == "super") false else true
-		if (polymorphic == false && operation.simpleName == "a") {
-			println("!!!")
-			for (m : receiver.class.methods) {
-				println(m.toString)
-			}
-			for (m : this.class.methods) {
-				println(m.toString)
-			}
-		}
+		val polymorphic = if(operation.visibility == JvmVisibility.PRIVATE || featureCall.actualReceiver?.toString == "super") false else true
 		return invokeOperation(operation, receiver, argumentValues, context, indicator, polymorphic);
+	}
+	
+	override protected getJavaType(JvmType type) throws ClassNotFoundException {
+		objectRep.getClass(type, 0)
 	}
 
 	protected def Object invokeOperation(JvmOperation operation, Object receiver, List<Object> argumentValues,
@@ -283,6 +268,7 @@ class XtendInterpreter extends XbaseInterpreter {
 		var String calledTypeSimpleNonFinal = null
 
 		if (receiver !== null) {
+			
 			val calledType = findCalledMethodType(operation, objectRep.getQualifiedClassName(receiver),
 				polymorphicInvoke)
 
@@ -306,8 +292,6 @@ class XtendInterpreter extends XbaseInterpreter {
 		val op = operation.simpleName
 
 		if (classManager.canInterpretClass(calledTypeFqn)) {
-			if (calledTypeFqn == "org.nanosite.xtendency.interpreter.tests.input.XtendXtendB")
-				println("!!!")
 			val type = classManager.getClassForName(calledTypeFqn)
 			val calledFunc = getCalledFunction(type, op, argumentValues.size, argumentValues)
 
