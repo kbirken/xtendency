@@ -58,6 +58,9 @@ import com.google.inject.Inject
 import org.eclipse.xtext.common.types.JvmTypeReference
 import org.eclipse.xtend.core.xtend.XtendInterface
 import org.eclipse.xtend.core.xtend.XtendEnum
+import org.eclipse.xtend.core.xtend.XtendEnumLiteral
+import javassist.CtConstructor
+import javassist.CtPrimitiveType
 
 @Data class MethodSignature {
 	String fqn
@@ -464,10 +467,6 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 		field.accessible = true
 		field.get(instance)
 	}
-	
-	def protected dispatch create newEnum : pool.makeClass(enm.qualifiedName) createCtClass(XtendEnum enm){
-		//TODO
-	}
 
 	def protected dispatch create newInterface : pool.makeInterface(clazz.qualifiedName) createCtClass(
 		XtendInterface clazz) {
@@ -496,6 +495,12 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 		val superClassName = clazz.extends?.qualifiedName ?: "java.lang.Object"
 		val interfaceNames = clazz.implements.map[qualifiedName]
 		clazz.createCtClass(newClass, superClassName, interfaceNames)
+	}
+
+	def protected dispatch create newEnum : pool.makeClass(enm.qualifiedName) createCtClass(XtendEnum enm) {
+		createdClasses.put(enm, newEnum)
+		val superClassName = "java.lang.Enum"
+		enm.createCtClass(newEnum, superClassName, #[])
 	}
 
 	def protected dispatch create newClass : pool.makeClass(clazz.constructorCall.constructor.declaringType.identifier) createCtClass(
@@ -547,7 +552,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 			newClass.addInterface(i.getCtClass)
 		}
 
-		if (!classManager.canInterpretClass(superClassName)) {
+		if (!classManager.canInterpretClass(superClassName) && !(clazz instanceof XtendEnum)) {
 			val javaSuperClass = classFinder.forName(superClassName)
 
 			// create aliases for java-only methods so we can call them if we must, even if they're overridden
@@ -610,32 +615,60 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 			newClass.addField(newField)
 		}
 
-		val constructors = clazz.members.filter(XtendConstructor).toList
-		if (constructors.empty && !(clazz instanceof AnonymousClass)) {
-			val body = getDefaultConstructorCallString(clazz.qualifiedName)
-			val newConstructor = CtNewConstructor.make(#[], #[], body, newClass)
+		if (clazz instanceof XtendEnum) {
+			val newConstructor = new CtConstructor(#["java.lang.String".ctClass, CtPrimitiveType.intType], newClass)
+			newConstructor.modifiers = newConstructor.modifiers.bitwiseOr(Modifier.PRIVATE)
+			newConstructor.body = "{super($1, $2);}"
 			newClass.addConstructor(newConstructor)
 		} else {
-			val constructorsToDo = constructors.sort(
-				[ XtendConstructor c1, XtendConstructor c2 |
-					val this1 = c1.hasThisCall
-					val this2 = c2.hasThisCall
-					if (this1 == this2)
-						return 0
-					else if (this1)
-						return 1
-					else
-						return -1
-				])
-			for (c : constructorsToDo) {
-				val body = c.getConstructorCallString(constructors.indexOf(c))
-
-				val newConstructor = CtNewConstructor.make(c.parameters.map[parameterType.qualifiedName.ctClass],
-					c.exceptions.map[qualifiedName.ctClass], body, newClass)
+			val constructors = clazz.members.filter(XtendConstructor).toList
+			if (constructors.empty && !(clazz instanceof AnonymousClass)) {
+				val body = getDefaultConstructorCallString(clazz.qualifiedName)
+				val newConstructor = CtNewConstructor.make(#[], #[], body, newClass)
 				newClass.addConstructor(newConstructor)
+			} else {
+				val constructorsToDo = constructors.sort(
+					[ XtendConstructor c1, XtendConstructor c2 |
+						val this1 = c1.hasThisCall
+						val this2 = c2.hasThisCall
+						if (this1 == this2)
+							return 0
+						else if (this1)
+							return 1
+						else
+							return -1
+					])
+				for (c : constructorsToDo) {
+					val body = c.getConstructorCallString(constructors.indexOf(c))
+
+					val newConstructor = CtNewConstructor.make(c.parameters.map[parameterType.qualifiedName.ctClass],
+						c.exceptions.map[qualifiedName.ctClass], body, newClass)
+					newClass.addConstructor(newConstructor)
+				}
 			}
 		}
 
+		if (clazz instanceof XtendEnum) {
+			val literals = clazz.members.filter(XtendEnumLiteral).toList
+			for (el : literals) {
+				val newField = new CtField(newClass, el.name, newClass)
+				newField.modifiers = Modifier.STATIC.bitwiseOr(Modifier.PUBLIC).bitwiseOr(Modifier.FINAL)
+				newClass.addField(newField, '''new «newClass.name»("«el.name»", «literals.indexOf(el)»)''')
+			}
+			val valuesField = new CtField(pool.get(newClass.name + "[]"), "VALUES", newClass)
+			valuesField.modifiers = valuesField.modifiers.bitwiseOr(Modifier.STATIC).bitwiseOr(Modifier.PUBLIC).bitwiseOr(Modifier.FINAL)
+			newClass.addField(valuesField, '''new «newClass.name»[] {«FOR el : literals SEPARATOR ", "»«el.name»«ENDFOR»}''')
+		
+//			val valueOfMethod = new CtMethod(newClass, "valueOf", #[pool.get("java.lang.String")], newClass)
+//			valueOfMethod.modifiers = valueOfMethod.modifiers.bitwiseOr(Modifier.STATIC)
+//			valueOfMethod.body = "{return java.lang.Enum.valueOf($class, $1); }"
+//			newClass.addMethod(valueOfMethod)
+//			
+//			val valuesMethod = new CtMethod(pool.get(newClass.name + "[]"), "values", #[], newClass)
+//			valuesMethod.modifiers = valuesMethod.modifiers.bitwiseOr(Modifier.STATIC)
+//			valuesMethod.body = "{return VALUES;}"
+//			newClass.addMethod(valuesMethod)
+		}
 	}
 
 	protected static def String getCustomIdentifier(Method m) {

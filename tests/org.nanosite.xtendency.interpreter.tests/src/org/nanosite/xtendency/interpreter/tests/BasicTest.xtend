@@ -743,6 +743,36 @@ class BasicTest extends AbstractInterpreterTest {
 		assertEquals("someInputstaticchangedotherInput", result.result)
 	}
 	
+	@Test
+	def void T30_Enums(){
+		val source = '''
+		package «PACKAGE»
+		
+		enum Direction {
+			NORTH, SOUTH, EAST, WEST
+		}
+		
+		class EnumTest30 {
+			def Direction getWest(){
+				return Direction.WEST
+			}
+			
+			def addNorth(Direction d){
+				"NORTH" + d
+			}
+			
+			def static invoke(){
+				val inst = new EnumTest30()
+				return inst.addNorth(inst.west)
+			}
+		}
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTest("EnumTest30", "invoke", null, #[])
+		assertEquals("NORTHWEST", result.result)
+	}
+	
 	static def boolean checkInterpreterExecution(){
 		val st = Thread.currentThread.stackTrace
 		st.get(2).methodName != "doExecutionCheck"

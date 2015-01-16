@@ -49,6 +49,7 @@ import static extension org.nanosite.xtendency.interpreter.InterpreterUtil.*
 import org.eclipse.xtext.common.types.JvmTypeReference
 import java.lang.reflect.InvocationHandler
 import org.eclipse.xtext.xbase.interpreter.impl.DelegatingInvocationHandler
+import org.eclipse.xtend.core.xtend.XtendEnum
 
 class XtendInterpreter extends XbaseInterpreter {
 
@@ -209,7 +210,7 @@ class XtendInterpreter extends XbaseInterpreter {
 			super.doEvaluate(expression, context, indicator)
 		}
 	}
-	
+
 	override protected translateJvmTypeToResult(JvmType type, int arrayDims) {
 		objectRep.getClass(type, arrayDims)
 	}
@@ -246,17 +247,19 @@ class XtendInterpreter extends XbaseInterpreter {
 
 	protected override Object invokeOperation(JvmOperation operation, Object receiver, List<Object> argumentValues,
 		IEvaluationContext context, CancelIndicator indicator) {
-		invokeOperation(operation, receiver, argumentValues, context, indicator,if (operation.visibility == JvmVisibility.PRIVATE) false else true)
+		invokeOperation(operation, receiver, argumentValues, context, indicator,
+			if(operation.visibility == JvmVisibility.PRIVATE) false else true)
 	}
 
 	override protected _invokeFeature(JvmOperation operation, XAbstractFeatureCall featureCall, Object receiver,
 		IEvaluationContext context, CancelIndicator indicator) {
 		val operationArguments = getActualArguments(featureCall);
 		val argumentValues = evaluateArgumentExpressions(operation, operationArguments, context, indicator);
-		val polymorphic = if(operation.visibility == JvmVisibility.PRIVATE || featureCall.actualReceiver?.toString == "super") false else true
+		val polymorphic = if(operation.visibility == JvmVisibility.PRIVATE ||
+				featureCall.actualReceiver?.toString == "super") false else true
 		return invokeOperation(operation, receiver, argumentValues, context, indicator, polymorphic);
 	}
-	
+
 	override protected getJavaType(JvmType type) throws ClassNotFoundException {
 		objectRep.getClass(type, 0)
 	}
@@ -271,7 +274,7 @@ class XtendInterpreter extends XbaseInterpreter {
 		var String calledTypeSimpleNonFinal = null
 
 		if (receiver !== null) {
-			
+
 			val calledType = findCalledMethodType(operation, objectRep.getQualifiedClassName(receiver),
 				polymorphicInvoke)
 
@@ -596,11 +599,12 @@ class XtendInterpreter extends XbaseInterpreter {
 	override protected _doEvaluate(XTypeLiteral literal, IEvaluationContext context, CancelIndicator indicator) {
 		objectRep.getClass(literal.type, literal.arrayDimensions.size)
 	}
-	
+
 	override protected coerceArgumentType(Object value, JvmTypeReference expectedType) {
-		try{
+		try {
 			super.coerceArgumentType(value, expectedType)
-		}catch(NoClassDefFoundError e){
+		} catch (NoClassDefFoundError e) {
+
 			//TODO: i have no idea if this is what we want
 			return value
 		}
