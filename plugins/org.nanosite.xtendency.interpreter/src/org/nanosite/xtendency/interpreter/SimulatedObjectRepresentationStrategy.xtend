@@ -56,6 +56,8 @@ import javassist.bytecode.DuplicateMemberException
 import org.eclipse.xtend.core.jvmmodel.IXtendJvmAssociations
 import com.google.inject.Inject
 import org.eclipse.xtext.common.types.JvmTypeReference
+import org.eclipse.xtend.core.xtend.XtendInterface
+import org.eclipse.xtend.core.xtend.XtendEnum
 
 @Data class MethodSignature {
 	String fqn
@@ -79,9 +81,9 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 	protected Map<CtClass, Class<?>> compiledClasses = new HashMap
 
 	protected ClassPool pool = ClassPool.getDefault
-	
+
 	protected Set<XtendTypeDeclaration> initializedClasses = new HashSet
-	
+
 	protected HidingClassLoader hidingLoader
 	protected ClassLoader definingLoader
 
@@ -122,9 +124,9 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 
 	override getStaticFieldValue(JvmField jvmField) {
 		val fqn = jvmField.declaringType.qualifiedName
-		if (!classManager.canInterpretClass(fqn)){
+		if (!classManager.canInterpretClass(fqn)) {
 			super.getStaticFieldValue(jvmField)
-		}else{
+		} else {
 			val f = fqn.createdClass.getDeclaredField(jvmField.simpleName)
 			f.accessible = true
 			f.get(null)
@@ -141,9 +143,9 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 
 	override setStaticFieldValue(JvmField jvmField, Object value) {
 		val fqn = jvmField.declaringType.qualifiedName
-		if (!classManager.canInterpretClass(fqn)){
+		if (!classManager.canInterpretClass(fqn)) {
 			super.setStaticFieldValue(jvmField, value)
-		}else{
+		} else {
 			val f = fqn.createdClass.getDeclaredField(jvmField.simpleName)
 			f.accessible = true
 			f.set(null, value)
@@ -164,9 +166,9 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 			}
 			val javaF = javaClass.getDeclaredField(f.name)
 			javaF.accessible = true
-			try{
-			javaF.set(null, value)
-			}catch(NullPointerException e){
+			try {
+				javaF.set(null, value)
+			} catch (NullPointerException e) {
 				throw e
 			}
 		}
@@ -244,7 +246,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 
 		object
 	}
-	
+
 	override fillAnonymousClassMethodContext(IEvaluationContext context, JvmOperation op, Object object) {
 		val result = context.fork
 		val callerContext = (anonymousClassContexts.get(object) as ChattyEvaluationContext).contents
@@ -283,6 +285,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 	}
 
 	def protected Class<?> getCreatedClass(String fqn) {
+
 		//		try {
 		//			classFinder.forName(fqn)
 		//			throw new IllegalArgumentException
@@ -311,8 +314,8 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 
 	def protected Class<?> compile(CtClass ct) {
 		try {
-			val result = pool.toClass(ct, definingLoader) 
-			compiledClasses.put(ct, result) 
+			val result = pool.toClass(ct, definingLoader)
+			compiledClasses.put(ct, result)
 			return result
 		} catch (CannotCompileException e) {
 			if (e.cause instanceof NoClassDefFoundError) {
@@ -351,7 +354,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 			restConstr = constructorExpression.expressions
 		}
 
-		val result =  '''{
+		val result = '''{
 		«IF superCall != null»
 			«IF (superCall.feature as JvmConstructor).declaringType.qualifiedName == constr.declaringType.qualifiedName»this(«ELSE»super(«ENDIF»
 			«FOR p : (superCall.feature as JvmConstructor).parameters SEPARATOR ", "»
@@ -444,7 +447,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 			return pool.get(fqn)
 		} else {
 			val clazz = classManager.getClassForName(fqn)
-			return createCtClass(clazz as XtendClass)
+			return createCtClass(clazz)
 		}
 	}
 
@@ -460,6 +463,32 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 		val field = clazz.getDeclaredField(fieldName)
 		field.accessible = true
 		field.get(instance)
+	}
+	
+	def protected dispatch create newEnum : pool.makeClass(enm.qualifiedName) createCtClass(XtendEnum enm){
+		//TODO
+	}
+
+	def protected dispatch create newInterface : pool.makeInterface(clazz.qualifiedName) createCtClass(
+		XtendInterface clazz) {
+		createdClasses.put(clazz, newInterface)
+
+		// we take the jvmType because the XtendClass does not contain correct return types
+		val jvmType = jvmAssociations.getInferredType(clazz) //jvmTypes.findDeclaredType(clazz.qualifiedName, clazz) as JvmDeclaredType
+		for (m : jvmType.declaredOperations) {
+			val newMethod = CtNewMethod.abstractMethod(
+				if(m.returnType.type instanceof JvmVoid) CtClass.voidType else m.returnType.qualifiedName.ctClass,
+				m.simpleName, m.parameters.map[parameterType.type.qualifiedName.ctClass],
+				m.exceptions.map[qualifiedName.ctClass], newInterface)
+			newInterface.addMethod(newMethod)
+		}
+
+		for (f : clazz.members.filter(XtendField)) {
+			val newField = new CtField(f.type.qualifiedName.ctClass, f.name, newInterface)
+			if (f.static)
+				newField.modifiers = newField.modifiers.bitwiseOr(Modifier.STATIC)
+			newInterface.addField(newField)
+		}
 	}
 
 	def protected dispatch create newClass : pool.makeClass(clazz.qualifiedName) createCtClass(XtendClass clazz) {
@@ -527,7 +556,8 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 			// first get all relevant methods (no duplicates, just the highest version)
 			for (var c = javaSuperClass; c != null; c = c.superclass) {
 				for (m : c.declaredMethods.filter[
-					!Modifier.isFinal(modifiers) && !Modifier.isStatic(modifiers) && (Modifier.isPublic(modifiers) || Modifier.isProtected(modifiers))]) {
+					!Modifier.isAbstract(modifiers) && !Modifier.isFinal(modifiers) && !Modifier.isStatic(modifiers) &&
+						(Modifier.isPublic(modifiers) || Modifier.isProtected(modifiers))]) {
 					if (!accessibleMethods.containsKey(m.customIdentifier))
 						accessibleMethods.put(m.customIdentifier, m)
 				}
@@ -547,20 +577,30 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 		// we take the jvmType because the XtendClass does not contain correct return types
 		val jvmType = jvmAssociations.getInferredType(clazz) //jvmTypes.findDeclaredType(clazz.qualifiedName, clazz) as JvmDeclaredType
 		for (m : jvmType.declaredOperations) {
-			val body = '''{
-				«IF !(m.returnType.type instanceof JvmVoid)»return «IF m.returnType.primitive»(«ENDIF»(«m.returnType.wrapperTypeName»)«ENDIF»
-				org.nanosite.xtendency.interpreter.SimulatedObjectRepresentationStrategy.executeMethod("«this.
-				toString»", "«clazz.qualifiedName»", "«m.customIdentifier»", «IF m.static»null«ELSE»$0«ENDIF», $args)
+			if (m.abstract) {
+				val newMethod = CtNewMethod.abstractMethod(
+					if(m.returnType.type instanceof JvmVoid) CtClass.voidType else m.returnType.qualifiedName.ctClass,
+					m.simpleName, m.parameters.map[parameterType.type.qualifiedName.ctClass],
+					m.exceptions.map[qualifiedName.ctClass], newClass)
+				newClass.addMethod(newMethod)
+			} else {
+				val body = '''{
+				«IF !(m.returnType.type instanceof JvmVoid)»return «IF m.returnType.primitive»(«ENDIF»(«m.returnType.
+					wrapperTypeName»)«ENDIF»
+				org.nanosite.xtendency.interpreter.SimulatedObjectRepresentationStrategy.executeMethod("«this.toString»", "«clazz.
+					qualifiedName»", "«m.customIdentifier»", «IF m.static»null«ELSE»$0«ENDIF», $args)
 				«IF m.returnType.primitive»).«m.returnType.qualifiedName»Value()«ENDIF»
 				; 
 				}'''
-			val newMethod = new CtMethod(if(m.returnType.type instanceof JvmVoid) CtClass.voidType else m.returnType.qualifiedName.ctClass, m.simpleName, m.parameters.map[parameterType.type.qualifiedName.ctClass], newClass)
-			if (m.static)
-				newMethod.modifiers = newMethod.modifiers.bitwiseOr(Modifier.STATIC)
-			newMethod.exceptionTypes = m.exceptions.map[qualifiedName.ctClass]
-			newMethod.body = body
-			newClass.addMethod(newMethod)
-
+				val newMethod = new CtMethod(
+					if(m.returnType.type instanceof JvmVoid) CtClass.voidType else m.returnType.qualifiedName.ctClass,
+					m.simpleName, m.parameters.map[parameterType.type.qualifiedName.ctClass], newClass)
+				if (m.static)
+					newMethod.modifiers = newMethod.modifiers.bitwiseOr(Modifier.STATIC)
+				newMethod.exceptionTypes = m.exceptions.map[qualifiedName.ctClass]
+				newMethod.body = body
+				newClass.addMethod(newMethod)
+			}
 		}
 
 		for (f : clazz.members.filter(XtendField)) {
@@ -636,23 +676,23 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 		instance.class.getMethod(DELEGATE_METHOD_MARKER + method.customIdentifier,
 			method.parameters.map[classFinder.forName(parameterType.qualifiedName)])
 	}
-	
-	def protected boolean isPrimitive(JvmTypeReference t){
+
+	def protected boolean isPrimitive(JvmTypeReference t) {
 		t.type instanceof JvmPrimitiveType
 	}
-	
-	def protected String getWrapperTypeName(JvmTypeReference t){
-		if (t.primitive){
-			switch (t.qualifiedName){
-				case 'boolean' : 'Boolean'
-				case 'int' : 'Integer'
-				case 'char' : 'Character'
-				case 'long' : 'Long'
-				case 'double' : 'Double'
-				case 'float' : 'Float'
-				case 'byte' : 'Byte'
+
+	def protected String getWrapperTypeName(JvmTypeReference t) {
+		if (t.primitive) {
+			switch (t.qualifiedName) {
+				case 'boolean': 'Boolean'
+				case 'int': 'Integer'
+				case 'char': 'Character'
+				case 'long': 'Long'
+				case 'double': 'Double'
+				case 'float': 'Float'
+				case 'byte': 'Byte'
 			}
-		}else {
+		} else {
 			t.qualifiedName
 		}
 	}

@@ -671,6 +671,78 @@ class BasicTest extends AbstractInterpreterTest {
 		assertEquals("superResult", result.result)
 	}
 	
+	@Test
+	def void T29_Interface(){
+		val source = '''
+		package «PACKAGE»
+		
+		interface IF29 {
+			def String getSomeString()
+		}
+		
+		interface IF29_2 {
+			def IF29 getSomeIF(IF29 in)
+		}
+		
+		class Simple29 implements IF29 {
+			override getSomeString(){
+				"static"
+			}
+		}
+		
+		class C29 implements IF29, IF29_2 {
+			
+			private String input
+			
+			new(String in){
+				this.input = in
+			}
+			
+			override getSomeString(){
+				input
+			}
+			
+
+			
+			static def invoke(){
+				var result = ""
+				var IF29 i = null
+				var IF29 i2 = null
+				if (true){
+					i = new C29("someInput")
+					i2 = new Simple29()
+				}else{
+					i = new Simple29()
+				}
+				val inst = new C29("anInput")
+				val inst2 = new C29("otherInput")
+				result += i.someString
+				result += i2.someString
+				
+				val IF29_2 i3 = inst
+				val i4 = i3.getSomeIF(inst2)
+				result += i4.someString
+				
+			}
+			
+			override getSomeIF(IF29 in) {
+				val toReturn = "changed" + in.someString
+				
+				return new IF29(){
+					override getSomeString(){
+						toReturn
+					}
+				}
+			}
+			
+		}
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTest("C29", "invoke", null, #[])
+		assertEquals("someInputstaticchangedotherInput", result.result)
+	}
+	
 	static def boolean checkInterpreterExecution(){
 		val st = Thread.currentThread.stackTrace
 		st.get(2).methodName != "doExecutionCheck"

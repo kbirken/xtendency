@@ -46,6 +46,9 @@ import org.eclipse.xtext.xbase.interpreter.impl.XbaseInterpreter
 import org.eclipse.xtext.xbase.typesystem.IBatchTypeResolver
 
 import static extension org.nanosite.xtendency.interpreter.InterpreterUtil.*
+import org.eclipse.xtext.common.types.JvmTypeReference
+import java.lang.reflect.InvocationHandler
+import org.eclipse.xtext.xbase.interpreter.impl.DelegatingInvocationHandler
 
 class XtendInterpreter extends XbaseInterpreter {
 
@@ -592,6 +595,15 @@ class XtendInterpreter extends XbaseInterpreter {
 
 	override protected _doEvaluate(XTypeLiteral literal, IEvaluationContext context, CancelIndicator indicator) {
 		objectRep.getClass(literal.type, literal.arrayDimensions.size)
+	}
+	
+	override protected coerceArgumentType(Object value, JvmTypeReference expectedType) {
+		try{
+			super.coerceArgumentType(value, expectedType)
+		}catch(NoClassDefFoundError e){
+			//TODO: i have no idea if this is what we want
+			return value
+		}
 	}
 
 }
