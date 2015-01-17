@@ -62,18 +62,7 @@ import org.eclipse.xtend.core.xtend.XtendEnumLiteral
 import javassist.CtConstructor
 import javassist.CtPrimitiveType
 
-@Data class MethodSignature {
-	String fqn
-	String simpleName
-	String returnType
-	List<String> parameters
-}
-
-@Data class ConstructorSignature {
-	List<String> parameters
-}
-
-class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy {
+class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepresentationStrategy implements IObjectRepresentationStrategy {
 	protected static final String DELEGATE_METHOD_MARKER = "__delegate_"
 
 	protected Map<Pair<Object, XtendFunction>, Map<List<?>, Object>> createCaches = new HashMap
@@ -90,7 +79,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 	protected HidingClassLoader hidingLoader
 	protected ClassLoader definingLoader
 
-	public static Map<String, SimulatedObjectRepresentationStrategy> instances = new HashMap<String, SimulatedObjectRepresentationStrategy>
+	public static Map<String, JavassistClassObjectRepresentationStrategy> instances = new HashMap<String, JavassistClassObjectRepresentationStrategy>
 
 	@Inject
 	IXtendJvmAssociations jvmAssociations
@@ -340,7 +329,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 
 		return '''{
 			super();
-			org.nanosite.xtendency.interpreter.SimulatedObjectRepresentationStrategy.executeConstructor("«this.toString»", $0, "«className»", -1, 
+			org.nanosite.xtendency.interpreter.JavassistClassObjectRepresentationStrategy.executeConstructor("«this.toString»", $0, "«className»", -1, 
 				new java.lang.Object[0]);
 		}'''
 	}
@@ -361,7 +350,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 		«IF superCall != null»
 			«IF (superCall.feature as JvmConstructor).declaringType.qualifiedName == constr.declaringType.qualifiedName»this(«ELSE»super(«ENDIF»
 			«FOR p : (superCall.feature as JvmConstructor).parameters SEPARATOR ", "»
-				(«p.parameterType.qualifiedName»)org.nanosite.xtendency.interpreter.SimulatedObjectRepresentationStrategy.getConstructorArgument("«this.
+				(«p.parameterType.qualifiedName»)org.nanosite.xtendency.interpreter.JavassistClassObjectRepresentationStrategy.getConstructorArgument("«this.
 			toString»", «(superCall.feature as JvmConstructor).parameters.indexOf(p)», «constructorIndex», "«constr.
 			declaringType.qualifiedName»", $args)
 			«ENDFOR»
@@ -370,7 +359,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 			super();
 		«ENDIF»
 		
-			org.nanosite.xtendency.interpreter.SimulatedObjectRepresentationStrategy.executeConstructor("«this.toString»", $0, "«constr.
+			org.nanosite.xtendency.interpreter.JavassistClassObjectRepresentationStrategy.executeConstructor("«this.toString»", $0, "«constr.
 			declaringType.qualifiedName»", «constructorIndex», $args);
 		
 		}'''
@@ -592,7 +581,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 				val body = '''{
 				«IF !(m.returnType.type instanceof JvmVoid)»return «IF m.returnType.primitive»(«ENDIF»(«m.returnType.
 					wrapperTypeName»)«ENDIF»
-				org.nanosite.xtendency.interpreter.SimulatedObjectRepresentationStrategy.executeMethod("«this.toString»", "«clazz.
+				org.nanosite.xtendency.interpreter.JavassistClassObjectRepresentationStrategy.executeMethod("«this.toString»", "«clazz.
 					qualifiedName»", "«m.customIdentifier»", «IF m.static»null«ELSE»$0«ENDIF», $args)
 				«IF m.returnType.primitive»).«m.returnType.qualifiedName»Value()«ENDIF»
 				; 

@@ -37,7 +37,7 @@ import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
 import java.util.IdentityHashMap
 import org.eclipse.xtext.common.types.JvmType
 
-class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy {
+class CompiledJavaObjectRepresentationStrategy implements IObjectRepresentationStrategy {
 	protected ClassFinder classFinder
 	protected JavaReflectAccess javaReflectAccess
 	protected IInterpreterAccess interpreter
