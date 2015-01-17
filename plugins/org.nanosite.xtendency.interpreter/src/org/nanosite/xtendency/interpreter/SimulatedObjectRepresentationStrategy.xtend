@@ -164,7 +164,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 		for (f : clazz.members.filter(XtendField).filter[static]) {
 			var Object value = null
 			if (f.initialValue != null) {
-				value = interpreter.internalEvaluate(f.initialValue, new ChattyEvaluationContext,
+				value = interpreter.evaluate(f.initialValue, new ChattyEvaluationContext,
 					CancelIndicator.NullImpl)
 			}
 			val javaF = javaClass.getDeclaredField(f.name)
@@ -178,7 +178,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 	}
 
 	override init(JavaReflectAccess reflectAccess, ClassFinder classFinder, IClassManager classManager,
-		TypeReferences jvmTypes, XtendInterpreter interpreter) {
+		TypeReferences jvmTypes, IInterpreterAccess interpreter) {
 		super.init(reflectAccess, classFinder, classManager, jvmTypes, interpreter)
 		createCaches.clear
 		instances.put(this.toString, this)
@@ -387,7 +387,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 		basicContext.newValue(QualifiedName.create("this"), instance)
 		for (f : clazz.members.filter(XtendField).filter[initialValue != null]) {
 			val newContext = basicContext.fork
-			val value = sors.interpreter.internalEvaluate(f.initialValue, newContext, CancelIndicator.NullImpl)
+			val value = sors.interpreter.evaluate(f.initialValue, newContext, CancelIndicator.NullImpl)
 			sors.setFieldForSimulatedClass(instance, className, f.name, value)
 		}
 
@@ -410,7 +410,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 			}
 
 			for (expr : todo) {
-				sors.interpreter.internalEvaluate(expr, constructorContext, CancelIndicator.NullImpl)
+				sors.interpreter.evaluate(expr, constructorContext, CancelIndicator.NullImpl)
 			}
 		}
 	}
@@ -430,7 +430,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 			context.newValue(QualifiedName.create(constr.parameters.get(i).name), args.get(i))
 		}
 
-		sors.interpreter.internalEvaluate(superCall.actualArguments.get(argIndex), context, CancelIndicator.NullImpl)
+		sors.interpreter.evaluate(superCall.actualArguments.get(argIndex), context, CancelIndicator.NullImpl)
 	}
 
 	def static Object executeMethod(String sorsId, String className, String methodIdentifier, Object inst,
@@ -488,7 +488,7 @@ class SimulatedObjectRepresentationStrategy extends JavaObjectRepresentationStra
 				newField.modifiers = newField.modifiers.bitwiseOr(Modifier.STATIC)
 			newInterface.addField(newField)
 		}
-	}
+	} 
 
 	def protected dispatch create newClass : pool.makeClass(clazz.qualifiedName) createCtClass(XtendClass clazz) {
 		createdClasses.put(clazz, newClass)

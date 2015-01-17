@@ -40,7 +40,7 @@ import org.eclipse.xtext.common.types.JvmType
 class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy {
 	protected ClassFinder classFinder
 	protected JavaReflectAccess javaReflectAccess
-	protected XtendInterpreter interpreter
+	protected IInterpreterAccess interpreter
 	protected TypeReferences jvmTypes
 
 	protected IClassManager classManager
@@ -136,7 +136,7 @@ class JavaObjectRepresentationStrategy implements IObjectRepresentationStrategy 
 	}
 
 	override init(JavaReflectAccess reflectAccess, ClassFinder classFinder, IClassManager classManager,
-		TypeReferences jvmTypes, XtendInterpreter interpreter) {
+		TypeReferences jvmTypes, IInterpreterAccess interpreter) {
 		this.javaReflectAccess = reflectAccess
 		this.classFinder = classFinder
 		this.interpreter = interpreter

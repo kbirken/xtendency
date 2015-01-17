@@ -172,8 +172,22 @@ class XtendInterpreter extends XbaseInterpreter {
 		classManager.recordClassUse(clazz.qualifiedName)
 
 		currentStackTrace.clear
-
-		objectRep.init(javaReflectAccess, classFinder, classMgr, jvmTypes, this)
+		val slf = this
+		objectRep.init(javaReflectAccess, classFinder, classMgr, jvmTypes, new IInterpreterAccess(){
+			
+			override evaluate(XExpression expression, IEvaluationContext context, CancelIndicator indicator) {
+				slf.internalEvaluate(expression, context, indicator)
+			}
+			
+			override evaluateArgumentExpressions(JvmExecutable executable, List<XExpression> expressions, IEvaluationContext context, CancelIndicator indicator) {
+				slf.evaluateArgumentExpressions(executable, expressions, context, indicator)
+			}
+			
+			override invokeOperation(JvmOperation operation, Object receiver, List<Object> argumentValues, IEvaluationContext context, CancelIndicator indicator) {
+				slf.invokeOperation(operation, receiver, argumentValues, context, indicator)
+			}
+			
+		})
 		objectRep.initializeClass(clazz)
 
 		val context = new ChattyEvaluationContext

@@ -19,7 +19,7 @@ import java.lang.reflect.Method
 
 interface IObjectRepresentationStrategy {
 	
-	def void init(JavaReflectAccess reflectAccess, ClassFinder classFinder, IClassManager classManager, TypeReferences jvmTypes, XtendInterpreter interpreter)
+	def void init(JavaReflectAccess reflectAccess, ClassFinder classFinder, IClassManager classManager, TypeReferences jvmTypes, IInterpreterAccess interpreter)
 	 
 	def Object getFieldValue(Object object, JvmField field)
 	def void setFieldValue(Object object, JvmField field, Object value)
