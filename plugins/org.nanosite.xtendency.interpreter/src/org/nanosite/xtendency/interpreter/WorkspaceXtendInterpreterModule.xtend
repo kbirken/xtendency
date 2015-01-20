@@ -7,6 +7,6 @@ class WorkspaceXtendInterpreterModule extends AbstractGenericModule {
 	
 	def configureSomething(Binder binder){
 		binder.bind(IClassManager).to(WorkspaceClassManager)
-		binder.bind(IObjectRepresentationStrategy).to(CompiledJavaObjectRepresentationStrategy)
+		binder.bind(IObjectRepresentationStrategy).to(JavassistClassObjectRepresentationStrategy)
 	}
 }

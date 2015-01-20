@@ -66,9 +66,6 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 	@Inject
 	protected TracingInterpreter interpreter
 	
-	@Inject
-	protected XbaseInterpreter argumentInterpreter
-	
 	@Inject 
 	protected WorkspaceClassManager classManager
 
@@ -114,7 +111,7 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 		}
 
 		val initContext = new ChattyEvaluationContext
-		val Injector injector = if(ec.injector != null) argumentInterpreter.evaluate(ec.injector).result as Injector else null
+		val Injector injector = if(ec.injector != null) interpreter.evaluate(ec.injector, classManager).result as Injector else null
 
 		//TODO: I forgot that this was supposed to do ?!?
 //		if (injector != null) {
@@ -124,13 +121,13 @@ abstract class AbstractGeneratedView extends ViewPart implements IResourceChange
 //			}
 //		}
 	
-		argumentInterpreter.classLoader = urlClassLoader
+		//argumentInterpreter.classLoader = urlClassLoader
 		
 		arguments = newArrayOfSize(ec.function.parameters.size)
 
 		for (i : ec.getInits()) {
 			try {
-				val result = argumentInterpreter.evaluate(i.getExpr(), initContext.fork, CancelIndicator.NullImpl);
+				val result = interpreter.evaluate(i.getExpr(), initContext.fork, CancelIndicator.NullImpl, classManager);
 				val value = result.getResult();
 				if (result.exception == null) {
 					if (i.param == "this"){

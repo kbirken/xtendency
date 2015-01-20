@@ -72,7 +72,7 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 	protected Map<XtendTypeDeclaration, CtClass> createdClasses = new HashMap
 	protected Map<CtClass, Class<?>> compiledClasses = new HashMap
 
-	protected ClassPool pool = ClassPool.getDefault
+	protected ClassPool pool
 
 	protected Set<XtendTypeDeclaration> initializedClasses = new HashSet
 
@@ -85,10 +85,15 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 	IXtendJvmAssociations jvmAssociations
 
 	override protected getCreateCache(Object receiver, XtendFunction func) {
-		if (receiver instanceof IXtendObjectMarker) {
+		if (createCaches.containsKey(receiver -> func)) {
 			createCaches.get(receiver -> func)
 		} else {
-			super.getCreateCache(receiver, func)
+			try{
+				super.getCreateCache(receiver, func)
+			}catch(NoSuchFieldException e){
+				println ("field was " + func.name + " " + func.declaringType.qualifiedName)
+				throw e
+			}
 		}
 	}
 
@@ -169,7 +174,9 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 	override init(JavaReflectAccess reflectAccess, ClassFinder classFinder, IClassManager classManager,
 		TypeReferences jvmTypes, IInterpreterAccess interpreter) {
 		super.init(reflectAccess, classFinder, classManager, jvmTypes, interpreter)
-		createCaches.clear
+		pool = new ClassPool(null)
+        pool.appendSystemPath
+		//createCaches.clear
 		instances.put(this.toString, this)
 		pool.appendClassPath(new DelegatingLoaderClassPath(classManager.configuredClassLoader))
 		hidingLoader = new HidingClassLoader(classManager.configuredClassLoader)
@@ -178,7 +185,6 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 	}
 
 	override getQualifiedClassName(Object object) {
-
 		//TODO: do something for anonymous classes, should return null
 		//unless that breaks something
 		object.class.canonicalName
@@ -277,13 +283,6 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 	}
 
 	def protected Class<?> getCreatedClass(String fqn) {
-
-		//		try {
-		//			classFinder.forName(fqn)
-		//			throw new IllegalArgumentException
-		//		} catch (ClassNotFoundException e) {
-		//			//good
-		//		}
 		if (classManager.canInterpretClass(fqn)) {
 			val clazz = classManager.getClassForName(fqn)
 			if (createdClasses.containsKey(clazz)) {
@@ -374,14 +373,21 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 		val clazz = sors.classManager.getClassForName(className)
 		val basicContext = new ChattyEvaluationContext
 		basicContext.newValue(QualifiedName.create("this"), instance)
+		
 		for (f : clazz.members.filter(XtendField).filter[initialValue != null]) {
 			val newContext = basicContext.fork
 			val value = sors.interpreter.evaluate(f.initialValue, newContext, CancelIndicator.NullImpl)
-			sors.setFieldForSimulatedClass(instance, className, f.name, value)
+			sors.setFieldForSimulatedClass(instance, className, f.name ?: sors.jvmAssociations.getJvmField(f).simpleName, value)
+		}
+		
+		//create createCaches
+		val createMethods = clazz.members.filter(XtendFunction).filter[createExtensionInfo != null]
+		println("now creating create caches for " + clazz.qualifiedName)
+		for (m : createMethods){
+			sors.createCaches.put(instance -> m, new HashMap)
 		}
 
 		if (constructorIndex > -1) {
-
 			// execute rest constructor
 			val constr = clazz.members.filter(XtendConstructor).toList.get(constructorIndex)
 			val constructorExpression = constr.expression as XBlockExpression
@@ -598,7 +604,7 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 		}
 
 		for (f : clazz.members.filter(XtendField)) {
-			val newField = new CtField(f.type.qualifiedName.ctClass, f.name, newClass)
+			val newField = new CtField(f.type.qualifiedName.ctClass, f.name ?: this.jvmAssociations.getJvmField(f).simpleName, newClass)
 			if (f.static)
 				newField.modifiers = newField.modifiers.bitwiseOr(Modifier.STATIC)
 			newClass.addField(newField)

@@ -32,7 +32,7 @@ import org.eclipse.xtext.validation.SeverityConverter;
 import org.eclipse.xtext.xbase.validation.IssueCodes;
 import org.nanosite.xtendency.interpreter.IClassManager;
 import org.nanosite.xtendency.interpreter.IObjectRepresentationStrategy;
-import org.nanosite.xtendency.interpreter.SimulatedObjectRepresentationStrategy;
+import org.nanosite.xtendency.interpreter.JavassistClassObjectRepresentationStrategy;
 import org.nanosite.xtendency.interpreter.StandaloneClassManager;
 import org.nanosite.xtendency.interpreter.XtendInterpreter;
 
@@ -59,7 +59,7 @@ public class XtendencyTestSetup extends XtendStandaloneSetup {
 		public void configureSomething(Binder binder){
 			binder.bind(IClassManager.class).to(StandaloneClassManager.class);
 			
-			binder.bind(IObjectRepresentationStrategy.class).to(SimulatedObjectRepresentationStrategy.class);
+			binder.bind(IObjectRepresentationStrategy.class).to(JavassistClassObjectRepresentationStrategy.class);
 		}
 		
 		@Override

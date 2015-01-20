@@ -87,13 +87,57 @@ class XtendInterpreter extends XbaseInterpreter {
 		super.classLoader = cl
 		this.usedClassLoader = cl
 	}
-
-	override protected internalEvaluate(XExpression expression, IEvaluationContext context, CancelIndicator indicator) throws EvaluationException {
-
-		//overridden to make method accessible for other classes in this package
-		super.internalEvaluate(expression, context, indicator)
+	
+	@Deprecated
+	override evaluate(XExpression expression) {
+		super.evaluate(expression)
+	}
+	
+	def evaluate(XExpression expression, IClassManager classMgr) {
+		evaluate(expression, new ChattyEvaluationContext, CancelIndicator.NullImpl, classMgr)
+	}
+	
+	def evaluate(XExpression expression, IEvaluationContext context, CancelIndicator indicator, IClassManager classMgr){
+		evaluate(expression, context, indicator, classMgr, [])
 	}
 
+	def protected evaluate(XExpression expression, IEvaluationContext context, CancelIndicator indicator, IClassManager classMgr, ()=>void afterInit){
+		this.classManager = classMgr
+		if (classMgr.configuredClassLoader == null)
+			super.classLoader = classMgr.configureClassLoading(injectedClassLoader)
+		else
+			super.classLoader = classMgr.configuredClassLoader
+		util = new InterpreterUtil(classFinder)
+
+		currentStackTrace.clear
+		val slf = this
+		objectRep.init(javaReflectAccess, classFinder, classMgr, jvmTypes, new IInterpreterAccess(){
+			
+			override evaluate(XExpression expression, IEvaluationContext context, CancelIndicator indicator) {
+				slf.internalEvaluate(expression, context, indicator)
+			}
+			
+			override evaluateArgumentExpressions(JvmExecutable executable, List<XExpression> expressions, IEvaluationContext context, CancelIndicator indicator) {
+				slf.evaluateArgumentExpressions(executable, expressions, context, indicator)
+			}
+			
+			override invokeOperation(JvmOperation operation, Object receiver, List<Object> argumentValues, IEvaluationContext context, CancelIndicator indicator) {
+				slf.invokeOperation(operation, receiver, argumentValues, context, indicator)
+			}
+			
+		})
+		afterInit.apply
+
+		calledCorrectly = true
+		val result = evaluate(expression, context, CancelIndicator.NullImpl)
+		calledCorrectly = false
+		result
+	}
+
+	@Deprecated
+	/**
+	 * Do not use this method, it won't work. It only exists as a leftover from XbaseInterpreter.
+	 */
 	override evaluate(XExpression expression, IEvaluationContext context, CancelIndicator indicator) {
 		if (!calledCorrectly)
 			println(
@@ -150,6 +194,19 @@ class XtendInterpreter extends XbaseInterpreter {
 		}
 	}
 
+	/**
+	 * Use this method to invoke a static method.
+	 */
+	def evaluateMethod(XtendFunction method, IClassManager classMgr, List<? extends Object> arguments){
+		evaluateMethod(method, null, classMgr, arguments)
+	}
+	
+	/**
+	 * It is not recommended to invoke non-static methods on an existing instance, unless
+	 * this instance was returned by a previous invocation of the interpreter. 
+	 * 
+	 * Undefined behavior may occur otherwise.
+	 */
 	def evaluateMethod(XtendFunction method, Object currentInstance, IClassManager classMgr,
 		List<? extends Object> arguments) {
 		if (method.static && currentInstance != null)
@@ -159,36 +216,9 @@ class XtendInterpreter extends XbaseInterpreter {
 		if (method.parameters.size != arguments.size)
 			throw new IllegalArgumentException
 
-		this.classManager = classMgr
-		if (classMgr.configuredClassLoader == null)
-			super.classLoader = classMgr.configureClassLoading(injectedClassLoader)
-		else
-			super.classLoader = classMgr.configuredClassLoader
-		util = new InterpreterUtil(classFinder)
-
 		val clazz = method.declaringType as XtendClass
 
-		//		this.currentType = clazz
 		classManager.recordClassUse(clazz.qualifiedName)
-
-		currentStackTrace.clear
-		val slf = this
-		objectRep.init(javaReflectAccess, classFinder, classMgr, jvmTypes, new IInterpreterAccess(){
-			
-			override evaluate(XExpression expression, IEvaluationContext context, CancelIndicator indicator) {
-				slf.internalEvaluate(expression, context, indicator)
-			}
-			
-			override evaluateArgumentExpressions(JvmExecutable executable, List<XExpression> expressions, IEvaluationContext context, CancelIndicator indicator) {
-				slf.evaluateArgumentExpressions(executable, expressions, context, indicator)
-			}
-			
-			override invokeOperation(JvmOperation operation, Object receiver, List<Object> argumentValues, IEvaluationContext context, CancelIndicator indicator) {
-				slf.invokeOperation(operation, receiver, argumentValues, context, indicator)
-			}
-			
-		})
-		objectRep.initializeClass(clazz)
 
 		val context = new ChattyEvaluationContext
 		if (currentInstance != null)
@@ -197,10 +227,7 @@ class XtendInterpreter extends XbaseInterpreter {
 			context.newValue(QualifiedName.create(method.parameters.get(i).name), arguments.get(i))
 		}
 
-		calledCorrectly = true
-		val result = evaluate(method.expression, context, CancelIndicator.NullImpl)
-		calledCorrectly = false
-		result
+		evaluate(method.expression, context, CancelIndicator.NullImpl, classMgr, [objectRep.initializeClass(clazz)])
 	}
 
 	protected def Object _doEvaluate(RichString rs, IEvaluationContext context, CancelIndicator indicator) {
@@ -238,6 +265,10 @@ class XtendInterpreter extends XbaseInterpreter {
 	override protected evaluateArgumentExpressions(JvmExecutable executable, List<XExpression> expressions,
 		IEvaluationContext context, CancelIndicator indicator) {
 		super.evaluateArgumentExpressions(executable, expressions, context, indicator)
+	}
+	
+	override protected internalEvaluate(XExpression expression, IEvaluationContext context, CancelIndicator indicator) throws EvaluationException {
+		super.internalEvaluate(expression, context, indicator)
 	}
 
 	override protected _doEvaluate(XConstructorCall constructorCall, IEvaluationContext context,
