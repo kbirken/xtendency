@@ -218,7 +218,7 @@ class XtendInterpreter extends XbaseInterpreter {
 
 		val clazz = method.declaringType as XtendClass
 
-		classManager.recordClassUse(clazz.qualifiedName)
+		classMgr.recordClassUse(clazz.qualifiedName)
 
 		val context = new ChattyEvaluationContext
 		if (currentInstance != null)

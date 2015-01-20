@@ -61,6 +61,17 @@ import org.eclipse.xtend.core.xtend.XtendEnum
 import org.eclipse.xtend.core.xtend.XtendEnumLiteral
 import javassist.CtConstructor
 import javassist.CtPrimitiveType
+import javassist.bytecode.AnnotationsAttribute
+import javassist.CtBehavior
+import org.eclipse.xtext.common.types.JvmAnnotationReference
+import org.eclipse.xtext.xbase.annotations.xAnnotations.XAnnotation
+import javassist.bytecode.annotation.Annotation
+import org.eclipse.xtext.common.types.JvmStringAnnotationValue
+import javassist.bytecode.annotation.StringMemberValue
+import org.eclipse.xtext.common.types.JvmIntAnnotationValue
+import javassist.bytecode.annotation.IntegerMemberValue
+import org.eclipse.xtext.common.types.JvmTypeAnnotationValue
+import javassist.bytecode.annotation.ClassMemberValue
 
 class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepresentationStrategy implements IObjectRepresentationStrategy {
 	protected static final String DELEGATE_METHOD_MARKER = "__delegate_"
@@ -382,7 +393,7 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 		
 		//create createCaches
 		val createMethods = clazz.members.filter(XtendFunction).filter[createExtensionInfo != null]
-		println("now creating create caches for " + clazz.qualifiedName)
+
 		for (m : createMethods){
 			sors.createCaches.put(instance -> m, new HashMap)
 		}
@@ -537,6 +548,30 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 			newClass.addConstructor(newConstructor)
 		}
 	}
+	
+	def protected getAnnotation(JvmAnnotationReference a, CtClass c){
+		val constPool = c.classFile.constPool
+		val att = new AnnotationsAttribute(constPool, AnnotationsAttribute.visibleTag)
+		val ann = new Annotation(a.annotation.qualifiedName, constPool)
+		for (av : a.values){
+			switch(av){
+				JvmStringAnnotationValue:{
+					ann.addMemberValue(av.valueName, new StringMemberValue(av.values.head, constPool))
+				}
+				JvmIntAnnotationValue : {
+					ann.addMemberValue(av.valueName, new IntegerMemberValue(av.values.head, constPool))
+				}
+				JvmTypeAnnotationValue : {
+					ann.addMemberValue(av.valueName, new ClassMemberValue(av.values.head.qualifiedName, constPool))
+				}
+				default : {
+					//TODO
+				}
+			}
+		}
+		att.addAnnotation(ann)
+		att
+	}
 
 	def protected createCtClass(XtendTypeDeclaration clazz, CtClass newClass, String superClassName,
 		List<String> interfaceNames) {
@@ -573,6 +608,11 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 				newClass.addMethod(newMethod)
 			}
 		}
+		
+		//annotations for the class
+		for (a : jvmAssociations.getInferredType(clazz).annotations){
+			newClass.classFile.addAttribute(a.getAnnotation(newClass))
+		}
 
 		// we take the jvmType because the XtendClass does not contain correct return types
 		val jvmType = jvmAssociations.getInferredType(clazz) //jvmTypes.findDeclaredType(clazz.qualifiedName, clazz) as JvmDeclaredType
@@ -582,6 +622,9 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 					if(m.returnType.type instanceof JvmVoid) CtClass.voidType else m.returnType.qualifiedName.ctClass,
 					m.simpleName, m.parameters.map[parameterType.type.qualifiedName.ctClass],
 					m.exceptions.map[qualifiedName.ctClass], newClass)
+				for (a : m.annotations){
+					newMethod.methodInfo.addAttribute(a.getAnnotation(newClass))
+				}
 				newClass.addMethod(newMethod)
 			} else {
 				val body = '''{
@@ -599,6 +642,9 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 					newMethod.modifiers = newMethod.modifiers.bitwiseOr(Modifier.STATIC)
 				newMethod.exceptionTypes = m.exceptions.map[qualifiedName.ctClass]
 				newMethod.body = body
+				for (a : m.annotations){
+					newMethod.methodInfo.addAttribute(a.getAnnotation(newClass))
+				}
 				newClass.addMethod(newMethod)
 			}
 		}
@@ -607,6 +653,9 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 			val newField = new CtField(f.type.qualifiedName.ctClass, f.name ?: this.jvmAssociations.getJvmField(f).simpleName, newClass)
 			if (f.static)
 				newField.modifiers = newField.modifiers.bitwiseOr(Modifier.STATIC)
+			for (a : jvmAssociations.getJvmField(f).annotations){
+				newField.fieldInfo.addAttribute(a.getAnnotation(newClass))
+			}
 			newClass.addField(newField)
 		}
 
@@ -638,6 +687,9 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 
 					val newConstructor = CtNewConstructor.make(c.parameters.map[parameterType.qualifiedName.ctClass],
 						c.exceptions.map[qualifiedName.ctClass], body, newClass)
+					for (a : jvmAssociations.getInferredConstructor(c).annotations){
+						newConstructor.methodInfo.addAttribute(a.getAnnotation(newClass))
+					}
 					newClass.addConstructor(newConstructor)
 				}
 			}

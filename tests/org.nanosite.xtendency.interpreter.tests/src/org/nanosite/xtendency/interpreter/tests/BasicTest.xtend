@@ -773,6 +773,25 @@ class BasicTest extends AbstractInterpreterTest {
 		assertEquals("NORTHWEST", result.result)
 	}
 	
+	@Test
+	def void T31_Annotations(){
+		val source = '''
+		package «PACKAGE»
+		
+		@org.nanosite.xtendency.interpreter.tests.input.TestAnnotation
+		class Annotated31 {
+			
+			def static String invoke(){
+				Annotated31.declaredAnnotations.head.annotationType.canonicalName
+			}
+		}
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTest("Annotated31", "invoke", null, #[])
+		assertEquals("org.nanosite.xtendency.interpreter.tests.input.TestAnnotation", result.result)
+	}
+	
 	static def boolean checkInterpreterExecution(){
 		val st = Thread.currentThread.stackTrace
 		st.get(2).methodName != "doExecutionCheck"
