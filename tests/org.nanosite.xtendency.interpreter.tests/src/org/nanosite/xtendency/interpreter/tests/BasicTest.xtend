@@ -792,6 +792,55 @@ class BasicTest extends AbstractInterpreterTest {
 		assertEquals("org.nanosite.xtendency.interpreter.tests.input.TestAnnotation", result.result)
 	}
 	
+	@Test
+	def void T32_SwitchCase(){
+		val source = '''
+		package «PACKAGE»
+		
+		class SuperSwitchTest32 {
+			private String input
+			
+			new(String in){
+				this.input = in
+			}
+			
+			def getInput(){
+				input
+			}
+			
+			
+		}
+		
+		class SwitchTest32 extends SuperSwitchTest32 {
+			
+			new(String in){
+				super(in)
+			}
+			
+			def static invoke(){
+				var result = ""
+				result += getSwitch(new SwitchTest32("branch1"))
+				result += getSwitch(new SwitchTest32("whatever"))
+				result += getSwitch(new SuperSwitchTest32("something"))
+				result += getSwitch("aString")
+				result
+			}
+			
+			def static getSwitch(Object o){
+				switch(o){
+					SuperSwitchTest32 case o.input == "branch1" : "BRANCH1"
+					SwitchTest32 : "BRANCH2"
+					default : "DEFAULT"
+				}
+			}
+		}
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTest("SwitchTest32", "invoke", null, #[])
+		assertEquals("BRANCH1BRANCH2DEFAULTDEFAULT", result.result)
+	}
+	
 	static def boolean checkInterpreterExecution(){
 		val st = Thread.currentThread.stackTrace
 		st.get(2).methodName != "doExecutionCheck"

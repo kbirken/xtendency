@@ -50,8 +50,17 @@ import org.eclipse.xtext.common.types.JvmTypeReference
 import java.lang.reflect.InvocationHandler
 import org.eclipse.xtext.xbase.interpreter.impl.DelegatingInvocationHandler
 import org.eclipse.xtend.core.xtend.XtendEnum
+import org.eclipse.xtext.xbase.XSwitchExpression
+import org.eclipse.xtext.xbase.util.XSwitchExpressions
+import org.eclipse.xtext.xbase.featurecalls.IdentifiableSimpleNameProvider
 
 class XtendInterpreter extends XbaseInterpreter {
+	
+	@Inject
+	private IdentifiableSimpleNameProvider featureNameProvider;
+	
+	@Inject
+	private XSwitchExpressions switchExpressions;
 
 	@Inject
 	protected IBatchTypeResolver typeResolver
@@ -277,6 +286,50 @@ class XtendInterpreter extends XbaseInterpreter {
 		val arguments = evaluateArgumentExpressions(jvmConstructor, constructorCall.getArguments(), context, indicator)
 
 		return objectRep.executeConstructorCall(constructorCall, jvmConstructor, arguments)
+	}
+	
+	// overridden only to prevent direct classFinder access
+	//TODO: maybe instead of overriding this (and possibly others?), build a classFinder that uses the ORS
+	//and reflection-put it into the XbaseInterpreter field
+	//because this sucks
+	protected override  Object _doEvaluate(XSwitchExpression switchExpression, IEvaluationContext context, CancelIndicator indicator) {
+		val forkedContext = context.fork();
+		val conditionResult = internalEvaluate(switchExpression.getSwitch(), forkedContext, indicator);
+		val simpleName = featureNameProvider.getSimpleName(switchExpression.getDeclaredParam());
+		if (simpleName != null) {
+			forkedContext.newValue(QualifiedName.create(simpleName), conditionResult);
+		}
+		for (casePart : switchExpression.getCases()) {
+			var Class<?> expectedType = null;
+			if (casePart.getTypeGuard() != null) {
+				val typeName = casePart.getTypeGuard().getType().getQualifiedName();
+				try {
+					// only change, replaces classFinder.forName(typeName)
+					expectedType = objectRep.getClass(jvmTypes.findDeclaredType(typeName, switchExpression), 0)
+				} catch (ClassNotFoundException e) {
+					throw new EvaluationException(new NoClassDefFoundError(typeName));
+				}
+			}
+			if (expectedType != null && switchExpression.getSwitch() == null)
+				throw new IllegalStateException("Switch without expression or implicit 'this' may not use type guards");
+			if (expectedType == null || expectedType.isInstance(conditionResult)) {
+				if (casePart.getCase() != null) {
+					val casePartResult = internalEvaluate(casePart.getCase(), forkedContext, indicator);
+					if (Boolean.TRUE.equals(casePartResult) || eq(conditionResult, casePartResult)) {
+						val then = switchExpressions.getThen(casePart, switchExpression);
+						return internalEvaluate(then, forkedContext, indicator);
+					}
+				} else {
+					val then = switchExpressions.getThen(casePart, switchExpression);
+					return internalEvaluate(then, forkedContext, indicator);
+				}
+			}
+		}
+		if (switchExpression.getDefault() != null) {
+			val defaultResult = internalEvaluate(switchExpression.getDefault(), forkedContext, indicator);
+			return defaultResult;
+		}
+		return getDefaultObjectValue(typeResolver.resolveTypes(switchExpression).getActualType(switchExpression));
 	}
 
 	protected def XtendConstructor getConstructor(XtendClass clazz, JvmConstructor constr) {
