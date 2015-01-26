@@ -10,6 +10,7 @@ import org.nanosite.xtendency.interpreter.tests.input.BasicCreateMethodClass
 import org.nanosite.xtendency.interpreter.tests.input.CreateMethodArgClass
 import org.nanosite.xtendency.interpreter.tests.input.InstanceAndFields21
 import java.util.AbstractList
+import org.nanosite.xtendency.interpreter.tests.input.IndentationClass9Java
 
 class BasicTest extends AbstractInterpreterTest {
 	
@@ -27,7 +28,7 @@ class BasicTest extends AbstractInterpreterTest {
 	}
 	
 	@Test
-	def void T021_RichStringWithArgument(){
+	def void T02_RichStringWithArgument(){
 		val source = '''
 		def T02_RichStringWithArgument(String arg)"""Before<<arg>>After"""
 		
@@ -43,7 +44,7 @@ class BasicTest extends AbstractInterpreterTest {
 	}
 	
 	@Test
-	def void T031_ForLoop(){
+	def void T03_ForLoop(){
 		val source = '''
 		def static T03_ForLoop(int iterations)"""
 		<<FOR i : 0..<iterations>>
@@ -65,7 +66,7 @@ class BasicTest extends AbstractInterpreterTest {
 	}
 	
 	@Test
-	def void T041_NestedForLoop(){
+	def void T04_NestedForLoop(){
 		val source = '''
 		def T04_NestedForLoop(int is, int js)"""
 		<<FOR i : 0..<is>>
@@ -108,7 +109,13 @@ class BasicTest extends AbstractInterpreterTest {
 		println("resource is " + file.eResource)
 		val resultTrue = file.runTest("SomeClass05", "T05_IfThen", null, #[8])
 		val resultFalse = file.runTest("SomeClass05", "T05_IfThen", null, #[-2])
-		assertEquals("input 8 is greater than 3\n", resultTrue.result)
+		assertEquals(
+'''
+«IF 8 > 3»
+input «8» is greater than 3
+«ENDIF»
+'''.toString, resultTrue.result
+		)
 		assertEquals("", resultFalse.result)
 	}
 	
@@ -131,8 +138,87 @@ class BasicTest extends AbstractInterpreterTest {
 		val file = parser.parse(source)
 		val resultTrue = file.runTest("SomeClass06", "T06_InvokeIfThenElse", null,  #[17])
 		val resultFalse = file.runTest("SomeClass06", "T06_InvokeIfThenElse", null, #[1])
-		assertEquals("input 17 is greater than 3", resultTrue.result)
-		assertEquals("input 1 is not greater than 3", resultFalse.result)
+		assertEquals('''
+		«IF 17 > 3»
+		input «17» is greater than 3
+		«ELSE»
+		input «17» is not greater than 3
+		«ENDIF»
+		''', resultTrue.result)
+		assertEquals('''
+		«IF 1 > 3»
+		input «1» is greater than 3
+		«ELSE»
+		input «1» is not greater than 3
+		«ENDIF»
+		''', resultFalse.result)
+	}
+	
+	@Test
+	def void T07_BasicIndentation(){
+		val source = '''
+		package «PACKAGE»
+		
+		class IndentationClass7 {
+			
+			def someIndentation()"""
+			this is right at the beginning
+						this is three tabs away
+					and two
+				and one
+			"""
+			
+			def static invoke(){
+				new IndentationClass7().someIndentation
+			}
+		}
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTest("IndentationClass7", "invoke", null,  #[])
+		assertEquals(
+			'''
+			this is right at the beginning
+						this is three tabs away
+					and two
+				and one
+			'''.toString, result.result.toString)
+	}
+	
+	@Test
+	def void T08_IndentationForIf(){
+		
+	}
+	
+	@Test
+	def void T09_IndentationAcrossMethods(){
+		val source = '''
+		package «PACKAGE»
+		
+		class IndentationClass9 {
+			
+			def someIndentation()"""
+			this is right at the beginning
+					and two
+					<<moreIndentation>>
+				and one
+			"""
+			
+			def moreIndentation()"""
+			first line
+				second line
+			"""
+			
+			def static invoke(){
+				new IndentationClass9().someIndentation
+			}
+		}
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTest("IndentationClass9", "invoke", null,  #[])
+		assertEquals(
+			IndentationClass9Java.invoke.toString, result.result.toString)
 	}
 	
 	@Test
@@ -183,7 +269,7 @@ class BasicTest extends AbstractInterpreterTest {
 	}
 	
 	@Test
-	def void T081_SimpleDispatch(){
+	def void T13_SimpleDispatch(){
 		val source = '''
 		def static T08_SimpleDispatchInvoker(Iterable<String> strings){
 			T08_SimpleDispatch(strings)
@@ -839,6 +925,31 @@ class BasicTest extends AbstractInterpreterTest {
 		val file = parser.parse(source)
 		val result = file.runTest("SwitchTest32", "invoke", null, #[])
 		assertEquals("BRANCH1BRANCH2DEFAULTDEFAULT", result.result)
+	}
+	
+	@Test
+	def void T33_AnonymousClassLambda(){
+		val source = '''
+		package «PACKAGE»
+		
+		class Invoker33 {
+			
+			public static String state = "BEFORE"
+			
+			def static invoke(){
+				var result = state
+				val t = new Thread([| Invoker33.state = "AFTER"])
+				t.start
+				t.join
+				result += state
+				return result
+			}
+		}
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTest("Invoker33", "invoke", null, #[])
+		assertEquals("BEFOREAFTER", result.result)
 	}
 	
 	static def boolean checkInterpreterExecution(){

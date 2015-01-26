@@ -66,7 +66,7 @@ class XtendInterpreter extends XbaseInterpreter {
 	protected IBatchTypeResolver typeResolver
 
 	@Inject
-	protected RichStringProcessor richStringProcessor
+	protected DefaultRichStringProcessor richStringProcessor
 
 	@Inject
 	protected TypeReferences jvmTypes

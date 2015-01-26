@@ -44,14 +44,20 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 	}
 
 	override acceptSemanticLineBreak(int charCount, RichStringLiteral origin, boolean controlStructureSeen) {
-
-		// TODO: what's charCount?
-		if (! ignoring) {
+		if (! ignoring && controlStructureSeen) {
 			if (origin == null)
 				append("\n")
 			else
 				append(origin, "\n")
 		}
+	}
+	
+	override acceptTemplateText(CharSequence text, RichStringLiteral origin) {
+		super.acceptTemplateText(text, origin)
+	}
+	
+	override acceptTemplateLineBreak(int charCount, RichStringLiteral origin) {
+		super.acceptTemplateLineBreak(charCount, origin)
 	}
 
 	static class IfThenElse {
@@ -164,7 +170,7 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 		val desc = forLoopStack.peek
 		if (desc.isFirst) {
 			if (before != null) {
-				append(before)
+				append(before, "")
 			}
 		} else {
 
@@ -174,7 +180,7 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 
 		if (desc.hasNext) {
 			if ((! desc.isFirst) && separator != null) {
-				append(separator)
+				append(separator, "")
 			}
 
 			// clone context for next iteration and add loop variable
@@ -190,12 +196,12 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 	override acceptEndFor(/* @Nullable */XExpression after, CharSequence indentation) {
 		forLoopStack.pop
 		if (after != null) {
-			append(after)
+			append(after, indentation)
 		}
 	}
 
 	override acceptExpression(XExpression expression, CharSequence indentation) {
-		append(expression)
+		append(expression, indentation)
 	}
 
 	def protected Object eval(XExpression expression) {
@@ -212,9 +218,14 @@ class DefaultRichStringExecutor extends AbstractRichStringPartAcceptor.ForLoopOn
 		sb.append(str)
 	}
 
-	def protected void append(XExpression input) {
+	def protected void append(XExpression input, CharSequence indentation) {
 		val obj = eval(input)
-		sb.append(obj.toString)
+		val toAppend = obj.toString
+		val lines = toAppend.split("\\n")
+		val result = 
+		'''«lines.head»«IF lines.size > 1»«"\n"»«ENDIF»«FOR l : lines.tail SEPARATOR "\n"»«indentation»«l»«ENDFOR»'''
+		
+		sb.append(result)
 	}
 
 	def protected void append(RichStringLiteral lit, String str) {

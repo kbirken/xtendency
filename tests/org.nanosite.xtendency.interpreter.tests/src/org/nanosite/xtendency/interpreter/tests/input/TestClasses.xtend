@@ -137,3 +137,22 @@ class XtendExecutionCheckClass {
 		return org.nanosite.xtendency.interpreter.tests.BasicTest::checkInterpreterExecution()
 	}
 }
+
+class IndentationClass9Java {
+
+	def someIndentation()'''
+		this is right at the beginning
+				and two
+				«moreIndentation»
+			and one
+	'''
+			
+	def moreIndentation()'''
+		first line
+				second line
+	'''
+			
+	def static invoke(){
+		new IndentationClass9Java().someIndentation
+	}
+}
