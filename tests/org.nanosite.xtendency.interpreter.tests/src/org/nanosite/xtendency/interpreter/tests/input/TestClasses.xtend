@@ -138,6 +138,35 @@ class XtendExecutionCheckClass {
 	}
 }
 
+class IndentationClass8Java {
+	def someIndentation()'''
+		some string
+			«IF false»
+				false if
+			«ELSEIF false»
+				false elseif
+			«ELSEIF true»
+				true
+					«FOR i : 0..4»
+						number «i»
+							«IF i % 2 == 0»
+								divisible by two
+							«ELSEIF i % 3 == 0»
+								divisible by three
+							«ELSE»
+								not divisible
+							«ENDIF»
+					«ENDFOR»
+			«ELSE»
+				false else
+			«ENDIF»
+	'''
+	
+	def static invoke(){
+		new IndentationClass8Java().someIndentation
+	}
+}
+
 class IndentationClass9Java {
 
 	def someIndentation()'''
@@ -149,7 +178,7 @@ class IndentationClass9Java {
 			
 	def moreIndentation()'''
 		first line
-				second line
+			second line
 	'''
 			
 	def static invoke(){

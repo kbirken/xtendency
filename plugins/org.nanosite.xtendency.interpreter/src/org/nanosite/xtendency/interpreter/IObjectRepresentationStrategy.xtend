@@ -16,6 +16,8 @@ import org.eclipse.xtext.common.types.JvmOperation
 import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
 import org.eclipse.xtext.common.types.JvmType
 import java.lang.reflect.Method
+import org.nanosite.xtendency.interpreter.IClassManager
+import org.nanosite.xtendency.interpreter.IInterpreterAccess
 
 interface IObjectRepresentationStrategy {
 	

@@ -1,4 +1,4 @@
-package org.nanosite.xtendency.interpreter;
+package org.nanosite.xtendency.interpreter.ors.javassist;
 
 import java.io.InputStream;
 import java.net.URL;

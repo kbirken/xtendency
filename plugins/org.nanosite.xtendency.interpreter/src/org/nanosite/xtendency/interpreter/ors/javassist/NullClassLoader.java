@@ -1,4 +1,4 @@
-package org.nanosite.xtendency.interpreter;
+package org.nanosite.xtendency.interpreter.ors.javassist;
 
 public class NullClassLoader extends ClassLoader {
 	private ClassLoader parent;

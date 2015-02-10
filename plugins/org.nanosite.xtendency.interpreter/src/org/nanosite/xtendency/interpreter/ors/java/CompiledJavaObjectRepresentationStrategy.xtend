@@ -1,4 +1,4 @@
-package org.nanosite.xtendency.interpreter
+package org.nanosite.xtendency.interpreter.ors.java
 
 import com.google.inject.Inject
 import java.lang.reflect.InvocationTargetException
@@ -36,6 +36,9 @@ import java.lang.reflect.Constructor
 import org.eclipse.xtend.core.xtend.XtendTypeDeclaration
 import java.util.IdentityHashMap
 import org.eclipse.xtext.common.types.JvmType
+import org.nanosite.xtendency.interpreter.IObjectRepresentationStrategy
+import org.nanosite.xtendency.interpreter.IInterpreterAccess
+import org.nanosite.xtendency.interpreter.IClassManager
 
 class CompiledJavaObjectRepresentationStrategy implements IObjectRepresentationStrategy {
 	protected ClassFinder classFinder

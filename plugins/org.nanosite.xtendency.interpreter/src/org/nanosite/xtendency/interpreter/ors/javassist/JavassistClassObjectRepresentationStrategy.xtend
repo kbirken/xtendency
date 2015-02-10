@@ -1,4 +1,4 @@
-package org.nanosite.xtendency.interpreter
+package org.nanosite.xtendency.interpreter.ors.javassist
 
 import java.util.HashMap
 import java.util.List
@@ -72,6 +72,11 @@ import org.eclipse.xtext.common.types.JvmIntAnnotationValue
 import javassist.bytecode.annotation.IntegerMemberValue
 import org.eclipse.xtext.common.types.JvmTypeAnnotationValue
 import javassist.bytecode.annotation.ClassMemberValue
+import org.nanosite.xtendency.interpreter.IObjectRepresentationStrategy
+import org.nanosite.xtendency.interpreter.ors.java.CompiledJavaObjectRepresentationStrategy
+import org.nanosite.xtendency.interpreter.ChattyEvaluationContext
+import org.nanosite.xtendency.interpreter.IInterpreterAccess
+import org.nanosite.xtendency.interpreter.IClassManager
 
 class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepresentationStrategy implements IObjectRepresentationStrategy {
 	protected static final String DELEGATE_METHOD_MARKER = "__delegate_"
@@ -339,7 +344,7 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 
 		return '''{
 			super();
-			org.nanosite.xtendency.interpreter.JavassistClassObjectRepresentationStrategy.executeConstructor("«this.toString»", $0, "«className»", -1, 
+			«class.canonicalName».executeConstructor("«this.toString»", $0, "«className»", -1, 
 				new java.lang.Object[0]);
 		}'''
 	}
@@ -360,7 +365,7 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 		«IF superCall != null»
 			«IF (superCall.feature as JvmConstructor).declaringType.qualifiedName == constr.declaringType.qualifiedName»this(«ELSE»super(«ENDIF»
 			«FOR p : (superCall.feature as JvmConstructor).parameters SEPARATOR ", "»
-				(«p.parameterType.qualifiedName»)org.nanosite.xtendency.interpreter.JavassistClassObjectRepresentationStrategy.getConstructorArgument("«this.
+				(«p.parameterType.qualifiedName»)«class.canonicalName».getConstructorArgument("«this.
 			toString»", «(superCall.feature as JvmConstructor).parameters.indexOf(p)», «constructorIndex», "«constr.
 			declaringType.qualifiedName»", $args)
 			«ENDFOR»
@@ -369,7 +374,7 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 			super();
 		«ENDIF»
 		
-			org.nanosite.xtendency.interpreter.JavassistClassObjectRepresentationStrategy.executeConstructor("«this.toString»", $0, "«constr.
+			«class.canonicalName».executeConstructor("«this.toString»", $0, "«constr.
 			declaringType.qualifiedName»", «constructorIndex», $args);
 		
 		}'''
@@ -630,7 +635,7 @@ class JavassistClassObjectRepresentationStrategy extends CompiledJavaObjectRepre
 				val body = '''{
 				«IF !(m.returnType.type instanceof JvmVoid)»return «IF m.returnType.primitive»(«ENDIF»(«m.returnType.
 					wrapperTypeName»)«ENDIF»
-				org.nanosite.xtendency.interpreter.JavassistClassObjectRepresentationStrategy.executeMethod("«this.toString»", "«clazz.
+				«class.canonicalName».executeMethod("«this.toString»", "«clazz.
 					qualifiedName»", "«m.customIdentifier»", «IF m.static»null«ELSE»$0«ENDIF», $args)
 				«IF m.returnType.primitive»).«m.returnType.qualifiedName»Value()«ENDIF»
 				; 

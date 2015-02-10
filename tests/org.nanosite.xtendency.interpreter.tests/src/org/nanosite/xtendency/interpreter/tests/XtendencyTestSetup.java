@@ -31,10 +31,10 @@ import org.eclipse.xtext.validation.ConfigurableIssueCodesProvider;
 import org.eclipse.xtext.validation.SeverityConverter;
 import org.eclipse.xtext.xbase.validation.IssueCodes;
 import org.nanosite.xtendency.interpreter.IClassManager;
-import org.nanosite.xtendency.interpreter.IObjectRepresentationStrategy;
-import org.nanosite.xtendency.interpreter.JavassistClassObjectRepresentationStrategy;
 import org.nanosite.xtendency.interpreter.StandaloneClassManager;
 import org.nanosite.xtendency.interpreter.XtendInterpreter;
+import org.nanosite.xtendency.interpreter.IObjectRepresentationStrategy;
+import org.nanosite.xtendency.interpreter.ors.javassist.JavassistClassObjectRepresentationStrategy;
 
 import com.google.common.io.CharStreams;
 import com.google.inject.Binder;

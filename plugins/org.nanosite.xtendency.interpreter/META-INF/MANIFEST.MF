@@ -14,7 +14,9 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.jdt.launching;bundle-version="3.7.100"
 Bundle-RequiredExecutionEnvironment: JavaSE-1.7
 Bundle-ActivationPolicy: lazy
-Export-Package: org.nanosite.xtendency.interpreter
+Export-Package: org.nanosite.xtendency.interpreter,
+ org.nanosite.xtendency.interpreter.ors.java,
+ org.nanosite.xtendency.interpreter.ors.javassist
 Bundle-ClassPath: .,
  lib/javassist.jar
 

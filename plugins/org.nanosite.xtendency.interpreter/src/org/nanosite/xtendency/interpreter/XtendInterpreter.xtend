@@ -53,6 +53,7 @@ import org.eclipse.xtend.core.xtend.XtendEnum
 import org.eclipse.xtext.xbase.XSwitchExpression
 import org.eclipse.xtext.xbase.util.XSwitchExpressions
 import org.eclipse.xtext.xbase.featurecalls.IdentifiableSimpleNameProvider
+import org.nanosite.xtendency.interpreter.IObjectRepresentationStrategy
 
 class XtendInterpreter extends XbaseInterpreter {
 	
@@ -64,9 +65,6 @@ class XtendInterpreter extends XbaseInterpreter {
 
 	@Inject
 	protected IBatchTypeResolver typeResolver
-
-	@Inject
-	protected DefaultRichStringProcessor richStringProcessor
 
 	@Inject
 	protected TypeReferences jvmTypes
@@ -238,17 +236,35 @@ class XtendInterpreter extends XbaseInterpreter {
 
 		evaluate(method.expression, context, CancelIndicator.NullImpl, classMgr, [objectRep.initializeClass(clazz)])
 	}
-
-	protected def Object _doEvaluate(RichString rs, IEvaluationContext context, CancelIndicator indicator) {
-		val helper = createRichStringExecutor(context, indicator)
-
-		richStringProcessor.process(rs, helper, indentationHandler.get)
-
-		helper.result
+	
+	protected def getRichStringEvaluator(RichString rs){
+		val lines = new RichStringLineCreator().getLines(rs)
+		
+		for (l : lines.key){
+			println(l)
+		}
+		
+		val slf = this
+		
+		return new RichStringEvaluator(new IInterpreterAccess(){
+			
+			override evaluate(XExpression expression, IEvaluationContext context, CancelIndicator indicator) {
+				slf.internalEvaluate(expression, context, indicator)
+			}
+			override evaluateArgumentExpressions(JvmExecutable executable, List<XExpression> expressions, IEvaluationContext context, CancelIndicator indicator) {
+				throw new UnsupportedOperationException
+			}
+			override invokeOperation(JvmOperation operation, Object receiver, List<Object> argumentValues, IEvaluationContext context, CancelIndicator indicator) {
+				throw new UnsupportedOperationException
+			}
+			
+		}, lines.key, lines.value)
 	}
 
-	protected def IRichStringExecutor createRichStringExecutor(IEvaluationContext context, CancelIndicator indicator) {
-		new DefaultRichStringExecutor(this, context, indicator)
+	protected def Object _doEvaluate(RichString rs, IEvaluationContext context, CancelIndicator indicator) {
+		val result = rs.richStringEvaluator.evaluateLines(context)
+
+		result
 	}
 
 	protected override Object doEvaluate(XExpression expression, IEvaluationContext context, CancelIndicator indicator) {

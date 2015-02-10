@@ -11,6 +11,7 @@ import org.nanosite.xtendency.interpreter.tests.input.CreateMethodArgClass
 import org.nanosite.xtendency.interpreter.tests.input.InstanceAndFields21
 import java.util.AbstractList
 import org.nanosite.xtendency.interpreter.tests.input.IndentationClass9Java
+import org.nanosite.xtendency.interpreter.tests.input.IndentationClass8Java
 
 class BasicTest extends AbstractInterpreterTest {
 	
@@ -24,7 +25,7 @@ class BasicTest extends AbstractInterpreterTest {
 		
 		val result = file.runTest("SomeClass01", "T01_SimpleRichString", null, #[])
 		
-		assertEquals("HelloWorld", result.result.toString)
+		assertEquals('''HelloWorld'''.toString, result.result.toString)
 	}
 	
 	@Test
@@ -40,7 +41,7 @@ class BasicTest extends AbstractInterpreterTest {
 		val file = parser.parse(source)
 		
 		val result = file.runTest("SomeClass02", "T02_InvokeRichStringWithArgument", null, #["Between"])
-		assertEquals("BeforeBetweenAfter", result.result.toString)
+		assertEquals('''Before«"Between"»After'''.toString, result.result.toString)
 	}
 	
 	@Test
@@ -57,11 +58,11 @@ class BasicTest extends AbstractInterpreterTest {
 		val result = file.runTest("SomeClass03", "T03_ForLoop", null, #[4])
 		
 		assertEquals(
-	 	'''0
-1
-2
-3
-'''.toString, result.result.toString)
+	 	'''
+		«FOR i : 0..<4»
+		«i»
+		«ENDFOR»
+		'''.toString, result.result.toString)
 		
 	}
 	
@@ -70,9 +71,9 @@ class BasicTest extends AbstractInterpreterTest {
 		val source = '''
 		def T04_NestedForLoop(int is, int js)"""
 		<<FOR i : 0..<is>>
-		<<FOR j : 0..<js>>
-		i is <<i>> and j is <<j>>
-		<<ENDFOR>>
+			<<FOR j : 0..<js>>
+				i is <<i>> and j is <<j>>
+			<<ENDFOR>>
 		<<ENDFOR>>
 		"""
 		
@@ -85,15 +86,13 @@ class BasicTest extends AbstractInterpreterTest {
 		
 		val result = file.runTest("SomeClass04", "T04_InvokeNestedForLoop", null, #[2, 3])
 		
-		assertEquals(
-			'''
-			i is 0 and j is 0
-			i is 0 and j is 1
-			i is 0 and j is 2
-			i is 1 and j is 0
-			i is 1 and j is 1
-			i is 1 and j is 2
-			'''.toString, result.result.toString)
+		assertEquals('''
+		«FOR i : 0..<2»
+			«FOR j : 0..<3»
+					i is «i» and j is «j»
+			«ENDFOR»
+		«ENDFOR»
+		'''.toString, result.result.toString)
 	}
 	
 	@Test
@@ -101,20 +100,18 @@ class BasicTest extends AbstractInterpreterTest {
 		val source = '''
 		def static T05_IfThen(int input)"""
 		<<IF input > 3>>
-		input <<input>> is greater than 3
+			input <<input>> is greater than 3
 		<<ENDIF>>"""
 		'''.toXtendClass("SomeClass05")
 		
 		val file = parser.parse(source)
-		println("resource is " + file.eResource)
 		val resultTrue = file.runTest("SomeClass05", "T05_IfThen", null, #[8])
 		val resultFalse = file.runTest("SomeClass05", "T05_IfThen", null, #[-2])
-		assertEquals(
-'''
-«IF 8 > 3»
-input «8» is greater than 3
-«ENDIF»
-'''.toString, resultTrue.result
+		assertEquals('''
+		«IF 8 > 3»
+			input «8» is greater than 3
+		«ENDIF»
+		'''.toString, resultTrue.result
 		)
 		assertEquals("", resultFalse.result)
 	}
@@ -124,9 +121,9 @@ input «8» is greater than 3
 		val source = '''
 		def T06_IfThenElse(int input)"""
 		<<IF input > 3>>
-		input <<input>> is greater than 3
+			input <<input>> is greater than 3
 		<<ELSE>>
-		input <<input>> is not greater than 3
+				input <<input>> is not greater than 3
 		<<ENDIF>>"""
 		
 		def static T06_InvokeIfThenElse(int input) {
@@ -140,18 +137,18 @@ input «8» is greater than 3
 		val resultFalse = file.runTest("SomeClass06", "T06_InvokeIfThenElse", null, #[1])
 		assertEquals('''
 		«IF 17 > 3»
-		input «17» is greater than 3
+			input «17» is greater than 3
 		«ELSE»
-		input «17» is not greater than 3
+				input «17» is not greater than 3
 		«ENDIF»
-		''', resultTrue.result)
+		'''.toString, resultTrue.result)
 		assertEquals('''
 		«IF 1 > 3»
-		input «1» is greater than 3
+			input «1» is greater than 3
 		«ELSE»
-		input «1» is not greater than 3
+				input «1» is not greater than 3
 		«ENDIF»
-		''', resultFalse.result)
+		'''.toString, resultFalse.result)
 	}
 	
 	@Test
@@ -161,12 +158,12 @@ input «8» is greater than 3
 		
 		class IndentationClass7 {
 			
-			def someIndentation()"""
+		def someIndentation()"""
 			this is right at the beginning
 						this is three tabs away
 					and two
 				and one
-			"""
+		"""
 			
 			def static invoke(){
 				new IndentationClass7().someIndentation
@@ -178,16 +175,52 @@ input «8» is greater than 3
 		val result = file.runTest("IndentationClass7", "invoke", null,  #[])
 		assertEquals(
 			'''
-			this is right at the beginning
-						this is three tabs away
-					and two
-				and one
+				this is right at the beginning
+							this is three tabs away
+						and two
+					and one
 			'''.toString, result.result.toString)
 	}
 	
 	@Test
 	def void T08_IndentationForIf(){
+		val source = '''
+		package «PACKAGE»
 		
+		class IndentationClass8 {
+			def someIndentation()"""
+				some string
+					<<IF false>>
+						false if
+					<<ELSEIF false>>
+						false elseif
+					<<ELSEIF true>>
+						true
+							<<FOR i : 0..4>>
+								number <<i>>
+									<<IF i % 2 == 0>>
+										divisible by two
+									<<ELSEIF i % 3 == 0>>
+										divisible by three
+									<<ELSE>>
+										not divisible
+									<<ENDIF>>
+							<<ENDFOR>>
+					<<ELSE>>
+						false else
+					<<ENDIF>>
+			"""
+			
+			def static invoke(){
+				new IndentationClass8().someIndentation
+			}
+		}
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTest("IndentationClass8", "invoke", null,  #[])
+		assertEquals(
+			IndentationClass8Java.invoke.toString, result.result.toString)
 	}
 	
 	@Test
@@ -197,17 +230,17 @@ input «8» is greater than 3
 		
 		class IndentationClass9 {
 			
-			def someIndentation()"""
+		def someIndentation()"""
 			this is right at the beginning
 					and two
 					<<moreIndentation>>
 				and one
-			"""
+		"""
 			
-			def moreIndentation()"""
+		def moreIndentation()"""
 			first line
 				second line
-			"""
+		"""
 			
 			def static invoke(){
 				new IndentationClass9().someIndentation
