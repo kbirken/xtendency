@@ -156,3 +156,16 @@ class IndentationClass9Java {
 		new IndentationClass9Java().someIndentation
 	}
 }
+
+interface IData35 {
+	def String getName()
+	def int getIndex()
+}
+
+interface IFactory35 {
+	
+	def IData35 getNewData()
+	
+	def void setSomething(String in)
+	
+}

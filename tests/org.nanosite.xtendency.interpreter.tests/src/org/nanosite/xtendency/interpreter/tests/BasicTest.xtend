@@ -11,6 +11,7 @@ import org.nanosite.xtendency.interpreter.tests.input.CreateMethodArgClass
 import org.nanosite.xtendency.interpreter.tests.input.InstanceAndFields21
 import java.util.AbstractList
 import org.nanosite.xtendency.interpreter.tests.input.IndentationClass9Java
+import org.nanosite.xtendency.interpreter.tests.input.IFactory35
 
 class BasicTest extends AbstractInterpreterTest {
 	
@@ -950,6 +951,66 @@ input «8» is greater than 3
 		val file = parser.parse(source)
 		val result = file.runTest("Invoker33", "invoke", null, #[])
 		assertEquals("BEFOREAFTER", result.result)
+	}
+	
+	@Test
+	def void T35_ObjectUseOutsideInterpreter(){
+		val source = '''
+		package «PACKAGE»
+		
+		class DataClass35 implements IData35 {
+			private static final String PREFIX = "something"
+			private int index
+			private String inString
+			
+			new(String in, int index){
+				this.inString = in
+				this.index = index
+			}
+			
+			override getIndex(){
+				index * 2
+			}
+			
+			override getName(){
+				PREFIX + inString
+			}
+		}
+		
+		class FactoryClass35 implements IFactory35 {
+			
+			private int index = 0
+			
+			private String inString
+			
+			new(){
+			}
+			
+			override setSomething(String in){
+				this.inString = in
+			}
+			
+			override getNewData(){
+				new DataClass35(inString + "TEST", index++)
+			}
+			
+			static def getFactory(){
+				new FactoryClass35()
+			}
+		}
+		'''.unescape
+		
+		val file = parser.parse(source)
+		val result = file.runTest("FactoryClass35", "getFactory", null, #[])
+		val factory = result.result as IFactory35
+		factory.something = "INSTRING"
+		val data1 = factory.newData
+		val data2 = factory.newData
+		assertEquals(0, data1.index)
+		assertEquals(2, data2.index)
+		assertEquals("somethingINSTRINGTEST", data1.name)
+		assertEquals("FactoryClass35", factory.class.simpleName)
+		assertTrue(data1.class.isInstance(data2))
 	}
 	
 	static def boolean checkInterpreterExecution(){
